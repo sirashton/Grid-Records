@@ -1,6 +1,7 @@
 import { loadData, metricSeries, FUELS, BATTERY_SOURCES, lastComplete, generationTotal } from './data.js';
 import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './records.js';
-import { lineChart, heatmap, fmtDate, fmtDateTime } from './charts.js';
+import { lineChart, heatmap, barChart, fmtDate, fmtDateTime } from './charts.js';
+import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
 
 const PRESETS = {
   fossil: { label: 'Fossil fuels', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
@@ -139,9 +140,8 @@ function setupControls() {
   let resize;
   addEventListener('resize', () => {
     clearTimeout(resize);
-    resize = setTimeout(update, 150);
+    resize = setTimeout(() => { renderStory(); update(); }, 150);
   });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', update);
 }
 
 function syncControls() {
@@ -205,9 +205,9 @@ function renderTable(summaries) {
     const cur = c ? `<td class="big">${formatDuration(c.end - c.start)}<span class="live">Live</span><span class="when">since ${fmtDateTime(slotTime(c.start, data.startMs))}</span></td>` : '<td>—</td>';
     const lastYear = qualifyingSince(s.threshold, lastSlot - yearSlots);
     return `<tr><td><span class="swatch" style="background:${thresholdColor(i, n)}"></span><b>${thresholdLabel(s.threshold).replace('<', '&lt;')}</b></td>${longest}${cur}
-      <td>${pct(s.totalSlots, nonMissing())}<span class="when">${pct(lastYear, yearSlots)} in the past year</span></td><td>${s.count.toLocaleString('en-GB')}</td></tr>`;
+      <td class="big">${pct(lastYear, yearSlots)}<span class="when">${pct(s.totalSlots, nonMissing())} of all time</span></td><td>${s.count.toLocaleString('en-GB')}</td></tr>`;
   });
-  $('records-table').innerHTML = `<thead><tr><th>Threshold</th><th>Longest spell</th><th>Current spell</th><th>Share of all time</th><th>Spells</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+  $('records-table').innerHTML = `<thead><tr><th>Threshold</th><th>Longest spell</th><th>Current spell</th><th>Share of past 365 days</th><th>Spells</th></tr></thead><tbody>${rows.join('')}</tbody>`;
 }
 
 // Half hours since a slot that meet the threshold.
@@ -375,11 +375,79 @@ function renderNow() {
     ['Wind', gw(c.wind[i] + c.wind_emb[i]), `${((((c.wind[i] + c.wind_emb[i]) / total) * 100)).toFixed(0)}%`],
     ['Solar', gw(c.solar[i]), `${((c.solar[i] / total) * 100).toFixed(0)}%`],
     ['Nuclear', gw(c.nuclear[i]), `${((c.nuclear[i] / total) * 100).toFixed(0)}%`],
-    ['Batteries', Number.isFinite(bat) ? `${bat >= 0 ? '+' : '−'}${Math.abs(bat / 1000).toFixed(2)} GW` : '—', Number.isFinite(bat) ? (bat >= 0 ? 'net discharging (planned)' : 'net charging (planned)') : 'no data yet'],
+    ['Batteries', Number.isFinite(bat) ? `${bat >= 0 ? '+' : '−'}${Math.abs(bat / 1000).toFixed(1)} GW` : '—', Number.isFinite(bat) ? (bat >= 0 ? 'net discharging (planned)' : 'net charging (planned)') : 'no data yet'],
     ['Fossil under 5 GW', fossilRecord.current ? formatDuration(fossilRecord.current.end - fossilRecord.current.start) : 'Not now', fossilRecord.current ? 'current spell' : `record ${formatDuration(fossilRecord.record.end - fossilRecord.record.start)}`],
   ];
-  $('now').innerHTML = tiles.map(([l, v, s]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
+  const tints = ['--fossil', '--lowcarbon', '--f-wind', '--f-solar', '--f-nuclear', '--f-nuclear', '--accent-green'];
+  $('now').innerHTML = tiles.map(([l, v, s], k) => `<div class="tile" style="--tint: color-mix(in srgb, var(${tints[k]}) 18%, #fff)"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
   $('updated').textContent = `Generation data to ${fmtDateTime(slotTime(i, data.startMs))} (UK time). Updated every 30 minutes.`;
+}
+
+let story = null;
+function renderStory() {
+  if (!story) {
+    story = {
+      mix: yearlyMix(data),
+      cross: monthlyShares(data, { fossil: FOSSIL, low: LOW_CARBON }),
+      hours: yearlyHoursBelow(data, FOSSIL, [10000, 5000]),
+      facts: facts(data),
+    };
+  }
+  const f = story.facts;
+  const at = (i) => fmtDate(slotTime(i, data.startMs));
+  const days = Math.floor((data.length - 1 - f.lastCoal) / 48);
+  const cards = [
+    ['--f-coal', '🪨', 'Coal free', `${days.toLocaleString('en-GB')} days`, `since the last coal station closed on ${at(f.lastCoal)}`],
+    ['--lowcarbon', '🌍', 'Greenest half hour', `${f.green.v.toFixed(1)}%`, `low carbon on ${at(f.green.i)}`],
+    ['--f-wind', '🌬️', 'Windiest half hour', `${(f.wind.v / 1000).toFixed(1)} GW`, `from wind on ${at(f.wind.i)}`],
+    ['--f-solar', '☀️', 'Sunniest half hour', `${(f.solar.v / 1000).toFixed(1)} GW`, `from solar on ${at(f.solar.i)}`],
+    ['--fossil', '🔥', 'Least fossil fuel', `${(f.fossil.v / 1000).toFixed(2)} GW`, `gas and coal on ${at(f.fossil.i)}`],
+  ];
+  $('facts').innerHTML = cards.map(([c, e, l, v, sub]) => `<div class="fact" style="--tint: color-mix(in srgb, var(${c}) 20%, #fff)"><div class="label"><span aria-hidden="true">${e}</span> ${l}</div><div class="big">${v}</div><div class="sub">${sub}</div></div>`).join('');
+
+  const pc = (v) => `${v.toFixed(v < 10 ? 1 : 0)}%`;
+  const mix = story.mix;
+  const stacks = MIX.map((m) => ({ name: m.label, color: css(`--f-${m.key}`), values: mix.map((r) => r.shares[m.key]) }));
+  barChart($('story-mix'), {
+    cats: mix.map((r) => (r.partial ? `${r.year}*` : String(r.year))),
+    stacks,
+    yMax: 100,
+    yFormat: pc,
+    yTickFormat: (v) => `${v}%`,
+    faded: (ci) => mix[ci].partial,
+    tooltip: (ci) => `<strong>${mix[ci].year}${mix[ci].partial ? ' (so far)' : ''}</strong>${[...stacks].reverse().map((s) => `<div><i style="background:${s.color}"></i>${s.name}: <b>${pc(s.values[ci])}</b></div>`).join('')}`,
+  });
+  $('story-mix-legend').innerHTML = [...stacks].reverse().map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
+
+  const cross = [
+    { name: 'Low carbon', color: css('--lowcarbon'), points: story.cross.low },
+    { name: 'Fossil fuels', color: css('--fossil'), points: story.cross.fossil },
+  ];
+  lineChart($('story-cross'), {
+    series: cross,
+    yMin: 0,
+    yFormat: pc,
+    yTickFormat: (v) => `${v}%`,
+    tooltip: (t, vals) => `<strong>${new Date(t).toLocaleString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? pc(v.value) : '—'}</b></div>`).join('')}`,
+  });
+  $('story-cross-legend').innerHTML = cross.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
+
+  const hrs = story.hours;
+  const thisYear = new Date(slotTime(data.length - 1, data.startMs)).getUTCFullYear();
+  const hourStacks = [
+    { name: 'Under 5 GW', color: css('--lowcarbon'), values: hrs.map((r) => r.hours[1]) },
+    { name: '5 to 10 GW', color: css('--h2'), values: hrs.map((r) => r.hours[0] - r.hours[1]) },
+  ];
+  const fmtH = (v) => `${Math.round(v).toLocaleString('en-GB')} h`;
+  barChart($('story-hours'), {
+    cats: hrs.map((r) => String(r.year)),
+    stacks: hourStacks,
+    yFormat: fmtH,
+    yTickFormat: (v) => v.toLocaleString('en-GB'),
+    faded: (ci) => hrs[ci].year === thisYear,
+    tooltip: (ci) => `<strong>${hrs[ci].year}${hrs[ci].year === thisYear ? ' (so far)' : ''}</strong><div>Under 10 GW: <b>${fmtH(hrs[ci].hours[0])}</b> (${((hrs[ci].hours[0] / 8760) * 100).toFixed(0)}% of the year)</div><div>Under 5 GW: <b>${fmtH(hrs[ci].hours[1])}</b></div>`,
+  });
+  $('story-hours-legend').innerHTML = hourStacks.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('') + '<span>hours per year</span>';
 }
 
 async function main() {
@@ -394,6 +462,7 @@ async function main() {
     return;
   }
   renderNow();
+  renderStory();
   update();
 }
 

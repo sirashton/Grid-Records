@@ -229,3 +229,57 @@ export function heatmap(host, opts) {
     t.textContent = c;
   });
 }
+
+/**
+ * Stacked (or single) bar chart over categories.
+ * @param {{cats: string[], stacks: {name: string, color: string, values: number[]}[], yMax?: number, yFormat: (v)=>string, yTickFormat?: (v)=>string, tooltip: (ci: number)=>string, height?: number, faded?: (ci: number)=>boolean}} opts
+ */
+export function barChart(host, opts) {
+  host.innerHTML = '';
+  const width = Math.max(320, host.clientWidth || 640);
+  const height = opts.height ?? 280;
+  const m = { top: 12, right: 8, bottom: 28, left: 48 };
+  const w = width - m.left - m.right;
+  const h = height - m.top - m.bottom;
+  const totals = opts.cats.map((_, ci) => opts.stacks.reduce((a, s) => a + (s.values[ci] || 0), 0));
+  const yMax = opts.yMax ?? Math.max(1, ...totals) * 1.05;
+  const y = (v) => m.top + h - (v / yMax) * h;
+  const svg = el('svg', { width, height, viewBox: `0 0 ${width} ${height}`, role: 'img', class: 'chart' }, host);
+  const grid = el('g', { class: 'grid' }, svg);
+  for (const v of niceTicks(0, yMax, 4)) {
+    if (v > yMax) continue;
+    el('line', { x1: m.left, x2: m.left + w, y1: y(v), y2: y(v) }, grid);
+    const t = el('text', { x: m.left - 8, y: y(v) + 4, 'text-anchor': 'end', class: 'tick' }, grid);
+    t.textContent = (opts.yTickFormat ?? opts.yFormat)(v);
+  }
+  const bw = w / opts.cats.length;
+  const pad = Math.min(6, bw * 0.18);
+  const tip = document.createElement('div');
+  tip.className = 'tooltip';
+  tip.hidden = true;
+  host.appendChild(tip);
+  const every = Math.ceil(opts.cats.length / Math.max(1, Math.floor(w / 40)));
+  opts.cats.forEach((c, ci) => {
+    const g = el('g', { class: 'bar', opacity: opts.faded?.(ci) ? 0.55 : 1 }, svg);
+    let acc = 0;
+    for (const s of opts.stacks) {
+      const v = s.values[ci] || 0;
+      if (v <= 0) continue;
+      el('rect', { x: m.left + ci * bw + pad / 2, y: y(acc + v), width: Math.max(1, bw - pad), height: Math.max(0, y(acc) - y(acc + v)), fill: s.color }, g);
+      acc += v;
+    }
+    el('rect', { x: m.left + ci * bw, y: m.top, width: bw, height: h, fill: 'transparent' }, g)
+      .addEventListener('pointerenter', () => {
+        tip.innerHTML = opts.tooltip(ci);
+        tip.hidden = false;
+        const cx = m.left + ci * bw + bw / 2;
+        tip.style.left = `${cx + 12 + tip.offsetWidth < width ? cx + 12 : Math.max(0, cx - 12 - tip.offsetWidth)}px`;
+        tip.style.top = `${m.top}px`;
+      });
+    g.addEventListener('pointerleave', () => { tip.hidden = true; });
+    if (ci % every === 0) {
+      const t = el('text', { x: m.left + ci * bw + bw / 2, y: height - 8, 'text-anchor': 'middle', class: 'tick' }, svg);
+      t.textContent = c;
+    }
+  });
+}
