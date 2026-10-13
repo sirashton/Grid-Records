@@ -1,0 +1,15 @@
+name: CI
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm test
+      # A short pipeline run against the real feeds, to catch upstream changes.
+      - run: node pipeline/build.mjs --budget-minutes 2 --backfill-from "$(date -u -d '-10 days' +%F)"
+      - run: ls -la site/data && node -e "const m=require('./site/data/meta.json'); console.log(m.length, m.columns, m.battery.coverage, m.battery.units.length)"
