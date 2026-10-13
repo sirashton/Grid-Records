@@ -143,6 +143,20 @@
         <p class="hint">Elexon has no battery fuel type, so units are matched by name (battery, BESS, storage) or by National Grid's naming convention for battery units, where the unit both imports and exports. Batteries connected to local networks outside the Balancing Mechanism are not visible in any of these feeds.</p>
         <div class="table-scroll"><table class="units" id="units"></table></div>
       </details>
+
+      <h3>Where battery power comes from</h3>
+      <p class="hint">Batteries don't make electricity, they move it in time, so their output is only as clean as what charged them.
+        This treats the whole fleet as one store that empties first in, first out: energy taken in each half hour is tagged with that half hour's grid mix, and comes back out in the order it went in. It's an experiment, so it only runs when you ask.</p>
+      <button type="button" class="edit-btn" id="origin-toggle" aria-expanded="false" aria-controls="origin-body">Work it out</button>
+      <div id="origin-body" hidden>
+      <div class="facts" id="origin-facts"></div>
+      <div class="chart-host" id="origin-chart"></div>
+      <div class="legend" id="origin-legend"></div>
+      <details>
+        <summary>How the attribution works, and its limits</summary>
+        <ul class="hint" id="origin-notes"></ul>
+      </details>
+      </div>
     </section>
 
     <section class="card about" aria-labelledby="about-h">
