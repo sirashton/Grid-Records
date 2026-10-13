@@ -205,7 +205,7 @@ function renderTable(summaries) {
     const cur = c ? `<td class="big">${formatDuration(c.end - c.start)}<span class="live">Live</span><span class="when">since ${fmtDateTime(slotTime(c.start, data.startMs))}</span></td>` : '<td>—</td>';
     const lastYear = qualifyingSince(s.threshold, lastSlot - yearSlots);
     return `<tr><td><span class="swatch" style="background:${thresholdColor(i, n)}"></span><b>${thresholdLabel(s.threshold).replace('<', '&lt;')}</b></td>${longest}${cur}
-      <td class="big">${pct(lastYear, yearSlots)}<span class="when">${pct(s.totalSlots, nonMissing())} of all time</span></td><td>${s.count.toLocaleString('en-GB')}</td></tr>`;
+      <td class="big">${pct(lastYear, yearSlots)}</td><td>${s.count.toLocaleString('en-GB')}</td></tr>`;
   });
   $('records-table').innerHTML = `<thead><tr><th>Threshold</th><th>Longest spell</th><th>Current spell</th><th>Share of past 365 days</th><th>Spells</th></tr></thead><tbody>${rows.join('')}</tbody>`;
 }
@@ -221,14 +221,6 @@ function qualifyingSince(threshold, fromSlot) {
   return n;
 }
 
-let nonMissingCache = null;
-function nonMissing() {
-  if (nonMissingCache?.v === seriesCache.key) return nonMissingCache.n;
-  let n = 0;
-  for (const v of currentSeries()) if (!Number.isNaN(v)) n++;
-  nonMissingCache = { v: seriesCache.key, n };
-  return n;
-}
 const pct = (a, b) => `${b ? ((a / b) * 100).toFixed(a / b < 0.01 ? 2 : 1) : 0}%`;
 
 function renderProgression(summaries) {
@@ -279,7 +271,9 @@ function renderByYear(summaries) {
     format: formatDuration,
     title: (r, c, v) => {
       const sp = values[summaries.findIndex((s) => thresholdLabel(s.threshold) === r)][years.indexOf(Number(c))];
-      return sp ? `<strong>${c}, ${r}</strong><div>Longest: <b>${formatDuration(v)}</b></div><div>${fmtDateTime(slotTime(sp.start, data.startMs))} to ${fmtDateTime(slotTime(sp.end, data.startMs))}</div>`
+      const whole = sp?.spell;
+      const clipped = whole && (whole.start !== sp.start || whole.end !== sp.end);
+      return sp ? `<strong>${c}, ${r}</strong><div>Longest in ${c}: <b>${formatDuration(v)}</b></div><div>${fmtDateTime(slotTime(sp.start, data.startMs))} to ${fmtDateTime(slotTime(sp.end, data.startMs))}</div>${clipped ? `<div class="when">Part of a ${formatDuration(whole.end - whole.start)} spell from ${fmtDate(slotTime(whole.start, data.startMs))} to ${fmtDate(slotTime(whole.end, data.startMs))}</div>` : ''}`
         : `<strong>${c}, ${r}</strong><div>No spells</div>`;
     },
   });

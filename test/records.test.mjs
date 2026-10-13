@@ -49,6 +49,18 @@ test('summarise reports the record, the current spell and per-year bests', () =>
   assert.deepEqual(s.perYear.map(([y]) => y), [2024, 2025]);
 });
 
+test('per-year bests clip a spell that crosses New Year to each year', () => {
+  // 23:00 on 31 Dec: slots 0-1 are in 2024, slots 2-5 in 2025, all below.
+  const startMs = Date.UTC(2024, 11, 31, 23, 0);
+  const s = summarise([1, 1, 1, 1, 1, 1], 2, 'below', { startMs });
+  const [[y24, a], [y25, b]] = s.perYear;
+  assert.equal(y24, 2024);
+  assert.deepEqual([a.start, a.end], [0, 2]);
+  assert.equal(y25, 2025);
+  assert.deepEqual([b.start, b.end], [2, 6]);
+  assert.deepEqual(b.spell, { start: 0, end: 6 });
+});
+
 test('formats durations', () => {
   assert.equal(formatDuration(1), '30 minutes');
   assert.equal(formatDuration(3), '1 hour 30 minutes');
