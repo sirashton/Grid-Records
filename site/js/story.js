@@ -37,23 +37,44 @@ function sumAt(columns, names, i) {
   return v;
 }
 
-/** Share of generation by fuel for each calendar year (UTC). */
-export function yearlyMix(data) {
-  const { columns, length, startMs } = data;
+const YEAR_SLOTS = 365 * 48;
+
+/**
+ * Groups slots into complete calendar years (UTC), plus a final bucket for
+ * the past 365 days, which smooths out the seasons in a year still under way.
+ * Calls add(row, i) for each slot in each bucket and returns the rows in order.
+ */
+function byYear(data, init, add) {
+  const { length, startMs } = data;
+  const endMs = startMs + length * 18e5;
+  const complete = (y) => Date.UTC(y, 0, 1) >= startMs && Date.UTC(y + 1, 0, 1) <= endMs;
   const years = new Map();
+  const rolling = { year: 'past365', ...init() };
+  const rollFrom = length - YEAR_SLOTS;
   for (let i = 0; i < length; i++) {
-    const total = sumAt(columns, ALL, i);
-    if (!(total > 0)) continue;
     const y = yearOf(startMs + i * 18e5);
-    let row = years.get(y);
-    if (!row) years.set(y, (row = { year: y, total: 0, slots: 0, sums: Object.fromEntries(MIX.map((f) => [f.key, 0])) }));
-    row.total += total;
-    row.slots++;
-    for (const f of MIX) row.sums[f.key] += sumAt(columns, f.columns, i);
+    if (complete(y)) {
+      let row = years.get(y);
+      if (!row) years.set(y, (row = { year: y, ...init() }));
+      add(row, i);
+    }
+    if (i >= rollFrom) add(rolling, i);
   }
-  return [...years.values()].map((r) => ({
+  const rows = [...years.values()];
+  if (length >= YEAR_SLOTS) rows.push(rolling);
+  return rows;
+}
+
+/** Share of generation by fuel for each complete year and the past 365 days. */
+export function yearlyMix(data) {
+  const { columns } = data;
+  return byYear(data, () => ({ total: 0, sums: Object.fromEntries(MIX.map((f) => [f.key, 0])) }), (row, i) => {
+    const total = sumAt(columns, ALL, i);
+    if (!(total > 0)) return;
+    row.total += total;
+    for (const f of MIX) row.sums[f.key] += sumAt(columns, f.columns, i);
+  }).map((r) => ({
     year: r.year,
-    partial: r.slots < 17000,
     shares: Object.fromEntries(MIX.map((f) => [f.key, (r.sums[f.key] / r.total) * 100])),
   }));
 }
@@ -85,19 +106,14 @@ export function monthlyShares(data, groups) {
   return out;
 }
 
-/** Hours in each year with the group below each threshold (MW). */
+/** Hours in each complete year and the past 365 days with the group below each threshold (MW). */
 export function yearlyHoursBelow(data, names, thresholdsMw) {
-  const { columns, length, startMs } = data;
-  const years = new Map();
-  for (let i = 0; i < length; i++) {
+  const { columns } = data;
+  return byYear(data, () => ({ hours: thresholdsMw.map(() => 0) }), (row, i) => {
     const v = sumAt(columns, names, i);
-    if (Number.isNaN(v)) continue;
-    const y = yearOf(startMs + i * 18e5);
-    let row = years.get(y);
-    if (!row) years.set(y, (row = { year: y, hours: thresholdsMw.map(() => 0) }));
+    if (Number.isNaN(v)) return;
     thresholdsMw.forEach((t, k) => { if (v < t) row.hours[k] += 0.5; });
-  }
-  return [...years.values()];
+  });
 }
 
 /** Highlights for the fact cards. */

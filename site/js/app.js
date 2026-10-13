@@ -401,17 +401,19 @@ function renderStory() {
   ];
   $('facts').innerHTML = cards.map(([c, e, l, v, sub]) => `<div class="fact" style="--tint: color-mix(in srgb, var(${c}) 20%, #fff)"><div class="label"><span aria-hidden="true">${e}</span> ${l}</div><div class="big">${v}</div><div class="sub">${sub}</div></div>`).join('');
 
+  const yearLabel = (y) => (y === 'past365' ? '365d' : String(y));
+  const yearTitle = (y) => (y === 'past365' ? 'Past 365 days' : String(y));
   const pc = (v) => `${v.toFixed(v < 10 ? 1 : 0)}%`;
   const mix = story.mix;
   const stacks = MIX.map((m) => ({ name: m.label, color: css(`--f-${m.key}`), values: mix.map((r) => r.shares[m.key]) }));
   barChart($('story-mix'), {
-    cats: mix.map((r) => (r.partial ? `${r.year}*` : String(r.year))),
+    cats: mix.map((r) => yearLabel(r.year)),
     stacks,
     yMax: 100,
     yFormat: pc,
     yTickFormat: (v) => `${v}%`,
-    faded: (ci) => mix[ci].partial,
-    tooltip: (ci) => `<strong>${mix[ci].year}${mix[ci].partial ? ' (so far)' : ''}</strong>${[...stacks].reverse().map((s) => `<div><i style="background:${s.color}"></i>${s.name}: <b>${pc(s.values[ci])}</b></div>`).join('')}`,
+    highlight: (ci) => mix[ci].year === 'past365',
+    tooltip: (ci) => `<strong>${yearTitle(mix[ci].year)}</strong>${[...stacks].reverse().map((s) => `<div><i style="background:${s.color}"></i>${s.name}: <b>${pc(s.values[ci])}</b></div>`).join('')}`,
   });
   $('story-mix-legend').innerHTML = [...stacks].reverse().map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
 
@@ -429,19 +431,18 @@ function renderStory() {
   $('story-cross-legend').innerHTML = cross.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
 
   const hrs = story.hours;
-  const thisYear = new Date(slotTime(data.length - 1, data.startMs)).getUTCFullYear();
   const hourStacks = [
     { name: 'Under 5 GW', color: css('--lowcarbon'), values: hrs.map((r) => r.hours[1]) },
     { name: '5 to 10 GW', color: css('--h2'), values: hrs.map((r) => r.hours[0] - r.hours[1]) },
   ];
   const fmtH = (v) => `${Math.round(v).toLocaleString('en-GB')} h`;
   barChart($('story-hours'), {
-    cats: hrs.map((r) => String(r.year)),
+    cats: hrs.map((r) => yearLabel(r.year)),
     stacks: hourStacks,
     yFormat: fmtH,
     yTickFormat: (v) => v.toLocaleString('en-GB'),
-    faded: (ci) => hrs[ci].year === thisYear,
-    tooltip: (ci) => `<strong>${hrs[ci].year}${hrs[ci].year === thisYear ? ' (so far)' : ''}</strong><div>Under 10 GW: <b>${fmtH(hrs[ci].hours[0])}</b> (${((hrs[ci].hours[0] / 8760) * 100).toFixed(0)}% of the year)</div><div>Under 5 GW: <b>${fmtH(hrs[ci].hours[1])}</b></div>`,
+    highlight: (ci) => hrs[ci].year === 'past365',
+    tooltip: (ci) => `<strong>${yearTitle(hrs[ci].year)}</strong><div>Under 10 GW: <b>${fmtH(hrs[ci].hours[0])}</b> (${((hrs[ci].hours[0] / 8760) * 100).toFixed(0)}% of the year)</div><div>Under 5 GW: <b>${fmtH(hrs[ci].hours[1])}</b></div>`,
   });
   $('story-hours-legend').innerHTML = hourStacks.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('') + '<span>hours per year</span>';
 }

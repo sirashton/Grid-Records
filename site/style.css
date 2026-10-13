@@ -175,6 +175,7 @@ td.big { font-weight: 800; font-size: 1.0625rem; white-space: nowrap; }
 .chart .zero { stroke: var(--ink-3); stroke-width: 1; }
 .chart .crosshair { stroke: var(--ink-3); stroke-width: 1; }
 .chart .marker { stroke: var(--card); stroke-width: 2; }
+.chart .bar .outline { stroke: var(--line); stroke-width: 2.5; rx: 3; }
 .chart .cell:hover { stroke: var(--ink); stroke-width: 2; }
 .tooltip {
   position: absolute; pointer-events: none; z-index: 2;
