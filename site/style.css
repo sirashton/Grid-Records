@@ -156,6 +156,15 @@ td:first-child { white-space: nowrap; }
 td.big { font-weight: 800; font-size: 1.0625rem; white-space: nowrap; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--line); }
 .live { display: inline-block; font-size: 0.6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; background: var(--accent-green); color: #fff; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
+.live.record-live {
+  color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 0.75rem;
+  border: 2px solid var(--line); border-radius: 999px; padding: 1px 8px;
+  background: linear-gradient(110deg, #ffd25e 0%, #ffd25e 40%, #fff3c4 50%, #ffd25e 60%, #ffd25e 100%);
+  background-size: 250% 100%; animation: shimmer 2.4s linear infinite;
+  box-shadow: 2px 2px 0 0 var(--line);
+}
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) { .live.record-live { animation: none; } }
 .units td, .units th { font-size: 0.8125rem; padding: 4px 8px; }
 
 .chart-host { position: relative; width: 100%; min-height: 60px; }

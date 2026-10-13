@@ -200,9 +200,10 @@ function renderTable(summaries) {
   const yearSlots = (365 * 24 * 60) / STEP_MINUTES;
   const rows = summaries.map((s, i) => {
     const r = s.record;
-    const longest = r ? `<td class="big">${formatDuration(r.end - r.start)}<span class="when">${fmtDateTime(slotTime(r.start, data.startMs))} to ${fmtDateTime(slotTime(r.end, data.startMs))}</span></td>` : '<td>Never</td>';
     const c = s.current;
-    const cur = c ? `<td class="big">${formatDuration(c.end - c.start)}<span class="live">Live</span><span class="when">since ${fmtDateTime(slotTime(c.start, data.startMs))}</span></td>` : '<td>—</td>';
+    const ongoing = r && c && c.start === r.start;
+    const longest = r ? `<td class="big">${formatDuration(r.end - r.start)}<span class="when">${fmtDateTime(slotTime(r.start, data.startMs))} ${ongoing ? 'and still going' : `to ${fmtDateTime(slotTime(r.end, data.startMs))}`}</span></td>` : '<td>Never</td>';
+    const cur = c ? `<td class="big">${formatDuration(c.end - c.start)}${ongoing ? '<span class="live record-live" title="The current spell is the longest ever">🏆 Record, live</span>' : '<span class="live">Live</span>'}<span class="when">since ${fmtDateTime(slotTime(c.start, data.startMs))}</span></td>` : '<td>—</td>';
     const lastYear = qualifyingSince(s.threshold, lastSlot - yearSlots);
     return `<tr><td><span class="swatch" style="background:${thresholdColor(i, n)}"></span><b>${thresholdLabel(s.threshold).replace('<', '&lt;')}</b></td>${longest}${cur}
       <td class="big">${pct(lastYear, yearSlots)}</td><td>${s.count.toLocaleString('en-GB')}</td></tr>`;
