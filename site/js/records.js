@@ -94,10 +94,19 @@ export function summarise(values, threshold, mode, opts) {
   const current = last && last.end === lastValid + 1 ? last : null;
   const totalSlots = spells.reduce((n, s) => n + spellLength(s), 0);
   const perYear = new Map();
+  // A spell that crosses New Year counts in each year it touches, clipped to
+  // that year, so no year can show more than a year. `spell` keeps the whole run.
+  const slotsPerMs = 1 / (STEP_MINUTES * 60000);
   for (const s of spells) {
-    const y = new Date(slotTime(s.end - 1, opts.startMs)).getUTCFullYear();
-    const prev = perYear.get(y);
-    if (!prev || spellLength(s) > spellLength(prev)) perYear.set(y, s);
+    const y0 = new Date(slotTime(s.start, opts.startMs)).getUTCFullYear();
+    const y1 = new Date(slotTime(s.end - 1, opts.startMs)).getUTCFullYear();
+    for (let y = y0; y <= y1; y++) {
+      const start = Math.max(s.start, Math.ceil((Date.UTC(y, 0, 1) - opts.startMs) * slotsPerMs));
+      const end = Math.min(s.end, Math.ceil((Date.UTC(y + 1, 0, 1) - opts.startMs) * slotsPerMs));
+      const part = { start, end, spell: s };
+      const prev = perYear.get(y);
+      if (!prev || end - start > prev.end - prev.start) perYear.set(y, part);
+    }
   }
   return {
     threshold,
