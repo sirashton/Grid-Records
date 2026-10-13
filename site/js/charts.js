@@ -232,7 +232,7 @@ export function heatmap(host, opts) {
 
 /**
  * Stacked (or single) bar chart over categories.
- * @param {{cats: string[], stacks: {name: string, color: string, values: number[]}[], yMax?: number, yFormat: (v)=>string, yTickFormat?: (v)=>string, tooltip: (ci: number)=>string, height?: number, highlight?: (ci: number)=>boolean}} opts
+ * @param {{cats: string[], stacks: {name: string, color: string, values: number[]}[], yMax?: number, yFormat: (v)=>string, yTickFormat?: (v)=>string, tooltip: (ci: number)=>string, height?: number, highlight?: (ci: number)=>boolean, badge?: (ci: number)=>string|null}} opts
  */
 export function barChart(host, opts) {
   host.innerHTML = '';
@@ -267,6 +267,11 @@ export function barChart(host, opts) {
       if (v <= 0) continue;
       el('rect', { x: m.left + ci * bw + pad / 2, y: y(acc + v), width: Math.max(1, bw - pad), height: Math.max(0, y(acc) - y(acc + v)), fill: s.color }, g);
       acc += v;
+    }
+    const badge = opts.badge?.(ci);
+    if (badge) {
+      const b = el('text', { x: m.left + ci * bw + bw / 2, y: y(acc) - 6, 'text-anchor': 'middle', class: 'badge' }, g);
+      b.textContent = badge;
     }
     if (opts.highlight?.(ci)) el('rect', { x: m.left + ci * bw + pad / 2 - 2, y: y(acc) - 2, width: Math.max(1, bw - pad) + 4, height: y(0) - y(acc) + 4, fill: 'none', class: 'outline' }, g);
     el('rect', { x: m.left + ci * bw, y: m.top, width: bw, height: h, fill: 'transparent' }, g)

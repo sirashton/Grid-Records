@@ -385,7 +385,7 @@ function renderStory() {
     story = {
       mix: yearlyMix(data),
       cross: monthlyShares(data, { fossil: FOSSIL, low: LOW_CARBON }),
-      hours: yearlyHoursBelow(data, FOSSIL, [10000, 5000]),
+      hours: yearlyHoursBelow(data, FOSSIL, [10000, 5000, 1000]),
       facts: facts(data),
     };
   }
@@ -432,7 +432,8 @@ function renderStory() {
 
   const hrs = story.hours;
   const hourStacks = [
-    { name: 'Under 5 GW', color: css('--lowcarbon'), values: hrs.map((r) => r.hours[1]) },
+    { name: 'Under 1 GW', color: css('--h7'), values: hrs.map((r) => r.hours[2]) },
+    { name: '1 to 5 GW', color: css('--lowcarbon'), values: hrs.map((r) => r.hours[1] - r.hours[2]) },
     { name: '5 to 10 GW', color: css('--h2'), values: hrs.map((r) => r.hours[0] - r.hours[1]) },
   ];
   const fmtH = (v) => `${Math.round(v).toLocaleString('en-GB')} h`;
@@ -442,9 +443,11 @@ function renderStory() {
     yFormat: fmtH,
     yTickFormat: (v) => v.toLocaleString('en-GB'),
     highlight: (ci) => hrs[ci].year === 'past365',
-    tooltip: (ci) => `<strong>${yearTitle(hrs[ci].year)}</strong><div>Under 10 GW: <b>${fmtH(hrs[ci].hours[0])}</b> (${((hrs[ci].hours[0] / 8760) * 100).toFixed(0)}% of the year)</div><div>Under 5 GW: <b>${fmtH(hrs[ci].hours[1])}</b></div>`,
+    // Under 1 GW is too rare to see as a bar yet, so flag it with a star.
+    badge: (ci) => (hrs[ci].hours[2] > 0 ? `★ ${fmtH(hrs[ci].hours[2])}` : null),
+    tooltip: (ci) => `<strong>${yearTitle(hrs[ci].year)}</strong><div>Under 10 GW: <b>${fmtH(hrs[ci].hours[0])}</b> (${((hrs[ci].hours[0] / 8760) * 100).toFixed(0)}% of the year)</div><div>Under 5 GW: <b>${fmtH(hrs[ci].hours[1])}</b></div><div>Under 1 GW: <b>${fmtH(hrs[ci].hours[2])}</b></div>`,
   });
-  $('story-hours-legend').innerHTML = hourStacks.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('') + '<span>hours per year</span>';
+  $('story-hours-legend').innerHTML = hourStacks.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('') + '<span>★ hours under 1 GW</span>';
 }
 
 async function main() {
