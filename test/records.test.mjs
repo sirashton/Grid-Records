@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findSpells, recordProgression, summarise, formatDuration, logLadder, topSpells } from '../site/js/records.js';
+import { meets, findSpells, recordProgression, summarise, formatDuration, logLadder, topSpells } from '../site/js/records.js';
 
 const N = NaN;
 
@@ -59,4 +59,11 @@ test('formats durations', () => {
 test('builds a 1-2-5 ladder', () => {
   assert.deepEqual(logLadder(0.5, 10), [0.5, 1, 2, 5, 10]);
   assert.deepEqual(logLadder(1, 50), [1, 2, 5, 10, 20, 50]);
+});
+
+test('a zero threshold means none at all', () => {
+  assert.equal(meets(0, 0, 'below'), true);
+  assert.equal(meets(0.001, 0, 'below'), false);
+  assert.equal(meets(0.1, 0.1, 'below'), false);
+  assert.deepEqual(findSpells([0.2, 0, 0, 0.1], 0, 'below'), [{ start: 1, end: 3 }]);
 });

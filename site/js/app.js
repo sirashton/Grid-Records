@@ -1,12 +1,12 @@
 import { loadData, metricSeries, FUELS, BATTERY_SOURCES, lastComplete, generationTotal } from './data.js';
-import { summarise, formatDuration, slotTime, STEP_MINUTES } from './records.js';
+import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './records.js';
 import { lineChart, heatmap, fmtDate, fmtDateTime } from './charts.js';
 
 const PRESETS = {
-  fossil: { label: 'Fossil fuels (gas and coal)', members: ['gas', 'coal'], mode: 'below', gw: [10, 5, 2, 1, 0.5], pct: [30, 20, 10, 5, 2] },
+  fossil: { label: 'Fossil fuels (gas and coal)', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
   lowcarbon: { label: 'Low carbon (wind, solar, nuclear, battery)', members: ['wind', 'solar', 'nuclear', 'battery'], mode: 'above', gw: [15, 20, 25, 30, 35], pct: [50, 70, 80, 90, 95], editable: true },
-  gas: { label: 'Gas', members: ['gas'], mode: 'below', gw: [10, 5, 2, 1], pct: [30, 20, 10, 5] },
-  coal: { label: 'Coal', members: ['coal'], mode: 'below', gw: [5, 1, 0.5, 0.1, 0.01], pct: [20, 10, 5, 1, 0.1] },
+  gas: { label: 'Gas', members: ['gas'], mode: 'below', gw: [10, 5, 2, 1, 0.5, 0.1, 0], pct: [30, 20, 10, 5, 1, 0] },
+  coal: { label: 'Coal', members: ['coal'], mode: 'below', gw: [5, 1, 0.5, 0.1, 0], pct: [20, 10, 5, 1, 0] },
   wind: { label: 'Wind', members: ['wind'], mode: 'above', gw: [5, 10, 15, 20, 25], pct: [25, 40, 50, 60, 70] },
   solar: { label: 'Solar', members: ['solar'], mode: 'above', gw: [2, 5, 10, 15], pct: [10, 20, 30, 40] },
   nuclear: { label: 'Nuclear', members: ['nuclear'], mode: 'below', gw: [6, 5, 4, 3], pct: [20, 15, 10, 5] },
@@ -14,7 +14,8 @@ const PRESETS = {
   custom: { label: 'Custom group…', members: ['wind', 'solar', 'nuclear', 'hydro', 'battery'], mode: 'above', gw: [10, 20, 30], pct: [50, 75, 90], editable: true },
 };
 
-const RAMP = ['--r1', '--r2', '--r3', '--r4', '--r5', '--r6'];
+const RAMP = ['--r1', '--r2', '--r3', '--r4', '--r5', '--r6', '--r7', '--r8'];
+const MAX_THRESHOLDS = RAMP.length;
 const HEAT = ['--h1', '--h2', '--h3', '--h4', '--h5', '--h6', '--h7'];
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const $ = (id) => document.getElementById(id);
@@ -52,19 +53,21 @@ function writeHash() {
 }
 
 function parseThresholds(s) {
-  return [...new Set(s.split(/[\s,]+/).map(Number).filter((v) => Number.isFinite(v) && v > 0))].slice(0, 6);
+  return [...new Set(s.split(/[\s,]+/).filter(Boolean).map(Number).filter((v) => Number.isFinite(v) && v >= 0))].slice(0, MAX_THRESHOLDS);
 }
 
 const unitLabel = () => (state.unit === 'gw' ? 'GW' : '%');
 const fmtValue = (v) => (state.unit === 'gw' ? `${+v.toFixed(v < 1 ? 2 : 1)} GW` : `${+v.toFixed(v < 1 ? 1 : 0)}%`);
 const fmtThreshold = (v) => (state.unit === 'gw' ? `${v} GW` : `${v}%`);
+/** Row label for a threshold, e.g. "< 2 GW", "≥ 20 GW" or "Zero". */
+const thresholdLabel = (t) => (state.mode === 'below' ? (t === 0 ? 'Zero' : `< ${fmtThreshold(t)}`) : `≥ ${fmtThreshold(t)}`);
 
 /** Thresholds ordered from easiest to hardest, so darker colours mean harder. */
 function orderedThresholds() {
   const t = [...state.thresholds].sort((a, b) => a - b);
   return state.mode === 'below' ? t.reverse() : t;
 }
-const thresholdColor = (i, n) => css(RAMP[Math.round((i / Math.max(1, n - 1)) * (RAMP.length - 1)) + (n < 4 ? 1 : 0)] ?? RAMP.at(-1));
+const thresholdColor = (i, n) => css(RAMP[n <= 1 ? 3 : Math.round((i * (RAMP.length - 1)) / (n - 1))]);
 
 function setupControls() {
   const preset = $('preset');
@@ -180,7 +183,7 @@ function renderTable(summaries) {
     const c = s.current;
     const cur = c ? `<td class="big">${formatDuration(c.end - c.start)}<span class="live">Live</span><span class="when">since ${fmtDateTime(slotTime(c.start, data.startMs))}</span></td>` : '<td>—</td>';
     const lastYear = qualifyingSince(s.threshold, lastSlot - yearSlots);
-    return `<tr><td><span class="swatch" style="background:${thresholdColor(i, n)}"></span><b>${state.mode === 'below' ? '&lt;' : '≥'} ${fmtThreshold(s.threshold)}</b></td>${longest}${cur}
+    return `<tr><td><span class="swatch" style="background:${thresholdColor(i, n)}"></span><b>${thresholdLabel(s.threshold).replace('<', '&lt;')}</b></td>${longest}${cur}
       <td>${pct(s.totalSlots, nonMissing())}<span class="when">${pct(lastYear, yearSlots)} in the past year</span></td><td>${s.count.toLocaleString('en-GB')}</td></tr>`;
   });
   $('records-table').innerHTML = `<thead><tr><th>Threshold</th><th>Longest spell</th><th>Current spell</th><th>Share of all time</th><th>Spells</th></tr></thead><tbody>${rows.join('')}</tbody>`;
@@ -192,7 +195,7 @@ function qualifyingSince(threshold, fromSlot) {
   let n = 0;
   for (let i = Math.max(0, Math.floor(fromSlot)); i < values.length; i++) {
     const v = values[i];
-    if (!Number.isNaN(v) && (state.mode === 'below' ? v < threshold : v >= threshold)) n++;
+    if (!Number.isNaN(v) && meets(v, threshold, state.mode)) n++;
   }
   return n;
 }
@@ -211,7 +214,7 @@ function renderProgression(summaries) {
   const n = summaries.length;
   const now = slotTime(data.length, data.startMs);
   const series = summaries.map((s, i) => ({
-    name: `${state.mode === 'below' ? '<' : '≥'} ${fmtThreshold(s.threshold)}`,
+    name: thresholdLabel(s.threshold),
     color: thresholdColor(i, n),
     step: true,
     extendTo: now,
@@ -227,8 +230,8 @@ function renderProgression(summaries) {
     xMax: now,
     stepLookup: true,
     yFormat: (h) => formatDuration(Math.round((h * 60) / STEP_MINUTES)),
-    yTickFormat: (h) => (h >= 48 ? `${+(h / 24).toFixed(0)}d` : `${h}h`),
-    yTicks: [0.5, 1, 3, 6, 12, 24, 72, 168, 720, 2160, 8760],
+    yTickFormat: (h) => (h >= 8760 ? `${+(h / 8760).toFixed(0)}y` : h >= 48 ? `${+(h / 24).toFixed(0)}d` : `${h}h`),
+    yTicks: [0.5, 1, 3, 6, 12, 24, 72, 168, 720, 2160, 8760, 17520, 43800],
     tooltip: (t, vals) => `<strong>Records as of ${fmtDate(t)}</strong>${vals.map((v) => {
       const rec = v.point ? v.series.records[v.series.points.indexOf(v.point)] : null;
       return `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${rec ? formatDuration(rec.end - rec.start) : 'none yet'}</b>${rec ? ` <span class="when">set ${fmtDate(slotTime(rec.start, data.startMs))}</span>` : ''}</div>`;
@@ -247,14 +250,14 @@ function renderByYear(summaries) {
     return years.map((y) => map.get(y) ?? null);
   });
   heatmap($('by-year'), {
-    rows: summaries.map((s) => `${state.mode === 'below' ? '<' : '≥'} ${fmtThreshold(s.threshold)}`),
+    rows: summaries.map((s) => thresholdLabel(s.threshold)),
     cols: years.map(String),
     values: values.map((r) => r.map((sp) => (sp ? sp.end - sp.start : null))),
     ramp: HEAT.map(css),
     log: true,
     format: formatDuration,
     title: (r, c, v) => {
-      const sp = values[summaries.findIndex((s) => `${state.mode === 'below' ? '<' : '≥'} ${fmtThreshold(s.threshold)}` === r)][years.indexOf(Number(c))];
+      const sp = values[summaries.findIndex((s) => thresholdLabel(s.threshold) === r)][years.indexOf(Number(c))];
       return sp ? `<strong>${c}, ${r}</strong><div>Longest: <b>${formatDuration(v)}</b></div><div>${fmtDateTime(slotTime(sp.start, data.startMs))} to ${fmtDateTime(slotTime(sp.end, data.startMs))}</div>`
         : `<strong>${c}, ${r}</strong><div>No spells</div>`;
     },
