@@ -14,7 +14,7 @@ Live at https://grid.gathered.consulting once DNS and GitHub Pages are set up.
 - `site/` is a static page with no build step. The browser decodes the data and computes every record itself
   (`site/js/records.js`), so any combination of fuels and thresholds works without a server.
 - Battery history is kept between runs in the Actions cache, falling back to the published site, and is
-  backfilled to 2020 a little each run (about three minutes of fetching), so a fresh start takes a few days to fill in.
+  backfilled to 2017 a little each run (about three minutes of fetching), so a fresh start takes a few days to fill in.
 
 ## Data sources
 
