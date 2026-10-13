@@ -188,7 +188,7 @@ function logTicks(lo, hi) {
 
 /**
  * Heatmap: rows x columns of values, coloured on a sequential ramp.
- * @param {{rows: string[], cols: string[], values: (number|null)[][], ramp: string[], format: (v)=>string, title: (r, c, v)=>string, max?: number, log?: boolean}} opts
+ * @param {{rows: string[], cols: string[], values: (number|null)[][], ramp?: string[], color?: (v)=>string, format: (v)=>string, title: (r, c, v)=>string, max?: number, log?: boolean}} opts
  */
 export function heatmap(host, opts) {
   host.innerHTML = '';
@@ -210,7 +210,7 @@ export function heatmap(host, opts) {
     lbl.textContent = r;
     opts.cols.forEach((c, ci) => {
       const v = opts.values[ri][ci];
-      const fill = v > 0 ? opts.ramp[Math.min(opts.ramp.length - 1, Math.max(0, Math.round(scale(v) * (opts.ramp.length - 1))))] : 'var(--cell-empty)';
+      const fill = !(v > 0) ? 'var(--cell-empty)' : opts.color ? opts.color(v) : opts.ramp[Math.min(opts.ramp.length - 1, Math.max(0, Math.round(scale(v) * (opts.ramp.length - 1))))];
       const cell = el('rect', { x: m.left + ci * cw + 1, y: m.top + ri * ch + 1, width: Math.max(1, cw - 2), height: ch - 2, rx: 3, fill, class: 'cell' }, svg);
       cell.addEventListener('pointerenter', () => {
         tip.innerHTML = opts.title(r, c, v);

@@ -18,7 +18,19 @@ const PRESETS = {
 
 const RAMP = ['--r1', '--r2', '--r3', '--r4', '--r5', '--r6', '--r7', '--r8'];
 const MAX_THRESHOLDS = RAMP.length;
-const HEAT = ['--h1', '--h2', '--h3', '--h4', '--h5', '--h6', '--h7'];
+// Duration bands for the per-year heatmap, roughly log-spaced, in half hours.
+const SPELL_BANDS = [
+  { max: 6, label: 'Under 3 hours', color: '#ffec8f' },
+  { max: 24, label: '3 to 12 hours', color: '#ffc94a' },
+  { max: 48, label: '12 hours to a day', color: '#b9de6e' },
+  { max: 144, label: '1 to 3 days', color: '#64c587' },
+  { max: 336, label: '3 days to a week', color: '#25ad9f' },
+  { max: 1440, label: '1 week to a month', color: '#2a90c8' },
+  { max: 4380, label: '1 to 3 months', color: '#3a68d0' },
+  { max: 8760, label: '3 to 6 months', color: '#5b48bd' },
+  { max: Infinity, label: 'Over 6 months', color: '#3b2380' },
+];
+const bandFor = (slots) => SPELL_BANDS.find((b) => slots < b.max);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const $ = (id) => document.getElementById(id);
 
@@ -264,12 +276,12 @@ function renderByYear(summaries) {
     const map = new Map(s.perYear);
     return years.map((y) => map.get(y) ?? null);
   });
+  $('by-year-legend').innerHTML = SPELL_BANDS.map((b) => `<span><span class="swatch" style="background:${b.color}"></span>${b.label}</span>`).join('');
   heatmap($('by-year'), {
     rows: summaries.map((s) => thresholdLabel(s.threshold)),
     cols: years.map(String),
     values: values.map((r) => r.map((sp) => (sp ? sp.end - sp.start : null))),
-    ramp: HEAT.map(css),
-    log: true,
+    color: (v) => bandFor(v).color,
     format: formatDuration,
     title: (r, c, v) => {
       const sp = values[summaries.findIndex((s) => thresholdLabel(s.threshold) === r)][years.indexOf(Number(c))];
