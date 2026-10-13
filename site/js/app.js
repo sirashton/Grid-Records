@@ -2,6 +2,7 @@ import { loadData, metricSeries, FUELS, BATTERY_SOURCES, lastComplete, generatio
 import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './records.js';
 import { lineChart, heatmap, barChart, fmtDate, fmtDateTime } from './charts.js';
 import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
+import { renderBatteryOrigins } from './origins.js';
 
 const PRESETS = {
   fossil: { label: 'Fossil fuels', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
@@ -141,7 +142,7 @@ function setupControls() {
   let resize;
   addEventListener('resize', () => {
     clearTimeout(resize);
-    resize = setTimeout(() => { renderStory(); update(); }, 150);
+    resize = setTimeout(() => { renderStory(); update(); renderBatteryOrigins(data); }, 150);
   });
 }
 
@@ -460,6 +461,7 @@ async function main() {
   renderNow();
   renderStory();
   update();
+  renderBatteryOrigins(data);
 }
 
 main();
