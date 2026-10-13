@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grid Records</title>
+  <meta name="description" content="Records for Great Britain's electricity grid: the longest spells below and above generation thresholds for fossil fuels, low carbon sources and more, plus battery charging and discharging.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <header class="wrap masthead">
+    <h1>Grid Records</h1>
+    <p class="lede">Great Britain's grid keeps getting greener. The next question is how long it can run without fossil fuels.
+      This site tracks the longest spells the grid has spent below or above any power level, for any fuel or group of fuels.</p>
+    <p class="updated" id="updated">Loading data…</p>
+  </header>
+
+  <main class="wrap">
+    <section class="card" aria-labelledby="now-h">
+      <h2 id="now-h">Right now</h2>
+      <div class="tiles" id="now"></div>
+    </section>
+
+    <section class="card" aria-labelledby="records-h">
+      <h2 id="records-h">Records</h2>
+      <form class="controls" id="controls" onsubmit="return false">
+        <label class="field">
+          <span>Measure</span>
+          <select id="preset"></select>
+        </label>
+        <div class="field">
+          <span>Record type</span>
+          <div class="segmented" role="radiogroup" aria-label="Record type">
+            <button type="button" data-mode="below" role="radio">Below</button>
+            <button type="button" data-mode="above" role="radio">Above</button>
+          </div>
+        </div>
+        <div class="field">
+          <span>Units</span>
+          <div class="segmented" role="radiogroup" aria-label="Units">
+            <button type="button" data-unit="gw" role="radio">GW</button>
+            <button type="button" data-unit="pct" role="radio">% of generation</button>
+          </div>
+        </div>
+        <label class="field grow">
+          <span>Thresholds</span>
+          <input id="thresholds" inputmode="decimal" autocomplete="off">
+        </label>
+        <fieldset class="field members" id="members">
+          <legend>Sources in the group</legend>
+        </fieldset>
+      </form>
+      <p class="question" id="question"></p>
+      <div class="table-scroll">
+        <table class="records" id="records-table"></table>
+      </div>
+
+      <h3>How the records have grown</h3>
+      <p class="hint">Each step is a new record for the longest spell. The y-axis is logarithmic, from half an hour up to months.</p>
+      <div class="chart-host" id="progression"></div>
+      <div class="legend" id="progression-legend"></div>
+
+      <h3>Longest spell in each year</h3>
+      <p class="hint">Stronger colour means a longer spell. Hover a cell for the dates.</p>
+      <div class="chart-host" id="by-year"></div>
+
+      <h3>The measure over time</h3>
+      <div class="segmented small" id="range" role="radiogroup" aria-label="Time range">
+        <button type="button" data-range="7">Week</button>
+        <button type="button" data-range="30">Month</button>
+        <button type="button" data-range="365">Year</button>
+        <button type="button" data-range="all">All time</button>
+      </div>
+      <div class="chart-host" id="timeline"></div>
+    </section>
+
+    <section class="card" aria-labelledby="battery-h">
+      <h2 id="battery-h">Batteries</h2>
+      <p>No single public feed gives the full picture of Great Britain's batteries yet, so this site runs three side by side.
+        Positive values are discharging into the grid; negative values are charging.</p>
+      <div class="segmented small" id="battery-range" role="radiogroup" aria-label="Time range">
+        <button type="button" data-range="3">3 days</button>
+        <button type="button" data-range="14">2 weeks</button>
+        <button type="button" data-range="90">3 months</button>
+      </div>
+      <div class="chart-host" id="battery-chart"></div>
+      <div class="legend" id="battery-legend"></div>
+      <label class="field inline">
+        <span>Battery source used in records</span>
+        <select id="battery-source"></select>
+      </label>
+      <div class="table-scroll">
+        <table class="sources">
+          <thead><tr><th>Source</th><th>What it measures</th><th>Delay</th><th>Charging?</th><th>Coverage</th></tr></thead>
+          <tbody id="battery-sources"></tbody>
+        </table>
+      </div>
+      <details>
+        <summary id="units-summary">Battery units</summary>
+        <p class="hint">Elexon has no battery fuel type, so units are matched by name (battery, BESS, storage) or by National Grid's naming convention for battery units, where the unit both imports and exports. Batteries connected to local networks outside the Balancing Mechanism are not visible in any of these feeds.</p>
+        <div class="table-scroll"><table class="units" id="units"></table></div>
+      </details>
+    </section>
+
+    <section class="card about" aria-labelledby="about-h">
+      <h2 id="about-h">About the data</h2>
+      <p>Generation by fuel comes from NESO's <a href="https://www.neso.energy/data-portal/historic-generation-mix">historic generation mix</a>,
+        half-hourly since 2009 and updated hourly. It includes wind and solar on local networks, which NESO estimates. Fossil fuels here are gas and coal; oil is too small to report separately and sits in "Other".</p>
+      <p>Battery data comes from Elexon's <a href="https://bmrs.elexon.co.uk/">Insights Solution</a>: each battery unit's Physical Notifications (its planned output, published in real time) and its B1610 metered output (published about five days later). NESO also counts battery discharge inside its "Other" category, and plans to publish batteries separately.</p>
+      <p>A spell is a run of consecutive half hours that meet the threshold. Gaps in the data of up to an hour are bridged when the half hours either side qualify; longer gaps end the spell.</p>
+      <p>Inspired by Kate Morley's <a href="https://grid.iamkate.com/">National Grid: Live</a>. Source code on <a href="https://github.com/sirashton/Grid-Records">GitHub</a>.</p>
+      <p class="small">Contains BMRS data © Elexon Limited copyright and database right 2026. Contains data from the National Energy System Operator, licensed under the NESO Open Data Licence.</p>
+    </section>
+  </main>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
