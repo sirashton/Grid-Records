@@ -4,14 +4,14 @@ import { lineChart, heatmap, fmtDate, fmtDateTime } from './charts.js';
 
 const PRESETS = {
   fossil: { label: 'Fossil fuels (gas and coal)', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
-  lowcarbon: { label: 'Low carbon (wind, solar, nuclear, battery)', members: ['wind', 'solar', 'nuclear', 'battery'], mode: 'above', gw: [15, 20, 25, 30, 35], pct: [50, 70, 80, 90, 95], editable: true },
+  lowcarbon: { label: 'Low carbon (wind, solar, nuclear, hydro, storage)', members: ['wind', 'solar', 'nuclear', 'hydro', 'storage', 'battery'], mode: 'above', gw: [1, 2, 5, 10, 15, 20, 25, 30], pct: [10, 20, 30, 50, 70, 80, 90, 95], editable: true },
   gas: { label: 'Gas', members: ['gas'], mode: 'below', gw: [10, 5, 2, 1, 0.5, 0.1, 0], pct: [30, 20, 10, 5, 1, 0] },
   coal: { label: 'Coal', members: ['coal'], mode: 'below', gw: [5, 1, 0.5, 0.1, 0], pct: [20, 10, 5, 1, 0] },
   wind: { label: 'Wind', members: ['wind'], mode: 'above', gw: [5, 10, 15, 20, 25], pct: [25, 40, 50, 60, 70] },
   solar: { label: 'Solar', members: ['solar'], mode: 'above', gw: [2, 5, 10, 15], pct: [10, 20, 30, 40] },
   nuclear: { label: 'Nuclear', members: ['nuclear'], mode: 'below', gw: [6, 5, 4, 3], pct: [20, 15, 10, 5] },
   imports: { label: 'Imports', members: ['imports'], mode: 'above', gw: [2, 5, 8, 10], pct: [10, 15, 20, 25] },
-  custom: { label: 'Custom group…', members: ['wind', 'solar', 'nuclear', 'hydro', 'battery'], mode: 'above', gw: [10, 20, 30], pct: [50, 75, 90], editable: true },
+  custom: { label: 'Custom group…', members: ['wind', 'solar', 'nuclear', 'hydro', 'biomass'], mode: 'above', gw: [10, 20, 30], pct: [50, 75, 90], editable: true },
 };
 
 const RAMP = ['--r1', '--r2', '--r3', '--r4', '--r5', '--r6', '--r7', '--r8'];
@@ -341,13 +341,13 @@ function renderNow() {
   const gw = (v) => `${(v / 1000).toFixed(1)} GW`;
   const total = generationTotal(data)[i];
   const fossil = c.gas[i] + c.coal[i];
-  const low = c.wind[i] + c.wind_emb[i] + c.solar[i] + c.nuclear[i] + c.hydro[i];
+  const low = c.wind[i] + c.wind_emb[i] + c.solar[i] + c.nuclear[i] + c.hydro[i] + Math.max(0, c.storage[i]);
   const pnI = data.meta.lastSlot.pn_dis;
   const bat = pnI != null ? c.pn_dis[pnI] + c.pn_chg[pnI] : NaN;
   const fossilRecord = summarise(metricSeries(data, ['gas', 'coal']), 5, 'below', { startMs: data.startMs, maxGap: 2 });
   const tiles = [
     ['Fossil fuels', gw(fossil), `${((fossil / total) * 100).toFixed(0)}% of generation`],
-    ['Low carbon', `${((low / total) * 100).toFixed(0)}%`, 'wind, solar, nuclear, hydro'],
+    ['Low carbon', `${((low / total) * 100).toFixed(0)}%`, 'wind, solar, nuclear, hydro, pumped storage'],
     ['Wind', gw(c.wind[i] + c.wind_emb[i]), `${((((c.wind[i] + c.wind_emb[i]) / total) * 100)).toFixed(0)}%`],
     ['Solar', gw(c.solar[i]), `${((c.solar[i] / total) * 100).toFixed(0)}%`],
     ['Nuclear', gw(c.nuclear[i]), `${((c.nuclear[i] / total) * 100).toFixed(0)}%`],
