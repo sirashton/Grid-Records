@@ -8,16 +8,25 @@
 export const STEP_MINUTES = 30;
 
 /**
+ * Whether a value meets a threshold. Below means strictly below, except that a
+ * threshold of zero means none at all; above includes the threshold itself.
+ */
+export function meets(v, threshold, mode) {
+  if (mode === 'above') return v >= threshold;
+  return threshold === 0 ? v <= 0 : v < threshold;
+}
+
+/**
  * Finds every spell where the series satisfies the threshold.
  * @param {ArrayLike<number>} values
  * @param {number} threshold
- * @param {'below'|'above'} mode  below: value < threshold; above: value >= threshold
+ * @param {'below'|'above'} mode  see meets()
  * @param {{maxGap?: number}} [opts] number of missing slots that may be bridged
  * @returns {{start: number, end: number}[]} end is exclusive, in slot indexes
  */
 export function findSpells(values, threshold, mode, opts = {}) {
   const maxGap = opts.maxGap ?? 0;
-  const ok = mode === 'below' ? (v) => v < threshold : (v) => v >= threshold;
+  const ok = (v) => meets(v, threshold, mode);
   const spells = [];
   let start = -1;
   let lastGood = -1;

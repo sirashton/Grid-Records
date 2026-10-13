@@ -77,9 +77,19 @@ export function parseNesoGenMix(csv) {
       columns[name][slot] = Number.isFinite(v) ? v : NaN;
     }
   }
+  // Dropouts: NESO occasionally reports gas, hydro and "other" all as exactly
+  // zero for a half hour (e.g. 7 July 2026), which never happens on the real
+  // grid. Treat those slots as missing rather than as zero-fossil records.
+  let dropouts = 0;
+  for (let i = 0; i < length; i++) {
+    if (columns.gas[i] === 0 && columns.other?.[i] === 0 && columns.hydro?.[i] === 0) {
+      for (const col of Object.values(columns)) col[i] = NaN;
+      dropouts++;
+    }
+  }
   let missing = 0;
   for (const v of columns.gas) if (Number.isNaN(v)) missing++;
   log(`NESO generation mix: ${rows.length} rows, ${length} slots from ${new Date(startMs).toISOString()},`,
-    `${missing} missing, ${duplicates} duplicate, ${offGrid} off-grid; columns ${Object.keys(idx).join(',')}`);
-  return { startMs, length, columns, stats: { rows: rows.length, missing, duplicates, offGrid } };
+    `${missing} missing (${dropouts} dropouts), ${duplicates} duplicate, ${offGrid} off-grid; columns ${Object.keys(idx).join(',')}`);
+  return { startMs, length, columns, stats: { rows: rows.length, missing, dropouts, duplicates, offGrid } };
 }

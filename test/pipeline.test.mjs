@@ -20,6 +20,19 @@ test('parses the NESO generation mix onto a regular grid with gaps', () => {
   assert.equal(columns.neso_bess, undefined);
 });
 
+test('treats half hours with gas, hydro and other all zero as missing', () => {
+  const csv = [
+    'DATETIME,GAS,COAL,NUCLEAR,WIND,HYDRO,OTHER,SOLAR',
+    '2026-07-07T09:30:00,1526,0,2955,6565,10,415,11062',
+    '2026-07-07T10:00:00,0,0,2949,6434,0,0,11971',
+    '2026-07-07T10:30:00,2114,0,2956,6163,0,657,13006',
+  ].join('\n');
+  const { columns, stats } = parseNesoGenMix(csv);
+  assert.deepEqual([...columns.gas], [1526, NaN, 2114]);
+  assert.ok(Number.isNaN(columns.wind[1]));
+  assert.equal(stats.dropouts, 1);
+});
+
 test('classifies battery units by name and by National Grid id', () => {
   const units = [
     { nationalGridBmUnit: 'BLWNB-1', elexonBmUnit: 'T_BLWNB-1', bmUnitName: 'Thornton Battery', fuelType: 'OTHER', generationCapacity: '200', demandCapacity: '-200' },

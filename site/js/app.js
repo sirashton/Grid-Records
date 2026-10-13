@@ -1,20 +1,21 @@
 import { loadData, metricSeries, FUELS, BATTERY_SOURCES, lastComplete, generationTotal } from './data.js';
-import { summarise, formatDuration, slotTime, STEP_MINUTES } from './records.js';
+import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './records.js';
 import { lineChart, heatmap, fmtDate, fmtDateTime } from './charts.js';
 
 const PRESETS = {
-  fossil: { label: 'Fossil fuels (gas and coal)', members: ['gas', 'coal'], mode: 'below', gw: [10, 5, 2, 1, 0.5], pct: [30, 20, 10, 5, 2] },
-  lowcarbon: { label: 'Low carbon (wind, solar, nuclear, battery)', members: ['wind', 'solar', 'nuclear', 'battery'], mode: 'above', gw: [15, 20, 25, 30, 35], pct: [50, 70, 80, 90, 95], editable: true },
-  gas: { label: 'Gas', members: ['gas'], mode: 'below', gw: [10, 5, 2, 1], pct: [30, 20, 10, 5] },
-  coal: { label: 'Coal', members: ['coal'], mode: 'below', gw: [5, 1, 0.5, 0.1, 0.01], pct: [20, 10, 5, 1, 0.1] },
+  fossil: { label: 'Fossil fuels', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
+  lowcarbon: { label: 'Low carbon', members: ['wind', 'solar', 'nuclear', 'hydro', 'storage', 'battery'], mode: 'above', gw: [1, 2, 5, 10, 15, 20, 25, 30], pct: [10, 20, 30, 50, 70, 80, 90, 95], editable: true },
+  gas: { label: 'Gas', members: ['gas'], mode: 'below', gw: [10, 5, 2, 1, 0.5, 0.1, 0], pct: [30, 20, 10, 5, 1, 0] },
+  coal: { label: 'Coal', members: ['coal'], mode: 'below', gw: [5, 1, 0.5, 0.1, 0], pct: [20, 10, 5, 1, 0] },
   wind: { label: 'Wind', members: ['wind'], mode: 'above', gw: [5, 10, 15, 20, 25], pct: [25, 40, 50, 60, 70] },
   solar: { label: 'Solar', members: ['solar'], mode: 'above', gw: [2, 5, 10, 15], pct: [10, 20, 30, 40] },
   nuclear: { label: 'Nuclear', members: ['nuclear'], mode: 'below', gw: [6, 5, 4, 3], pct: [20, 15, 10, 5] },
   imports: { label: 'Imports', members: ['imports'], mode: 'above', gw: [2, 5, 8, 10], pct: [10, 15, 20, 25] },
-  custom: { label: 'Custom group…', members: ['wind', 'solar', 'nuclear', 'hydro', 'battery'], mode: 'above', gw: [10, 20, 30], pct: [50, 75, 90], editable: true },
+  custom: { label: 'Custom group…', members: ['wind', 'solar', 'nuclear', 'hydro', 'biomass'], mode: 'above', gw: [10, 20, 30], pct: [50, 75, 90], editable: true },
 };
 
-const RAMP = ['--r1', '--r2', '--r3', '--r4', '--r5', '--r6'];
+const RAMP = ['--r1', '--r2', '--r3', '--r4', '--r5', '--r6', '--r7', '--r8'];
+const MAX_THRESHOLDS = RAMP.length;
 const HEAT = ['--h1', '--h2', '--h3', '--h4', '--h5', '--h6', '--h7'];
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const $ = (id) => document.getElementById(id);
@@ -28,6 +29,8 @@ const state = {
   battery: 'pn',
   range: '30',
   batteryRange: '14',
+  membersOpen: false,
+  scale: 'linear',
 };
 
 let data;
@@ -43,28 +46,32 @@ function readHash() {
   const g = (p.get('g') ?? '').split(',').filter((m) => FUELS[m]);
   state.members = preset.editable && g.length ? g : preset.members;
   if (BATTERY_SOURCES[p.get('b')]) state.battery = p.get('b');
+  state.scale = p.get('s') === 'log' ? 'log' : 'linear';
 }
 
 function writeHash() {
   const p = new URLSearchParams({ m: state.preset, d: state.mode, u: state.unit, t: state.thresholds.join(','), b: state.battery });
   if (PRESETS[state.preset].editable) p.set('g', state.members.join(','));
+  if (state.scale === 'log') p.set('s', 'log');
   history.replaceState(null, '', `#${p}`);
 }
 
 function parseThresholds(s) {
-  return [...new Set(s.split(/[\s,]+/).map(Number).filter((v) => Number.isFinite(v) && v > 0))].slice(0, 6);
+  return [...new Set(s.split(/[\s,]+/).filter(Boolean).map(Number).filter((v) => Number.isFinite(v) && v >= 0))].slice(0, MAX_THRESHOLDS);
 }
 
 const unitLabel = () => (state.unit === 'gw' ? 'GW' : '%');
 const fmtValue = (v) => (state.unit === 'gw' ? `${+v.toFixed(v < 1 ? 2 : 1)} GW` : `${+v.toFixed(v < 1 ? 1 : 0)}%`);
 const fmtThreshold = (v) => (state.unit === 'gw' ? `${v} GW` : `${v}%`);
+/** Row label for a threshold, e.g. "< 2 GW", "≥ 20 GW" or "Zero". */
+const thresholdLabel = (t) => (state.mode === 'below' ? (t === 0 ? 'Zero' : `< ${fmtThreshold(t)}`) : `≥ ${fmtThreshold(t)}`);
 
 /** Thresholds ordered from easiest to hardest, so darker colours mean harder. */
 function orderedThresholds() {
   const t = [...state.thresholds].sort((a, b) => a - b);
   return state.mode === 'below' ? t.reverse() : t;
 }
-const thresholdColor = (i, n) => css(RAMP[Math.round((i / Math.max(1, n - 1)) * (RAMP.length - 1)) + (n < 4 ? 1 : 0)] ?? RAMP.at(-1));
+const thresholdColor = (i, n) => css(RAMP[n <= 1 ? 3 : Math.round((i * (RAMP.length - 1)) / (n - 1))]);
 
 function setupControls() {
   const preset = $('preset');
@@ -75,6 +82,7 @@ function setupControls() {
     state.mode = p.mode;
     state.members = [...p.members];
     state.thresholds = p[state.unit];
+    state.membersOpen = state.preset === 'custom';
     update();
   });
   document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
@@ -92,6 +100,10 @@ function setupControls() {
     const t = parseThresholds(e.target.value);
     if (t.length) state.thresholds = t;
     update();
+  });
+  $('members-toggle').addEventListener('click', () => {
+    state.membersOpen = !state.membersOpen;
+    syncControls();
   });
   const members = $('members');
   for (const [key, f] of Object.entries(FUELS)) {
@@ -111,6 +123,12 @@ function setupControls() {
     state.battery = bat.value;
     update();
   });
+  document.querySelectorAll('[data-scale]').forEach((b) => b.addEventListener('click', () => {
+    state.scale = b.dataset.scale;
+    syncControls();
+    writeHash();
+    renderTimeline(currentSeries());
+  }));
   document.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => {
     if (b.closest('#battery-range')) state.batteryRange = b.dataset.range;
     else state.range = b.dataset.range;
@@ -132,9 +150,15 @@ function syncControls() {
   document.querySelectorAll('[data-unit]').forEach((b) => b.setAttribute('aria-checked', b.dataset.unit === state.unit));
   document.querySelectorAll('#range [data-range]').forEach((b) => b.setAttribute('aria-checked', b.dataset.range === state.range));
   document.querySelectorAll('#battery-range [data-range]').forEach((b) => b.setAttribute('aria-checked', b.dataset.range === state.batteryRange));
+  document.querySelectorAll('[data-scale]').forEach((b) => b.setAttribute('aria-checked', b.dataset.scale === state.scale));
   $('thresholds').value = state.thresholds.join(', ');
   const members = $('members');
-  members.hidden = !PRESETS[state.preset].editable;
+  const editable = !!PRESETS[state.preset].editable;
+  $('members-field').hidden = !editable;
+  members.hidden = !(editable && state.membersOpen);
+  const toggle = $('members-toggle');
+  toggle.setAttribute('aria-expanded', !members.hidden);
+  toggle.textContent = members.hidden ? `Edit (${state.members.length})` : 'Done';
   members.querySelectorAll('input').forEach((i) => { i.checked = state.members.includes(i.value); });
   $('battery-source').value = state.battery;
 }
@@ -180,7 +204,7 @@ function renderTable(summaries) {
     const c = s.current;
     const cur = c ? `<td class="big">${formatDuration(c.end - c.start)}<span class="live">Live</span><span class="when">since ${fmtDateTime(slotTime(c.start, data.startMs))}</span></td>` : '<td>—</td>';
     const lastYear = qualifyingSince(s.threshold, lastSlot - yearSlots);
-    return `<tr><td><span class="swatch" style="background:${thresholdColor(i, n)}"></span><b>${state.mode === 'below' ? '&lt;' : '≥'} ${fmtThreshold(s.threshold)}</b></td>${longest}${cur}
+    return `<tr><td><span class="swatch" style="background:${thresholdColor(i, n)}"></span><b>${thresholdLabel(s.threshold).replace('<', '&lt;')}</b></td>${longest}${cur}
       <td>${pct(s.totalSlots, nonMissing())}<span class="when">${pct(lastYear, yearSlots)} in the past year</span></td><td>${s.count.toLocaleString('en-GB')}</td></tr>`;
   });
   $('records-table').innerHTML = `<thead><tr><th>Threshold</th><th>Longest spell</th><th>Current spell</th><th>Share of all time</th><th>Spells</th></tr></thead><tbody>${rows.join('')}</tbody>`;
@@ -192,7 +216,7 @@ function qualifyingSince(threshold, fromSlot) {
   let n = 0;
   for (let i = Math.max(0, Math.floor(fromSlot)); i < values.length; i++) {
     const v = values[i];
-    if (!Number.isNaN(v) && (state.mode === 'below' ? v < threshold : v >= threshold)) n++;
+    if (!Number.isNaN(v) && meets(v, threshold, state.mode)) n++;
   }
   return n;
 }
@@ -211,7 +235,7 @@ function renderProgression(summaries) {
   const n = summaries.length;
   const now = slotTime(data.length, data.startMs);
   const series = summaries.map((s, i) => ({
-    name: `${state.mode === 'below' ? '<' : '≥'} ${fmtThreshold(s.threshold)}`,
+    name: thresholdLabel(s.threshold),
     color: thresholdColor(i, n),
     step: true,
     extendTo: now,
@@ -227,8 +251,8 @@ function renderProgression(summaries) {
     xMax: now,
     stepLookup: true,
     yFormat: (h) => formatDuration(Math.round((h * 60) / STEP_MINUTES)),
-    yTickFormat: (h) => (h >= 48 ? `${+(h / 24).toFixed(0)}d` : `${h}h`),
-    yTicks: [0.5, 1, 3, 6, 12, 24, 72, 168, 720, 2160, 8760],
+    yTickFormat: (h) => (h >= 8760 ? `${+(h / 8760).toFixed(0)}y` : h >= 48 ? `${+(h / 24).toFixed(0)}d` : `${h}h`),
+    yTicks: [0.5, 1, 3, 6, 12, 24, 72, 168, 720, 2160, 8760, 17520, 43800],
     tooltip: (t, vals) => `<strong>Records as of ${fmtDate(t)}</strong>${vals.map((v) => {
       const rec = v.point ? v.series.records[v.series.points.indexOf(v.point)] : null;
       return `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${rec ? formatDuration(rec.end - rec.start) : 'none yet'}</b>${rec ? ` <span class="when">set ${fmtDate(slotTime(rec.start, data.startMs))}</span>` : ''}</div>`;
@@ -247,14 +271,14 @@ function renderByYear(summaries) {
     return years.map((y) => map.get(y) ?? null);
   });
   heatmap($('by-year'), {
-    rows: summaries.map((s) => `${state.mode === 'below' ? '<' : '≥'} ${fmtThreshold(s.threshold)}`),
+    rows: summaries.map((s) => thresholdLabel(s.threshold)),
     cols: years.map(String),
     values: values.map((r) => r.map((sp) => (sp ? sp.end - sp.start : null))),
     ramp: HEAT.map(css),
     log: true,
     format: formatDuration,
     title: (r, c, v) => {
-      const sp = values[summaries.findIndex((s) => `${state.mode === 'below' ? '<' : '≥'} ${fmtThreshold(s.threshold)}` === r)][years.indexOf(Number(c))];
+      const sp = values[summaries.findIndex((s) => thresholdLabel(s.threshold) === r)][years.indexOf(Number(c))];
       return sp ? `<strong>${c}, ${r}</strong><div>Longest: <b>${formatDuration(v)}</b></div><div>${fmtDateTime(slotTime(sp.start, data.startMs))} to ${fmtDateTime(slotTime(sp.end, data.startMs))}</div>`
         : `<strong>${c}, ${r}</strong><div>No spells</div>`;
     },
@@ -287,6 +311,9 @@ function renderTimeline(values) {
   lineChart($('timeline'), {
     series: [{ name: `${groupName()}${daily ? ' (daily mean)' : ''}`, color: css('--s2'), points: windowPoints(values, state.range, end) }],
     refLines: thresholds.map((t, i) => ({ value: t, color: thresholdColor(i, thresholds.length) })),
+    yLog: state.scale === 'log',
+    yMin: state.scale === 'log' ? (state.unit === 'pct' ? 0.5 : 0.05) : undefined,
+    yTicks: state.scale === 'log' ? [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100] : undefined,
     yFormat: fmtValue,
     yTickFormat: (v) => `${v}${state.unit === 'pct' ? '%' : ''}`,
     tooltip: daily ? (t, vals) => `<strong>${fmtDate(t)}</strong><div>Daily mean: <b>${Number.isFinite(vals[0].value) ? fmtValue(vals[0].value) : '—'}</b></div>` : undefined,
@@ -338,13 +365,13 @@ function renderNow() {
   const gw = (v) => `${(v / 1000).toFixed(1)} GW`;
   const total = generationTotal(data)[i];
   const fossil = c.gas[i] + c.coal[i];
-  const low = c.wind[i] + c.wind_emb[i] + c.solar[i] + c.nuclear[i] + c.hydro[i];
+  const low = c.wind[i] + c.wind_emb[i] + c.solar[i] + c.nuclear[i] + c.hydro[i] + Math.max(0, c.storage[i]);
   const pnI = data.meta.lastSlot.pn_dis;
   const bat = pnI != null ? c.pn_dis[pnI] + c.pn_chg[pnI] : NaN;
   const fossilRecord = summarise(metricSeries(data, ['gas', 'coal']), 5, 'below', { startMs: data.startMs, maxGap: 2 });
   const tiles = [
     ['Fossil fuels', gw(fossil), `${((fossil / total) * 100).toFixed(0)}% of generation`],
-    ['Low carbon', `${((low / total) * 100).toFixed(0)}%`, 'wind, solar, nuclear, hydro'],
+    ['Low carbon', `${((low / total) * 100).toFixed(0)}%`, 'wind, solar, nuclear, hydro, pumped storage'],
     ['Wind', gw(c.wind[i] + c.wind_emb[i]), `${((((c.wind[i] + c.wind_emb[i]) / total) * 100)).toFixed(0)}%`],
     ['Solar', gw(c.solar[i]), `${((c.solar[i] / total) * 100).toFixed(0)}%`],
     ['Nuclear', gw(c.nuclear[i]), `${((c.nuclear[i] / total) * 100).toFixed(0)}%`],
