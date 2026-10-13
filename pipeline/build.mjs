@@ -17,8 +17,8 @@ import { fetchJson, dayStart, isoDay, DAY_MS, SLOT_MS, log } from './lib.mjs';
 
 const { values: args } = parseArgs({
   options: {
-    'budget-minutes': { type: 'string', default: '10' },
-    'backfill-from': { type: 'string', default: '2020-01-01' },
+    'budget-minutes': { type: 'string', default: '3' },
+    'backfill-from': { type: 'string', default: '2017-01-01' },
     'live-url': { type: 'string', default: process.env.LIVE_URL ?? 'https://sirashton.github.io/Grid-Records' },
     out: { type: 'string', default: 'site/data' },
     cache: { type: 'string', default: '.cache' },
