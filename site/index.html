@@ -12,21 +12,52 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
-  <header class="wrap masthead">
-    <h1>Grid Records</h1>
-    <p class="lede">Great Britain's grid keeps getting greener. The next question is how long it can run without fossil fuels.
-      This site tracks the longest spells the grid has spent below or above any power level, for any fuel or group of fuels.</p>
-    <p class="updated" id="updated">Loading data…</p>
+  <header class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-text">
+        <h1>Grid Records</h1>
+        <p class="lede">Britain's electricity is getting cleaner, fast. Coal is gone, wind and sun keep breaking records, and the grid now runs for days at a time on very little gas.
+          This site celebrates the milestones and tracks the longest spells for any fuel.</p>
+        <p class="updated" id="updated">Loading data…</p>
+      </div>
+      <svg class="hero-art" viewBox="0 0 220 160" aria-hidden="true">
+        <g class="sun"><circle cx="168" cy="44" r="22"/><g class="rays"><path d="M168 8v10M168 70v10M132 44h10M194 44h10M143 19l7 7M186 62l7 7M143 69l7-7M186 26l7-7"/></g></g>
+        <path class="hill" d="M0 160 C40 110 90 112 130 136 S200 120 220 128 V160 Z"/>
+        <g class="turbine" transform="translate(70 62)"><path class="mast" d="M-3 0 L3 0 L5 78 L-5 78 Z"/><g class="blades"><path d="M0 0 L-4 -46 Q0 -50 4 -46 Z"/><path d="M0 0 L-4 -46 Q0 -50 4 -46 Z" transform="rotate(120)"/><path d="M0 0 L-4 -46 Q0 -50 4 -46 Z" transform="rotate(240)"/><circle r="5"/></g></g>
+        <g class="turbine small" transform="translate(118 92) scale(0.6)"><path class="mast" d="M-3 0 L3 0 L5 78 L-5 78 Z"/><g class="blades"><path d="M0 0 L-4 -46 Q0 -50 4 -46 Z"/><path d="M0 0 L-4 -46 Q0 -50 4 -46 Z" transform="rotate(120)"/><path d="M0 0 L-4 -46 Q0 -50 4 -46 Z" transform="rotate(240)"/><circle r="5"/></g></g>
+      </svg>
+    </div>
   </header>
 
   <main class="wrap">
-    <section class="card" aria-labelledby="now-h">
-      <h2 id="now-h">Right now</h2>
+    <section class="card now-card" aria-labelledby="now-h">
+      <h2 id="now-h"><span class="emoji" aria-hidden="true">⚡</span> Right now</h2>
       <div class="tiles" id="now"></div>
     </section>
 
-    <section class="card" aria-labelledby="records-h">
-      <h2 id="records-h">Records</h2>
+    <section class="card story" aria-labelledby="story-h">
+      <h2 id="story-h"><span class="emoji" aria-hidden="true">🌱</span> The story so far</h2>
+      <div class="facts" id="facts"></div>
+
+      <h3>Where Britain's power comes from</h3>
+      <p class="hint">Share of electricity generated in each year. Coal has gone from about a third of the mix to nothing, and wind is now the biggest single source.</p>
+      <div class="chart-host" id="story-mix"></div>
+      <div class="legend" id="story-mix-legend"></div>
+
+      <h3>Fossil fuels and low carbon cross over</h3>
+      <p class="hint">Monthly share of generation. Low carbon sources overtook fossil fuels for good around 2019.</p>
+      <div class="chart-host" id="story-cross"></div>
+      <div class="legend" id="story-cross-legend"></div>
+
+      <h3>More and more hours on very little fossil fuel</h3>
+      <p class="hint">Hours in each year when gas and coal together were generating under 10 GW and under 5 GW. This year so far is shown lighter.</p>
+      <div class="chart-host" id="story-hours"></div>
+      <div class="legend" id="story-hours-legend"></div>
+    </section>
+
+    <section class="card records-card" aria-labelledby="records-h">
+      <h2 id="records-h"><span class="emoji" aria-hidden="true">🏆</span> Find your own records</h2>
+      <p class="hint">Pick a fuel or group, choose your thresholds, and see the longest spells the grid has managed.</p>
       <form class="controls" id="controls" onsubmit="return false">
         <label class="field">
           <span>Measure</span>
@@ -86,8 +117,8 @@
       <div class="chart-host" id="timeline"></div>
     </section>
 
-    <section class="card" aria-labelledby="battery-h">
-      <h2 id="battery-h">Batteries</h2>
+    <section class="card battery-card" aria-labelledby="battery-h">
+      <h2 id="battery-h"><span class="emoji" aria-hidden="true">🔋</span> Batteries</h2>
       <p>No single public feed gives the full picture of Great Britain's batteries yet, so this site runs three side by side.
         Positive values are discharging into the grid; negative values are charging.</p>
       <div class="segmented small" id="battery-range" role="radiogroup" aria-label="Time range">
@@ -115,7 +146,7 @@
     </section>
 
     <section class="card about" aria-labelledby="about-h">
-      <h2 id="about-h">About the data</h2>
+      <h2 id="about-h"><span class="emoji" aria-hidden="true">📚</span> About the data</h2>
       <p>Generation by fuel comes from NESO's <a href="https://www.neso.energy/data-portal/historic-generation-mix">historic generation mix</a>,
         half-hourly since 2009 and updated hourly. It includes wind and solar on local networks, which NESO estimates. Fossil fuels here are gas and coal; oil is too small to report separately and sits in "Other".</p>
       <p>Battery data comes from Elexon's <a href="https://bmrs.elexon.co.uk/">Insights Solution</a>: each battery unit's Physical Notifications (its planned output, published in real time) and its B1610 metered output (published about five days later). NESO also counts battery discharge inside its "Other" category, and plans to publish batteries separately.</p>

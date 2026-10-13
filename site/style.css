@@ -2,40 +2,28 @@
    background, Figtree, 3px ink borders with hard offset shadows. */
 :root {
   color-scheme: light;
-  --bg: #fefcf8;
+  --bg: #fffaf0;
   --card: #ffffff;
-  --ink: #1a1a1a;
-  --ink-2: #52514e;
-  --ink-3: #75736e;
-  --line: #4a4a4a;
-  --grid: #e8e5de;
-  --primary: #4a90e2;
+  --ink: #1f1d1a;
+  --ink-2: #4f4c47;
+  --ink-3: #716e68;
+  --line: #2f2d2a;
+  --grid: #ece7dc;
+  --primary: #3a86e0;
   --primary-ink: #ffffff;
-  --accent-green: #6b9f78;
-  --accent-orange: #e8a87c;
-  --cell-empty: #f1eee7;
-  --shadow: 3px;
+  --accent-green: #2fb56b;
+  --accent-orange: #f4a259;
+  --sunny: #ffd25e;
+  --sky: #d9efff;
+  --cell-empty: #f4efe4;
+  --shadow: 4px;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
   --r1: #86b6ef; --r2: #5598e7; --r3: #2a78d6; --r4: #256abf; --r5: #1c5cab; --r6: #184f95; --r7: #104281; --r8: #0d366b;
-  --h1: #cde2fb; --h2: #9ec5f4; --h3: #6da7ec; --h4: #3987e5; --h5: #256abf; --h6: #184f95; --h7: #0d366b;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #161615; --card: #1f1f1d; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #9a988f;
-    --line: #8a877f; --grid: #33322f; --cell-empty: #2a2927;
-    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
-    --r1: #184f95; --r2: #1c5cab; --r3: #256abf; --r4: #2a78d6; --r5: #3987e5; --r6: #6da7ec; --r7: #9ec5f4; --r8: #cde2fb;
-    --h1: #1c3554; --h2: #184f95; --h3: #256abf; --h4: #3987e5; --h5: #6da7ec; --h6: #9ec5f4; --h7: #cde2fb;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #161615; --card: #1f1f1d; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #9a988f;
-  --line: #8a877f; --grid: #33322f; --cell-empty: #2a2927;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
-  --r1: #184f95; --r2: #1c5cab; --r3: #256abf; --r4: #2a78d6; --r5: #3987e5; --r6: #6da7ec; --r7: #9ec5f4; --r8: #cde2fb;
-  --h1: #1c3554; --h2: #184f95; --h3: #256abf; --h4: #3987e5; --h5: #6da7ec; --h6: #9ec5f4; --h7: #cde2fb;
+  --h1: #d7f1e2; --h2: #ade3c4; --h3: #7fd2a4; --h4: #4fbf83; --h5: #2fa46a; --h6: #1f8454; --h7: #146340;
+  /* Fuel colours, shared by tiles and the story charts. */
+  --f-coal: #5b5754; --f-gas: #f4a259; --f-other: #cfc8ba; --f-imports: #f28fb1; --f-biomass: #93c48b;
+  --f-nuclear: #b48cf2; --f-hydro: #3b7dd8; --f-wind: #3ec1d3; --f-solar: #ffc93c;
+  --fossil: #ef7d3c; --lowcarbon: #2fb56b;
 }
 
 * { box-sizing: border-box; }
@@ -49,32 +37,63 @@ body {
 a { color: var(--primary); font-weight: 600; }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
 
-.masthead { padding-top: 40px; padding-bottom: 8px; }
-h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; }
-.lede { font-size: 1.125rem; color: var(--ink-2); max-width: 46em; margin: 0 0 8px; }
-.updated { color: var(--ink-3); font-size: 0.875rem; margin: 0; }
+.hero {
+  background: linear-gradient(180deg, var(--sky) 0%, #eef8ff 55%, var(--bg) 100%);
+  border-bottom: 3px solid var(--line);
+}
+.hero-inner { display: flex; align-items: center; gap: 24px; padding-top: 32px; padding-bottom: 16px; }
+.hero-text { flex: 1 1 auto; min-width: 0; }
+.hero-art { flex: 0 0 220px; width: 220px; height: 160px; }
+.hero-art .sun circle { fill: var(--sunny); stroke: var(--line); stroke-width: 3; }
+.hero-art .rays { stroke: var(--sunny); stroke-width: 4; stroke-linecap: round; transform-origin: 168px 44px; animation: spin 40s linear infinite; }
+.hero-art .hill { fill: #a8dba0; stroke: var(--line); stroke-width: 3; }
+.hero-art .mast { fill: #fff; stroke: var(--line); stroke-width: 2.5; }
+.hero-art .blades { fill: #fff; stroke: var(--line); stroke-width: 2.5; stroke-linejoin: round; animation: spin 6s linear infinite; }
+.hero-art .small .blades { animation-duration: 4.5s; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .hero-art .blades, .hero-art .rays { animation: none; } }
+@media (max-width: 640px) {
+  .hero-inner { flex-direction: column-reverse; align-items: flex-start; gap: 0; padding-top: 16px; }
+  .hero-art { width: 150px; height: 110px; flex-basis: auto; }
+}
+h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; line-height: 1.05; }
+.lede { font-size: 1.125rem; color: var(--ink-2); max-width: 40em; margin: 0 0 10px; }
+.updated { display: inline-block; color: var(--ink-2); font-size: 0.8125rem; font-weight: 600; margin: 0; background: #fff; border: 2px solid var(--line); border-radius: 999px; padding: 2px 12px; }
 
 .card {
   background: var(--card);
   border: 3px solid var(--line);
   box-shadow: var(--shadow) var(--shadow) 0 0 var(--line);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
-  margin: 24px 0;
+  margin: 28px 0;
 }
+.now-card { box-shadow: var(--shadow) var(--shadow) 0 0 var(--sunny), calc(var(--shadow) + 3px) calc(var(--shadow) + 3px) 0 0 var(--line); }
+.story { box-shadow: var(--shadow) var(--shadow) 0 0 var(--accent-green), calc(var(--shadow) + 3px) calc(var(--shadow) + 3px) 0 0 var(--line); }
+.records-card { box-shadow: var(--shadow) var(--shadow) 0 0 var(--primary), calc(var(--shadow) + 3px) calc(var(--shadow) + 3px) 0 0 var(--line); }
+.battery-card { box-shadow: var(--shadow) var(--shadow) 0 0 var(--f-nuclear), calc(var(--shadow) + 3px) calc(var(--shadow) + 3px) 0 0 var(--line); }
+.emoji { display: inline-block; margin-right: 2px; }
+h2:hover .emoji { animation: wiggle 0.5s ease-in-out; }
+@keyframes wiggle { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 8px; }
+.fact { border: 3px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--tint, var(--bg)); }
+.fact .big { font-size: 1.75rem; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.fact .label { font-weight: 700; font-size: 0.9375rem; }
+.fact .sub { font-size: 0.8125rem; color: var(--ink-2); }
 h2 { font-size: 1.5rem; font-weight: 800; margin: 0 0 12px; }
 h3 { font-size: 1.125rem; font-weight: 700; margin: 28px 0 2px; }
 .hint, .small { color: var(--ink-3); font-size: 0.875rem; margin: 0 0 8px; }
 
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 12px; }
 .tile {
   border: 3px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
-  background: var(--bg);
+  background: var(--tint, var(--bg));
 }
 .tile .label { font-size: 0.8125rem; color: var(--ink-2); font-weight: 600; }
-.tile .value { font-size: 1.625rem; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tile .value { white-space: nowrap; font-size: clamp(1.25rem, 2.1vw, 1.5rem); font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .tile .sub { font-size: 0.75rem; color: var(--ink-3); }
 
 .controls { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end; margin-bottom: 12px; }
