@@ -3,8 +3,8 @@ import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './reco
 import { lineChart, heatmap, fmtDate, fmtDateTime } from './charts.js';
 
 const PRESETS = {
-  fossil: { label: 'Fossil fuels (gas and coal)', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
-  lowcarbon: { label: 'Low carbon (wind, solar, nuclear, hydro, storage)', members: ['wind', 'solar', 'nuclear', 'hydro', 'storage', 'battery'], mode: 'above', gw: [1, 2, 5, 10, 15, 20, 25, 30], pct: [10, 20, 30, 50, 70, 80, 90, 95], editable: true },
+  fossil: { label: 'Fossil fuels', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
+  lowcarbon: { label: 'Low carbon', members: ['wind', 'solar', 'nuclear', 'hydro', 'storage', 'battery'], mode: 'above', gw: [1, 2, 5, 10, 15, 20, 25, 30], pct: [10, 20, 30, 50, 70, 80, 90, 95], editable: true },
   gas: { label: 'Gas', members: ['gas'], mode: 'below', gw: [10, 5, 2, 1, 0.5, 0.1, 0], pct: [30, 20, 10, 5, 1, 0] },
   coal: { label: 'Coal', members: ['coal'], mode: 'below', gw: [5, 1, 0.5, 0.1, 0], pct: [20, 10, 5, 1, 0] },
   wind: { label: 'Wind', members: ['wind'], mode: 'above', gw: [5, 10, 15, 20, 25], pct: [25, 40, 50, 60, 70] },
@@ -29,6 +29,8 @@ const state = {
   battery: 'pn',
   range: '30',
   batteryRange: '14',
+  membersOpen: false,
+  scale: 'linear',
 };
 
 let data;
@@ -44,11 +46,13 @@ function readHash() {
   const g = (p.get('g') ?? '').split(',').filter((m) => FUELS[m]);
   state.members = preset.editable && g.length ? g : preset.members;
   if (BATTERY_SOURCES[p.get('b')]) state.battery = p.get('b');
+  state.scale = p.get('s') === 'log' ? 'log' : 'linear';
 }
 
 function writeHash() {
   const p = new URLSearchParams({ m: state.preset, d: state.mode, u: state.unit, t: state.thresholds.join(','), b: state.battery });
   if (PRESETS[state.preset].editable) p.set('g', state.members.join(','));
+  if (state.scale === 'log') p.set('s', 'log');
   history.replaceState(null, '', `#${p}`);
 }
 
@@ -78,6 +82,7 @@ function setupControls() {
     state.mode = p.mode;
     state.members = [...p.members];
     state.thresholds = p[state.unit];
+    state.membersOpen = state.preset === 'custom';
     update();
   });
   document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
@@ -95,6 +100,10 @@ function setupControls() {
     const t = parseThresholds(e.target.value);
     if (t.length) state.thresholds = t;
     update();
+  });
+  $('members-toggle').addEventListener('click', () => {
+    state.membersOpen = !state.membersOpen;
+    syncControls();
   });
   const members = $('members');
   for (const [key, f] of Object.entries(FUELS)) {
@@ -114,6 +123,12 @@ function setupControls() {
     state.battery = bat.value;
     update();
   });
+  document.querySelectorAll('[data-scale]').forEach((b) => b.addEventListener('click', () => {
+    state.scale = b.dataset.scale;
+    syncControls();
+    writeHash();
+    renderTimeline(currentSeries());
+  }));
   document.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => {
     if (b.closest('#battery-range')) state.batteryRange = b.dataset.range;
     else state.range = b.dataset.range;
@@ -135,9 +150,15 @@ function syncControls() {
   document.querySelectorAll('[data-unit]').forEach((b) => b.setAttribute('aria-checked', b.dataset.unit === state.unit));
   document.querySelectorAll('#range [data-range]').forEach((b) => b.setAttribute('aria-checked', b.dataset.range === state.range));
   document.querySelectorAll('#battery-range [data-range]').forEach((b) => b.setAttribute('aria-checked', b.dataset.range === state.batteryRange));
+  document.querySelectorAll('[data-scale]').forEach((b) => b.setAttribute('aria-checked', b.dataset.scale === state.scale));
   $('thresholds').value = state.thresholds.join(', ');
   const members = $('members');
-  members.hidden = !PRESETS[state.preset].editable;
+  const editable = !!PRESETS[state.preset].editable;
+  $('members-field').hidden = !editable;
+  members.hidden = !(editable && state.membersOpen);
+  const toggle = $('members-toggle');
+  toggle.setAttribute('aria-expanded', !members.hidden);
+  toggle.textContent = members.hidden ? `Edit (${state.members.length})` : 'Done';
   members.querySelectorAll('input').forEach((i) => { i.checked = state.members.includes(i.value); });
   $('battery-source').value = state.battery;
 }
@@ -290,6 +311,9 @@ function renderTimeline(values) {
   lineChart($('timeline'), {
     series: [{ name: `${groupName()}${daily ? ' (daily mean)' : ''}`, color: css('--s2'), points: windowPoints(values, state.range, end) }],
     refLines: thresholds.map((t, i) => ({ value: t, color: thresholdColor(i, thresholds.length) })),
+    yLog: state.scale === 'log',
+    yMin: state.scale === 'log' ? (state.unit === 'pct' ? 0.5 : 0.05) : undefined,
+    yTicks: state.scale === 'log' ? [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100] : undefined,
     yFormat: fmtValue,
     yTickFormat: (v) => `${v}${state.unit === 'pct' ? '%' : ''}`,
     tooltip: daily ? (t, vals) => `<strong>${fmtDate(t)}</strong><div>Daily mean: <b>${Number.isFinite(vals[0].value) ? fmtValue(vals[0].value) : '—'}</b></div>` : undefined,

@@ -50,7 +50,11 @@
           <span>Thresholds</span>
           <input id="thresholds" inputmode="decimal" autocomplete="off">
         </label>
-        <fieldset class="field members" id="members">
+        <div class="field" id="members-field">
+          <span>Sources</span>
+          <button type="button" class="edit-btn" id="members-toggle" aria-expanded="false" aria-controls="members"></button>
+        </div>
+        <fieldset class="field members" id="members" hidden>
           <legend>Sources in the group</legend>
         </fieldset>
       </form>
@@ -74,6 +78,10 @@
         <button type="button" data-range="30">Month</button>
         <button type="button" data-range="365">Year</button>
         <button type="button" data-range="all">All time</button>
+      </div>
+      <div class="segmented small" id="scale" role="radiogroup" aria-label="Y axis scale">
+        <button type="button" data-scale="linear" role="radio">Linear</button>
+        <button type="button" data-scale="log" role="radio">Log</button>
       </div>
       <div class="chart-host" id="timeline"></div>
     </section>
