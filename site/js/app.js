@@ -142,7 +142,7 @@ function setupControls() {
   let resize;
   addEventListener('resize', () => {
     clearTimeout(resize);
-    resize = setTimeout(() => { renderStory(); update(); renderBatteryOrigins(data); }, 150);
+    resize = setTimeout(() => { renderStory(); update(); if (!$('origin-body').hidden) renderBatteryOrigins(data); }, 150);
   });
 }
 
@@ -461,7 +461,13 @@ async function main() {
   renderNow();
   renderStory();
   update();
-  renderBatteryOrigins(data);
+  $('origin-toggle').addEventListener('click', () => {
+    const body = $('origin-body');
+    body.hidden = !body.hidden;
+    $('origin-toggle').setAttribute('aria-expanded', !body.hidden);
+    $('origin-toggle').textContent = body.hidden ? 'Work it out' : 'Hide';
+    if (!body.hidden) renderBatteryOrigins(data);
+  });
 }
 
 main();
