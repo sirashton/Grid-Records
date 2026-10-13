@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseNesoGenMix } from '../pipeline/sources/neso-genmix.mjs';
 import { classifyBatteries } from '../pipeline/sources/elexon-bmunits.mjs';
-import { pnToDay, b1610ToDay } from '../pipeline/sources/elexon-battery.mjs';
+import { pnToDay, b1610ToDay, daysToFetch } from '../pipeline/sources/elexon-battery.mjs';
 import { encodeColumns, decodeColumns } from '../pipeline/encode.mjs';
 
 const day = Date.UTC(2026, 9, 12);
@@ -64,4 +64,22 @@ test('encoding round-trips values and missing slots', () => {
   const out = decodeColumns(gz, names, 5, missing);
   assert.deepEqual([...out.a], [100, 120, NaN, NaN, 90]);
   assert.deepEqual([...out.b], [-5, 0, 5, 30000, 0]);
+});
+
+test('only new days and stale recent days are refetched', () => {
+  const now = Date.UTC(2026, 9, 13, 12);
+  const h = (n) => new Date(now - n * 3600000).toISOString();
+  const store = { days: {
+    '2026-10-13': { fetched: h(1) },
+    '2026-10-12': { fetched: h(20) },
+    '2026-10-10': { fetched: h(1) },
+    '2026-09-01': {},
+  } };
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  const src = { refreshDays: 7, refreshHours: 12 };
+  const from = Date.UTC(2026, 8, 1);
+  const days = daysToFetch(store, src, now, from).map(iso);
+  assert.deepEqual(days.slice(0, 3), ['2026-10-12', '2026-10-11', '2026-10-09']);
+  assert.ok(!days.includes('2026-10-13') && !days.includes('2026-10-10') && !days.includes('2026-09-01'));
+  assert.equal(daysToFetch(store, { refreshDays: 2, refreshHours: 0 }, now, Date.UTC(2026, 9, 12)).length, 2);
 });

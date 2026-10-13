@@ -89,9 +89,30 @@ export async function fetchB1610Day(dayMs, batteries) {
   return b1610ToDay(recs, ids, dayMs);
 }
 
+// refreshDays: how far back days are fetched again, to pick up late data and
+// settlement revisions. refreshHours: how stale such a day must be first.
 export const BATTERY_SOURCES = {
-  pn: { fetchDay: fetchPnDay, refreshDays: 2, label: 'Elexon Physical Notifications' },
-  b1610: { fetchDay: fetchB1610Day, refreshDays: 21, label: 'Elexon B1610 metered output' },
+  pn: { fetchDay: fetchPnDay, refreshDays: 2, refreshHours: 0, label: 'Elexon Physical Notifications' },
+  b1610: { fetchDay: fetchB1610Day, refreshDays: 21, refreshHours: 12, label: 'Elexon B1610 metered output' },
 };
+
+/**
+ * Days to fetch this run, newest first: days never fetched, plus recent days
+ * whose last fetch is older than the source's refresh interval.
+ */
+export function daysToFetch(store, { refreshDays, refreshHours }, nowMs, fromMs) {
+  const today = Math.floor(nowMs / DAY_MS) * DAY_MS;
+  const queue = [];
+  for (let d = today; d >= fromMs; d -= DAY_MS) {
+    const day = store.days[isoDay(d)];
+    if (!day) {
+      queue.push(d);
+    } else if (today - d < refreshDays * DAY_MS) {
+      const age = day.fetched ? nowMs - Date.parse(day.fetched) : Infinity;
+      if (age >= refreshHours * 3600000) queue.push(d);
+    }
+  }
+  return queue;
+}
 
 export { isoDay };

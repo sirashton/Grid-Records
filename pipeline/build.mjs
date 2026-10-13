@@ -11,15 +11,15 @@ import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { fetchNesoGenMix } from './sources/neso-genmix.mjs';
 import { fetchBatteryUnits } from './sources/elexon-bmunits.mjs';
-import { BATTERY_SOURCES } from './sources/elexon-battery.mjs';
+import { BATTERY_SOURCES, daysToFetch } from './sources/elexon-battery.mjs';
 import { encodeColumns } from './encode.mjs';
 import { fetchJson, dayStart, isoDay, DAY_MS, SLOT_MS, log } from './lib.mjs';
 
 const { values: args } = parseArgs({
   options: {
-    'budget-minutes': { type: 'string', default: '12' },
+    'budget-minutes': { type: 'string', default: '10' },
     'backfill-from': { type: 'string', default: '2020-01-01' },
-    'live-url': { type: 'string', default: process.env.LIVE_URL ?? 'https://grid.gathered.consulting' },
+    'live-url': { type: 'string', default: process.env.LIVE_URL ?? 'https://sirashton.github.io/Grid-Records' },
     out: { type: 'string', default: 'site/data' },
     cache: { type: 'string', default: '.cache' },
   },
@@ -51,13 +51,9 @@ async function loadStore(source) {
 
 /** Fetches missing and recent days, newest first, until the budget runs out. */
 async function updateStore(source, store, batteries, deadline) {
-  const { fetchDay, refreshDays } = BATTERY_SOURCES[source];
+  const { fetchDay } = BATTERY_SOURCES[source];
   const today = dayStart(Date.now());
-  const queue = [];
-  for (let d = today; d >= BACKFILL_FROM; d -= DAY_MS) {
-    const recent = today - d < refreshDays * DAY_MS;
-    if (recent || !store.days[isoDay(d)]) queue.push(d);
-  }
+  const queue = daysToFetch(store, BATTERY_SOURCES[source], Date.now(), BACKFILL_FROM);
   let fetched = 0;
   let empty = 0;
   for (const d of queue) {
@@ -65,7 +61,7 @@ async function updateStore(source, store, batteries, deadline) {
     try {
       const day = await fetchDay(d, batteries);
       if (day && day.dis.some((v) => v !== null)) {
-        store.days[isoDay(d)] = day;
+        store.days[isoDay(d)] = { ...day, fetched: new Date().toISOString() };
         fetched++;
       } else {
         empty++;
