@@ -15,7 +15,7 @@
   --accent-orange: #f4a259;
   --sunny: #ffd25e;
   --sky: #d9efff;
-  --cell-empty: #f4efe4;
+  --cell-empty: #f1efea;
   --shadow: 4px;
   --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
   --r1: #86b6ef; --r2: #5598e7; --r3: #2a78d6; --r4: #256abf; --r5: #1c5cab; --r6: #184f95; --r7: #104281; --r8: #0d366b;
@@ -175,6 +175,8 @@ td.big { font-weight: 800; font-size: 1.0625rem; white-space: nowrap; }
 .chart .zero { stroke: var(--ink-3); stroke-width: 1; }
 .chart .crosshair { stroke: var(--ink-3); stroke-width: 1; }
 .chart .marker { stroke: var(--card); stroke-width: 2; }
+.chart .badge { font-size: 11px; font-weight: 800; fill: var(--ink); font-family: inherit; }
+.chart .bar .outline { stroke: var(--line); stroke-width: 2.5; rx: 3; }
 .chart .cell:hover { stroke: var(--ink); stroke-width: 2; }
 .tooltip {
   position: absolute; pointer-events: none; z-index: 2;

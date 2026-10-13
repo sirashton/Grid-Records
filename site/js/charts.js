@@ -188,7 +188,7 @@ function logTicks(lo, hi) {
 
 /**
  * Heatmap: rows x columns of values, coloured on a sequential ramp.
- * @param {{rows: string[], cols: string[], values: (number|null)[][], ramp: string[], format: (v)=>string, title: (r, c, v)=>string, max?: number, log?: boolean}} opts
+ * @param {{rows: string[], cols: string[], values: (number|null)[][], ramp?: string[], color?: (v)=>string, format: (v)=>string, title: (r, c, v)=>string, max?: number, log?: boolean}} opts
  */
 export function heatmap(host, opts) {
   host.innerHTML = '';
@@ -210,7 +210,7 @@ export function heatmap(host, opts) {
     lbl.textContent = r;
     opts.cols.forEach((c, ci) => {
       const v = opts.values[ri][ci];
-      const fill = v > 0 ? opts.ramp[Math.min(opts.ramp.length - 1, Math.max(0, Math.round(scale(v) * (opts.ramp.length - 1))))] : 'var(--cell-empty)';
+      const fill = !(v > 0) ? 'var(--cell-empty)' : opts.color ? opts.color(v) : opts.ramp[Math.min(opts.ramp.length - 1, Math.max(0, Math.round(scale(v) * (opts.ramp.length - 1))))];
       const cell = el('rect', { x: m.left + ci * cw + 1, y: m.top + ri * ch + 1, width: Math.max(1, cw - 2), height: ch - 2, rx: 3, fill, class: 'cell' }, svg);
       cell.addEventListener('pointerenter', () => {
         tip.innerHTML = opts.title(r, c, v);
@@ -232,7 +232,7 @@ export function heatmap(host, opts) {
 
 /**
  * Stacked (or single) bar chart over categories.
- * @param {{cats: string[], stacks: {name: string, color: string, values: number[]}[], yMax?: number, yFormat: (v)=>string, yTickFormat?: (v)=>string, tooltip: (ci: number)=>string, height?: number, faded?: (ci: number)=>boolean}} opts
+ * @param {{cats: string[], stacks: {name: string, color: string, values: number[]}[], yMax?: number, yFormat: (v)=>string, yTickFormat?: (v)=>string, tooltip: (ci: number)=>string, height?: number, highlight?: (ci: number)=>boolean, badge?: (ci: number)=>string|null}} opts
  */
 export function barChart(host, opts) {
   host.innerHTML = '';
@@ -260,7 +260,7 @@ export function barChart(host, opts) {
   host.appendChild(tip);
   const every = Math.ceil(opts.cats.length / Math.max(1, Math.floor(w / 40)));
   opts.cats.forEach((c, ci) => {
-    const g = el('g', { class: 'bar', opacity: opts.faded?.(ci) ? 0.55 : 1 }, svg);
+    const g = el('g', { class: opts.highlight?.(ci) ? 'bar highlight' : 'bar' }, svg);
     let acc = 0;
     for (const s of opts.stacks) {
       const v = s.values[ci] || 0;
@@ -268,6 +268,12 @@ export function barChart(host, opts) {
       el('rect', { x: m.left + ci * bw + pad / 2, y: y(acc + v), width: Math.max(1, bw - pad), height: Math.max(0, y(acc) - y(acc + v)), fill: s.color }, g);
       acc += v;
     }
+    const badge = opts.badge?.(ci);
+    if (badge) {
+      const b = el('text', { x: m.left + ci * bw + bw / 2, y: y(acc) - 6, 'text-anchor': 'middle', class: 'badge' }, g);
+      b.textContent = badge;
+    }
+    if (opts.highlight?.(ci)) el('rect', { x: m.left + ci * bw + pad / 2 - 2, y: y(acc) - 2, width: Math.max(1, bw - pad) + 4, height: y(0) - y(acc) + 4, fill: 'none', class: 'outline' }, g);
     el('rect', { x: m.left + ci * bw, y: m.top, width: bw, height: h, fill: 'transparent' }, g)
       .addEventListener('pointerenter', () => {
         tip.innerHTML = opts.tooltip(ci);
