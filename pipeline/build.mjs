@@ -143,6 +143,13 @@ async function main() {
     columns[`${s}_dis`] = dis;
     columns[`${s}_chg`] = chg;
     coverage[s] = { first, backfillRemaining: stores[s].backfillRemaining };
+    const recent = [...dis.subarray(-48 * 7)].map((v, i) => [v, chg[length - 48 * 7 + i]]).filter(([v]) => !Number.isNaN(v));
+    if (recent.length) {
+      const max = Math.max(...recent.map(([v]) => v));
+      const min = Math.min(...recent.map(([, c]) => c));
+      const mwh = recent.reduce((n, [v, c]) => n + (v + c) / 2, 0);
+      log(`battery ${s}: past week peak discharge ${max} MW, peak charge ${min} MW, net ${Math.round(mwh)} MWh`);
+    }
   }
 
   const { names, missing, gz } = encodeColumns(columns, length);
