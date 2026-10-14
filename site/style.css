@@ -23,6 +23,7 @@
   /* Fuel colours, shared by tiles and the story charts. */
   --f-coal: #5b5754; --f-gas: #f4a259; --f-other: #cfc8ba; --f-imports: #f28fb1; --f-biomass: #93c48b;
   --f-nuclear: #b48cf2; --f-hydro: #3b7dd8; --f-wind: #3ec1d3; --f-solar: #ffc93c;
+  --f-hydro-2: #7fb3ec;
   --fossil: #ef7d3c; --lowcarbon: #2fb56b;
 }
 
@@ -147,6 +148,32 @@ select:focus-visible, input:focus-visible, button:focus-visible, summary:focus-v
 .chip input { min-height: 0; margin: 0; accent-color: var(--primary); width: 16px; height: 16px; box-shadow: none; }
 .chip:has(input:checked) { background: color-mix(in srgb, var(--primary) 14%, var(--card)); }
 
+.now-panel { display: grid; grid-template-columns: minmax(0, 1fr) 260px minmax(0, 1fr); gap: 20px; align-items: start; }
+.now-group { border: 3px solid var(--line); margin-bottom: 10px; background: var(--card); }
+.now-row { display: grid; grid-template-columns: 52px 64px 52px minmax(0, 1fr); gap: 8px; align-items: center; padding: 3px 10px; font-size: 0.875rem; }
+.now-row .num { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.now-row .num small { font-weight: 600; color: var(--ink-3); margin-left: 2px; font-size: 0.6875rem; }
+.now-head { background: color-mix(in srgb, var(--tint) 28%, #fff); border-bottom: 3px solid var(--line); font-weight: 800; padding: 6px 10px; }
+.now-battery { padding: 2px 13px; color: var(--ink-2); }
+.now-battery small { color: var(--ink-3); }
+.spark { width: 48px; height: 20px; display: block; }
+.now-donut svg { width: 100%; height: auto; display: block; }
+.now-donut path { stroke: var(--line); stroke-width: 2; }
+.donut-label { font-size: 13px; font-weight: 700; fill: var(--ink-2); font-family: inherit; }
+.donut-value { font-size: 24px; font-weight: 800; fill: var(--ink); font-family: inherit; }
+.now-records h3 { margin: 0 0 8px; }
+.now-records ol { list-style: none; margin: 0; padding: 0; border: 3px solid var(--line); background: var(--card); }
+.now-records li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 10px; padding: 8px 12px; border-bottom: 2px solid var(--grid); }
+.now-records li:last-child { border-bottom: 0; }
+.now-records li.is-live { background: color-mix(in srgb, var(--sunny) 22%, #fff); }
+.rec-what { font-weight: 700; font-size: 0.9375rem; }
+.rec-value { font-weight: 800; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rec-when { grid-column: 1 / -1; font-size: 0.8125rem; color: var(--ink-3); }
+.rec-none { padding: 12px; color: var(--ink-3); }
+@media (max-width: 900px) {
+  .now-panel { grid-template-columns: minmax(0, 1fr); }
+  .now-donut { max-width: 260px; margin: 0 auto; width: 100%; }
+}
 .question { font-size: 1.0625rem; font-weight: 600; margin: 4px 0 12px; }
 .table-scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }

@@ -1,6 +1,7 @@
 import { loadData, metricSeries, FUELS, BATTERY_SOURCES, lastComplete, generationTotal } from './data.js';
 import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './records.js';
 import { lineChart, heatmap, barChart, fmtDate, fmtDateTime } from './charts.js';
+import { recentRecords } from './recent.js';
 import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
 import { renderBatteryOrigins } from './origins.js';
 
@@ -373,27 +374,98 @@ function shortDuration(slots) {
   return formatDuration(slots).replace(/ (minute|hour|day)s?/g, (_, u) => u[0]);
 }
 
+const NOW_GROUPS = [
+  { label: 'Fossil fuels', color: '--fossil', fuels: [
+    { label: 'Gas', cols: ['gas'], color: '--f-gas' },
+    { label: 'Coal', cols: ['coal'], color: '--f-coal' },
+  ] },
+  { label: 'Renewables', color: '--lowcarbon', fuels: [
+    { label: 'Wind', cols: ['wind', 'wind_emb'], color: '--f-wind' },
+    { label: 'Solar', cols: ['solar'], color: '--f-solar' },
+    { label: 'Hydro', cols: ['hydro'], color: '--f-hydro' },
+    { label: 'Biomass', cols: ['biomass'], color: '--f-biomass' },
+  ] },
+  { label: 'Other sources', color: '--f-nuclear', fuels: [
+    { label: 'Nuclear', cols: ['nuclear'], color: '--f-nuclear' },
+    { label: 'Imports', cols: ['imports'], color: '--f-imports' },
+    { label: 'Pumped storage', cols: ['storage'], color: '--f-hydro-2' },
+    { label: 'Other', cols: ['other'], color: '--f-other' },
+  ] },
+];
+
+function sparkline(values, color) {
+  const fin = values.filter(Number.isFinite);
+  if (fin.length < 2) return '<svg class="spark"></svg>';
+  const lo = Math.min(0, ...fin);
+  const hi = Math.max(...fin, lo + 1);
+  const pts = values.map((v, k) => (Number.isFinite(v) ? `${((k / (values.length - 1)) * 48).toFixed(1)},${(18 - ((v - lo) / (hi - lo)) * 16).toFixed(1)}` : null)).filter(Boolean).join(' ');
+  return `<svg class="spark" viewBox="0 0 48 20" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+}
+
+function donut(groups, total) {
+  const size = 260;
+  const c = size / 2;
+  const arc = (r0, r1, a0, a1) => {
+    if (a1 - a0 >= Math.PI * 2 - 1e-6) a1 = a0 + Math.PI * 2 - 1e-4;
+    const p = (r, a) => `${(c + r * Math.sin(a)).toFixed(2)},${(c - r * Math.cos(a)).toFixed(2)}`;
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    return `M${p(r1, a0)}A${r1},${r1} 0 ${large} 1 ${p(r1, a1)}L${p(r0, a1)}A${r0},${r0} 0 ${large} 0 ${p(r0, a0)}Z`;
+  };
+  let inner = '';
+  let outer = '';
+  let a = 0;
+  for (const g of groups) {
+    const ga = a;
+    for (const f of g.fuels) {
+      const span = (f.now / total) * Math.PI * 2;
+      if (span > 0) outer += `<path d="${arc(102, 128, a, a + span)}" fill="${css(f.color)}"><title>${f.label}: ${(f.now / 1000).toFixed(2)} GW</title></path>`;
+      a += span;
+    }
+    if (a > ga) inner += `<path d="${arc(72, 100, ga, a)}" fill="${css(g.color)}"><title>${g.label}: ${(g.now / 1000).toFixed(2)} GW</title></path>`;
+  }
+  return `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Current generation mix">${outer}${inner}
+    <text x="${c}" y="${c - 6}" text-anchor="middle" class="donut-label">Generation</text>
+    <text x="${c}" y="${c + 20}" text-anchor="middle" class="donut-value">${(total / 1000).toFixed(1)} GW</text></svg>`;
+}
+
+function recordLine(r) {
+  const gw = (v) => `${+v.toFixed(v < 1 ? 1 : 0)} GW`;
+  if (r.kind === 'peak') {
+    const v = r.unit === 'pct' ? `${r.value.toFixed(1)}%` : `${r.value.toFixed(r.value < 1 ? 2 : 1)} GW`;
+    return `<li><span class="rec-what">${r.label} ever</span><span class="rec-value">${v}</span><span class="rec-when">${fmtDateTime(r.startMs)}</span></li>`;
+  }
+  const what = `${r.label} ${r.mode === 'below' ? 'under' : 'at or above'} ${gw(r.threshold)}`;
+  const when = r.live ? `since ${fmtDate(r.startMs)}` : `${fmtDate(r.startMs)} to ${fmtDate(r.endMs)}`;
+  return `<li${r.live ? ' class="is-live"' : ''}><span class="rec-what">${what}</span><span class="rec-value">${shortDuration(r.slots)}${r.live ? ' <span class="live record-live">🏆 Live</span>' : ''}</span><span class="rec-when">Longest ever, ${when}</span></li>`;
+}
+
 function renderNow() {
   const c = data.columns;
   const i = lastComplete(data, ['gas', 'wind']);
-  const gw = (v) => `${(v / 1000).toFixed(1)} GW`;
-  const total = generationTotal(data)[i];
-  const fossil = c.gas[i] + c.coal[i];
-  const low = c.wind[i] + c.wind_emb[i] + c.solar[i] + c.nuclear[i] + c.hydro[i] + Math.max(0, c.storage[i]);
+  const from = Math.max(0, i - 47);
+  const groups = NOW_GROUPS.map((g) => {
+    const fuels = g.fuels.map((f) => {
+      const at = (k) => f.cols.reduce((sum, col) => sum + (c[col]?.[k] ?? 0), 0);
+      const series = [];
+      for (let k = from; k <= i; k++) series.push(at(k));
+      return { ...f, value: at(i), now: Math.max(0, at(i)), series };
+    });
+    return { ...g, fuels, now: fuels.reduce((s, f) => s + f.now, 0) };
+  });
+  const total = groups.reduce((s, g) => s + g.now, 0);
+  const gw = (v) => `${(v / 1000).toFixed(2)}`;
+  const pc = (v) => `${((v / total) * 100).toFixed(1)}%`;
   const pnI = data.meta.lastSlot.pn_dis;
   const bat = pnI != null ? c.pn_dis[pnI] + c.pn_chg[pnI] : NaN;
-  const fossilRecord = summarise(metricSeries(data, ['gas', 'coal']), 5, 'below', { startMs: data.startMs, maxGap: 2 });
-  const tiles = [
-    ['Fossil fuels', gw(fossil), `${((fossil / total) * 100).toFixed(0)}% of generation`],
-    ['Low carbon', `${((low / total) * 100).toFixed(0)}%`, 'wind, solar, nuclear, hydro, pumped storage'],
-    ['Wind', gw(c.wind[i] + c.wind_emb[i]), `${((((c.wind[i] + c.wind_emb[i]) / total) * 100)).toFixed(0)}%`],
-    ['Solar', gw(c.solar[i]), `${((c.solar[i] / total) * 100).toFixed(0)}%`],
-    ['Nuclear', gw(c.nuclear[i]), `${((c.nuclear[i] / total) * 100).toFixed(0)}%`],
-    ['Batteries', Number.isFinite(bat) ? `${bat >= 0 ? '+' : '−'}${Math.abs(bat / 1000).toFixed(1)} GW` : '—', Number.isFinite(bat) ? (bat >= 0 ? 'net discharging (planned)' : 'net charging (planned)') : 'no data yet'],
-    ['Fossil under 5 GW', fossilRecord.current ? shortDuration(fossilRecord.current.end - fossilRecord.current.start) : 'Not now', fossilRecord.current ? 'current spell' : `record ${shortDuration(fossilRecord.record.end - fossilRecord.record.start)}`],
-  ];
-  const tints = ['--fossil', '--lowcarbon', '--f-wind', '--f-solar', '--f-nuclear', '--f-nuclear', '--accent-green'];
-  $('now').innerHTML = tiles.map(([l, v, s], k) => `<div class="tile" style="--tint: color-mix(in srgb, var(${tints[k]}) 18%, #fff)"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
+  $('now-groups').innerHTML = groups.map((g) => `
+    <div class="now-group" style="--tint: var(${g.color})">
+      <div class="now-row now-head"><span></span><span class="num">${gw(g.now)}<small>GW</small></span><span class="num">${pc(g.now)}</span><span>${g.label}</span></div>
+      ${g.fuels.map((f) => `<div class="now-row">${sparkline(f.series, css(f.color))}<span class="num">${gw(f.value)}<small>GW</small></span><span class="num">${pc(f.now)}</span><span><span class="swatch" style="background:var(${f.color})"></span>${f.label}</span></div>`).join('')}
+    </div>`).join('') + `
+    <div class="now-row now-battery"><span></span><span class="num">${Number.isFinite(bat) ? `${bat >= 0 ? '+' : '−'}${Math.abs(bat / 1000).toFixed(2)}` : '—'}<small>GW</small></span><span></span><span>Batteries, ${Number.isFinite(bat) ? (bat >= 0 ? 'discharging' : 'charging') : 'no data'} <small>(planned, inside Other)</small></span></div>`;
+  $('now-donut').innerHTML = donut(groups, total);
+  const recs = recentRecords(data, { batterySource: state.battery });
+  $('now-records').innerHTML = recs.length ? recs.map(recordLine).join('') : '<li class="rec-none">No new records in the last six months.</li>';
   $('updated').textContent = `Generation data to ${fmtDateTime(slotTime(i, data.startMs))} (UK time). Updated every 30 minutes.`;
 }
 
