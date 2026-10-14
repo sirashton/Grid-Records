@@ -1,58 +1,53 @@
-// Rolling envelope of a half-hourly series: the typical daily low and high.
-// Each slot's low (high) is the minimum (maximum) over the 24 hours centred on
-// it; those are then averaged over a centred window of `smoothDays` days.
+// Rolling envelopes of a series, for the "measure over time" chart. For each
+// point, a centred window of `w` points gives a 100% band (the minimum and
+// maximum, so the line never leaves it) and a 99% band (the 0.5th and 99.5th
+// percentiles, which ignores the rare spikes).
 
-const DAY = 48;
+/** Index of the first element of sorted `arr` that is >= v. */
+function lowerBound(arr, v) {
+  let lo = 0;
+  let hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid] < v) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
 
-/** Centred rolling minimum or maximum over `w` slots, skipping NaN. */
-function rollingExtreme(values, w, isMin) {
+/** Linearly interpolated quantile q of a sorted array. */
+function quantile(sorted, q) {
+  const pos = (sorted.length - 1) * q;
+  const a = Math.floor(pos);
+  const b = Math.min(sorted.length - 1, a + 1);
+  return sorted[a] + (sorted[b] - sorted[a]) * (pos - a);
+}
+
+/**
+ * { min, max, lo, hi }: Float64Arrays the same length as values. Missing
+ * values (NaN) are skipped; a window with none left gives NaN.
+ */
+export function envelopes(values, w, q = 0.005) {
   const n = values.length;
-  const out = new Float64Array(n).fill(NaN);
   const half = Math.floor(w / 2);
-  const dq = [];
-  let head = 0;
-  const better = (a, b) => (isMin ? a <= b : a >= b);
-  for (let j = 0; j < n + half; j++) {
-    if (j < n && !Number.isNaN(values[j])) {
-      while (dq.length > head && better(values[j], values[dq[dq.length - 1]])) dq.pop();
-      dq.push(j);
+  const out = { min: new Float64Array(n), max: new Float64Array(n), lo: new Float64Array(n), hi: new Float64Array(n) };
+  // The window's values kept sorted as it slides.
+  const win = [];
+  const ok = (j) => j >= 0 && j < n && !Number.isNaN(values[j]);
+  for (let j = 0; j < Math.min(n, half); j++) if (ok(j)) win.splice(lowerBound(win, values[j]), 0, values[j]);
+  for (let i = 0; i < n; i++) {
+    const enter = i + half;
+    if (ok(enter)) win.splice(lowerBound(win, values[enter]), 0, values[enter]);
+    const leave = i - half - 1;
+    if (ok(leave)) win.splice(lowerBound(win, values[leave]), 1);
+    if (!win.length) {
+      out.min[i] = out.max[i] = out.lo[i] = out.hi[i] = NaN;
+      continue;
     }
-    const i = j - half;
-    if (i < 0) continue;
-    while (dq.length > head && dq[head] < i - half) head++;
-    if (dq.length > head) out[i] = values[dq[head]];
+    out.min[i] = win[0];
+    out.max[i] = win[win.length - 1];
+    out.lo[i] = quantile(win, q);
+    out.hi[i] = quantile(win, 1 - q);
   }
   return out;
-}
-
-/** Centred rolling mean over `w` slots, skipping NaN. */
-function rollingMean(values, w) {
-  const n = values.length;
-  const sum = new Float64Array(n + 1);
-  const cnt = new Float64Array(n + 1);
-  for (let i = 0; i < n; i++) {
-    const ok = !Number.isNaN(values[i]);
-    sum[i + 1] = sum[i] + (ok ? values[i] : 0);
-    cnt[i + 1] = cnt[i] + (ok ? 1 : 0);
-  }
-  const half = Math.floor(w / 2);
-  const out = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    const a = Math.max(0, i - half);
-    const b = Math.min(n, i + half + 1);
-    const c = cnt[b] - cnt[a];
-    out[i] = c ? (sum[b] - sum[a]) / c : NaN;
-  }
-  return out;
-}
-
-/** { low, high }: Float64Arrays the same length as values. */
-export function envelope(values, smoothDays = 0) {
-  let low = rollingExtreme(values, DAY, true);
-  let high = rollingExtreme(values, DAY, false);
-  if (smoothDays > 1) {
-    low = rollingMean(low, smoothDays * DAY);
-    high = rollingMean(high, smoothDays * DAY);
-  }
-  return { low, high };
 }

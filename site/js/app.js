@@ -2,7 +2,7 @@ import { loadData, metricSeries, FUELS, BATTERY_SOURCES, lastComplete, generatio
 import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './records.js';
 import { lineChart, heatmap, barChart, fmtDate, fmtDateTime } from './charts.js';
 import { recentRecords } from './recent.js';
-import { envelope } from './envelope.js';
+import { envelopes } from './envelope.js';
 import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
 import { renderBatteryOrigins } from './origins.js';
 import { renderSolar } from './solar-view.js';
@@ -327,38 +327,40 @@ function windowPoints(values, days, fromEnd = data.length) {
   return pts;
 }
 
-// Days the envelope is averaged over, per time range.
-const ENVELOPE_DAYS = { 7: 0, 30: 3, 365: 14, all: 365 };
+// How many plotted points each envelope spans, per time range: a day of
+// half hours for a week, three days for a month, a fortnight of daily means
+// for a year, and a year of them for all time.
+const ENVELOPE_POINTS = { 7: 48, 30: 144, 365: 14, all: 365 };
+const ENVELOPE_LABEL = { 7: '24-hour', 30: '3-day', 365: '14-day', all: '365-day' };
 let envelopeCache = null;
 
 function renderTimeline(values) {
   const thresholds = orderedThresholds();
   const end = lastComplete(data, ['gas']) + 1;
   const daily = state.range === 'all' || Number(state.range) > 60;
-  const smooth = ENVELOPE_DAYS[state.range] ?? 0;
-  const key = `${seriesCache.key}|${smooth}`;
-  if (envelopeCache?.key !== key) envelopeCache = { key, ...envelope(values, smooth) };
   const raw = windowPoints(values, state.range, end);
-  // Sample the envelope at the same times as the plotted points (mid-day for daily points).
-  const at = (arr) => raw.map(([t]) => {
-    const i = Math.round((t - data.startMs) / (STEP_MINUTES * 60000)) + (daily ? 24 : 0);
-    return [t, arr[Math.min(i, end - 1)]];
-  });
-  const low = at(envelopeCache.low);
-  const high = at(envelopeCache.high);
-  // For "below" records the high edge decides a spell; for "above", the low edge.
-  const keyEdge = state.mode === 'below' ? 'high' : 'low';
+  const key = `${seriesCache.key}|${state.range}|${end}`;
+  if (envelopeCache?.key !== key) {
+    envelopeCache = { key, ...envelopes(raw.map(([, v]) => v), ENVELOPE_POINTS[state.range] ?? 48) };
+  }
+  const edge = (arr) => raw.map(([t], i) => [t, arr[i]]);
+  const [min, max, lo, hi] = ['min', 'max', 'lo', 'hi'].map((k) => edge(envelopeCache[k]));
   const color = css('--s2');
   const ink = css('--fossil-ink');
-  const window = smooth ? `${smooth}-day average of each day's` : 'each 24 hours’';
-  $('timeline-note').textContent = `The shaded band runs from ${window} low to high. The bold edge is the ${keyEdge === 'low' ? 'low' : 'high'} one, which decides how long the measure can stay ${state.mode === 'below' ? 'below' : 'above'} a threshold.`;
+  const span = ENVELOPE_LABEL[state.range] ?? '24-hour';
+  $('timeline-note').textContent = `Over each rolling ${span} window, the light band spans every value and the darker band the middle 99%, leaving out the rarest spikes.`;
   lineChart($('timeline'), {
     series: [
       { name: `${groupName()}${daily ? ' (daily mean)' : ''}`, color, points: raw, width: 1.2, opacity: 0.35 },
-      { name: 'Typical daily low', color: ink, points: low, width: keyEdge === 'low' ? 3 : 1.5, opacity: keyEdge === 'low' ? 1 : 0.6 },
-      { name: 'Typical daily high', color: ink, points: high, width: keyEdge === 'high' ? 3 : 1.5, opacity: keyEdge === 'high' ? 1 : 0.6 },
+      { name: '100% band, high', color: ink, points: max, width: 1, opacity: 0.55 },
+      { name: '99% band, high', color: ink, points: hi, width: 2 },
+      { name: '99% band, low', color: ink, points: lo, width: 2 },
+      { name: '100% band, low', color: ink, points: min, width: 1, opacity: 0.55 },
     ],
-    bands: [{ lower: low, upper: high, color, opacity: 0.16 }],
+    bands: [
+      { lower: min, upper: max, color, opacity: 0.12 },
+      { lower: lo, upper: hi, color, opacity: 0.2 },
+    ],
     refLines: thresholds.map((t, i) => ({ value: t, color: thresholdColor(i, thresholds.length) })),
     yLog: state.scale === 'log',
     yMin: state.scale === 'log' ? (state.unit === 'pct' ? 0.5 : 0.05) : undefined,
