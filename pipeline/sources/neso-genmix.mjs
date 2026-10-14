@@ -5,6 +5,13 @@ import { fetchJson, fetchText, parseUtc, SLOT_MS, log } from '../lib.mjs';
 
 const PACKAGE = 'https://api.neso.energy/api/3/action/package_show?id=historic-generation-mix';
 
+// Ratcliffe-on-Soar, GB's last coal station, stopped generating on 30 Sept
+// 2024. NESO and Elexon still show occasional coal blips after that (a single
+// half hour on a Wednesday morning every few months, e.g. 133 MW on 23 Sept
+// 2026, which NESO smears into an eight hour ramp). No coal plant can run, so
+// coal is zero from this point on.
+export const COAL_CLOSED_MS = Date.UTC(2024, 9, 1);
+
 // Output column -> CSV header. NESO counts battery net discharge in OTHER and
 // has said a dedicated battery column is coming; BESS is picked up if present.
 export const NESO_COLUMNS = {
@@ -87,9 +94,16 @@ export function parseNesoGenMix(csv) {
       dropouts++;
     }
   }
+  let coalBlips = 0;
+  for (let i = Math.max(0, Math.ceil((COAL_CLOSED_MS - startMs) / SLOT_MS)); i < length; i++) {
+    if (columns.coal[i] > 0) {
+      columns.coal[i] = 0;
+      coalBlips++;
+    }
+  }
   let missing = 0;
   for (const v of columns.gas) if (Number.isNaN(v)) missing++;
   log(`NESO generation mix: ${rows.length} rows, ${length} slots from ${new Date(startMs).toISOString()},`,
-    `${missing} missing (${dropouts} dropouts), ${duplicates} duplicate, ${offGrid} off-grid; columns ${Object.keys(idx).join(',')}`);
-  return { startMs, length, columns, stats: { rows: rows.length, missing, dropouts, duplicates, offGrid } };
+    `${missing} missing (${dropouts} dropouts), ${duplicates} duplicate, ${offGrid} off-grid, ${coalBlips} coal after closure zeroed; columns ${Object.keys(idx).join(',')}`);
+  return { startMs, length, columns, stats: { rows: rows.length, missing, dropouts, duplicates, offGrid, coalBlips } };
 }
