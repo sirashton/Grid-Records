@@ -33,6 +33,18 @@ test('treats half hours with gas, hydro and other all zero as missing', () => {
   assert.equal(stats.dropouts, 1);
 });
 
+test('zeroes coal after the last coal station closed', () => {
+  const csv = [
+    'DATETIME,GAS,COAL,NUCLEAR,WIND,HYDRO,OTHER,SOLAR',
+    '2024-09-30T23:30:00,9000,120,4000,5000,300,200,0',
+    '2024-10-01T00:00:00,9000,0,4000,5000,300,200,0',
+    '2024-10-01T00:30:00,9000,133,4000,5000,300,200,0',
+  ].join('\n');
+  const { columns, stats } = parseNesoGenMix(csv);
+  assert.deepEqual([...columns.coal], [120, 0, 0]);
+  assert.equal(stats.coalBlips, 1);
+});
+
 test('classifies battery units by name and by National Grid id', () => {
   const units = [
     { nationalGridBmUnit: 'BLWNB-1', elexonBmUnit: 'T_BLWNB-1', bmUnitName: 'Thornton Battery', fuelType: 'OTHER', generationCapacity: '200', demandCapacity: '-200' },
