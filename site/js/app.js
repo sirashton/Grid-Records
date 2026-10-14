@@ -44,7 +44,7 @@ const state = {
   thresholds: PRESETS.fossil.gw,
   members: PRESETS.fossil.members,
   battery: 'pn',
-  range: '30',
+  range: 'all',
   batteryRange: '14',
   membersOpen: false,
   scale: 'linear',
