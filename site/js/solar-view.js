@@ -62,7 +62,7 @@ export function renderSolar(data) {
     ['--f-gas', '🌥️', 'December', `${(dec * 100).toFixed(1)}%`, `so it takes ${Math.round(1 / dec)} MW of panels to average 1 MW`],
     ['--f-nuclear', '🔋', `Cheapest kit in ${last.year}`, `${now.panels} MW + ${Math.round(now.mwh)} MWh`, 'of panels and battery for each firm MW'],
     ['--f-other', '🗑️', 'Spilled', `${Math.round((1 - used) * 100)}%`, 'of what those panels make is not needed'],
-  ].map(([c, e, l, v, sub]) => `<div class="fact" style="--tint: color-mix(in srgb, var(${c}) 20%, #fff)"><div class="label"><span aria-hidden="true">${e}</span> ${l}</div><div class="big">${v}</div><div class="sub">${sub}</div></div>`).join('');
+  ].map(([c, e, l, v, sub]) => `<div class="fact"><div class="label"><span class="swatch" style="background:var(${c})"></span>${l}</div><div class="big">${v}</div><div class="sub">${sub}</div></div>`).join('');
 
   // The comparison.
   const lines = [

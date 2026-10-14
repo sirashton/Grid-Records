@@ -32,7 +32,7 @@ export function renderBatteryOrigins(data) {
     ['--f-nuclear', '🔋', 'Batteries discharged', gwh(recent.dischargedMwh), `${period}${recent.unknown >= 1 ? `, ${pc(recent.unknown)} of it unexplained` : ''}`],
     ['--f-wind', '📦', 'In the batteries now', storeTotal > 0 ? gwh(storeTotal) : 'Empty', `by this model's reckoning${storeTotal > 0 ? `, mostly ${top[0].toLowerCase()} (${pc((top[1] / storeTotal) * 100)})` : ''}`],
   ];
-  $('origin-facts').innerHTML = cards.map(([c, e, l, v, sub]) => `<div class="fact" style="--tint: color-mix(in srgb, var(${c}) 20%, #fff)"><div class="label"><span aria-hidden="true">${e}</span> ${l}</div><div class="big">${v}</div><div class="sub">${sub}</div></div>`).join('');
+  $('origin-facts').innerHTML = cards.map(([c, e, l, v, sub]) => `<div class="fact"><div class="label"><span class="swatch" style="background:var(${c})"></span>${l}</div><div class="big">${v}</div><div class="sub">${sub}</div></div>`).join('');
 
   const months = byMonth(days).map((m) => ({ ...m, s: shares(m) })).filter((m) => m.s.dischargedMwh > 0);
   const stacks = [

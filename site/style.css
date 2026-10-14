@@ -40,7 +40,7 @@ a { color: var(--primary); font-weight: 600; }
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
 
 .hero {
-  background: linear-gradient(180deg, var(--sky) 0%, #eef8ff 55%, var(--bg) 100%);
+  background: var(--sky);
   border-bottom: 3px solid var(--line);
 }
 .hero-inner { display: flex; align-items: center; gap: 24px; padding-top: 32px; padding-bottom: 16px; }
@@ -61,7 +61,7 @@ a { color: var(--primary); font-weight: 600; }
 }
 h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; line-height: 1.05; }
 .lede { font-size: 1.125rem; color: var(--ink-2); max-width: 40em; margin: 0 0 10px; }
-.updated { display: inline-block; color: var(--ink-2); font-size: 0.8125rem; font-weight: 600; margin: 0; background: #fff; border: 2px solid var(--line); border-radius: 0; padding: 2px 12px; }
+.updated { color: var(--ink-2); font-size: 0.8125rem; font-weight: 600; margin: 0; }
 
 .card {
   background: var(--card);
@@ -71,22 +71,22 @@ h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -
   padding: 20px;
   margin: 28px 0;
 }
-.now-card { --tint-shadow: var(--sunny); }
-.story { --tint-shadow: var(--accent-green); }
-.records-card { --tint-shadow: var(--primary); }
-.battery-card { --tint-shadow: var(--f-nuclear); }
-.solar-card { --tint-shadow: var(--f-solar); }
-/* A coloured block behind the card, outlined in black all the way round. The
-   black copy is spread by the border width so it frames the colour on every side. */
-.now-card, .story, .records-card, .battery-card, .solar-card {
-  box-shadow: var(--shadow) var(--shadow) 0 0 var(--tint-shadow), var(--shadow) var(--shadow) 0 3px var(--line);
-}
-.emoji { display: inline-block; margin-right: 2px; }
-h2:hover .emoji { animation: wiggle 0.5s ease-in-out; }
-@keyframes wiggle { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+/* Only Right now and the records tool are boxed; the rest sit on the page
+   under a rule. */
+.plain { margin: 40px 0; padding-top: 16px; border-top: 3px solid var(--line); }
 
 .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 8px; }
-.fact { border: 3px solid var(--line); border-radius: 0; padding: 12px 14px; background: var(--tint, var(--bg)); }
+.fact { border: 3px solid var(--line); border-radius: 0; padding: 12px 14px; background: var(--card); }
+.fact .label .swatch { margin-right: 6px; }
+#facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px 32px; align-items: center; }
+#facts .headline .big { font-size: clamp(2.5rem, 7vw, 4rem); font-weight: 800; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+#facts .headline .sub { font-size: 1rem; color: var(--ink-2); margin-top: 6px; }
+.fact-list { list-style: none; margin: 0; padding: 0; }
+.fact-list li { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 2px solid var(--grid); }
+.fact-list li:last-child { border-bottom: 0; }
+.fact-list .v { font-weight: 800; font-variant-numeric: tabular-nums; }
+.fact-list .sub { color: var(--ink-3); font-size: 0.875rem; }
+@media (max-width: 700px) { #facts { grid-template-columns: minmax(0, 1fr); } }
 .fact .big { font-size: 1.75rem; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .fact .label { font-weight: 700; font-size: 0.9375rem; }
 .fact .sub { font-size: 0.8125rem; color: var(--ink-2); }
@@ -177,7 +177,7 @@ select:focus-visible, input:focus-visible, button:focus-visible, summary:focus-v
 .nr.head .sm { color: var(--ink-2); }
 .nr.is-live .lbl { font-weight: 800; }
 .spark, .mark-tile { width: 40px; height: 28px; display: block; }
-.mark-tile { display: grid; place-items: center; font-size: 0.875rem; }
+.mark-tile { display: grid; place-items: center; font-size: 0.625rem; font-weight: 800; letter-spacing: 0.04em; }
 .now-donut { position: absolute; left: 50%; top: 50%; width: var(--donut); transform: translate(-50%, -50%); }
 .now-donut svg { width: 100%; height: auto; display: block; }
 .now-donut .disc { fill: var(--card); stroke: var(--line); stroke-width: 3; }
@@ -227,15 +227,7 @@ td:first-child { white-space: nowrap; }
 td.big { font-weight: 800; font-size: 1.0625rem; white-space: nowrap; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 0; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--line); }
 .live { display: inline-block; font-size: 0.6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; background: var(--accent-green); color: #fff; border-radius: 0; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
-.live.record-live {
-  color: var(--ink); text-transform: none; letter-spacing: 0; font-size: 0.75rem;
-  border: 2px solid var(--line); border-radius: 0; padding: 1px 8px;
-  background: linear-gradient(110deg, #ffd25e 0%, #ffd25e 40%, #fff3c4 50%, #ffd25e 60%, #ffd25e 100%);
-  background-size: 250% 100%; animation: shimmer 2.4s linear infinite;
-  box-shadow: 2px 2px 0 0 var(--line);
-}
-@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
-@media (prefers-reduced-motion: reduce) { .live.record-live { animation: none; } }
+.live.record-live { background: var(--sunny); color: var(--ink); }
 .units td, .units th { font-size: 0.8125rem; padding: 4px 8px; }
 
 .chart-host { position: relative; width: 100%; min-height: 60px; }
