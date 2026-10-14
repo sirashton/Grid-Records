@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { YEARS, COSTS, batteryForFirm, unservedShare, batteryForShare, solarShape, cheapestSolar, gasCost, yearInputs } from '../site/js/solarcost.js';
+import { YEARS, COSTS, mixSizing, batteryForFirm, unservedShare, batteryForShare, solarShape, cheapestSolar, gasCost, yearInputs } from '../site/js/solarcost.js';
 
 // One day: 2 MW for 12 half hours (six hours), nothing for the other 36.
 const day = Array.from({ length: 48 }, (_, i) => (i >= 18 && i < 30 ? 2 : 0));
@@ -54,4 +54,15 @@ test('a new gas plant costs more than running an existing one, and gas tracks fu
   const g20 = gasCost(yearInputs(k20));
   assert.ok(g22.newBuild > g22.existing);
   assert.ok(g22.existing > g20.existing * 2);
+});
+
+test('mixSizing adds wind to the solar output and finds a battery for each mix', () => {
+  const wind = new Float64Array(shape.length).fill(0.5);
+  const [firm, most] = mixSizing(shape, wind);
+  assert.equal(firm.share, 1);
+  assert.equal(most.share, 0.99);
+  // 2 MW of wind alone gives a steady 1 MW, so no battery is needed.
+  const steadyWind = firm.options.find((o) => o.turbines === 2 && o.panels === 0);
+  assert.equal(steadyWind.mwh, 0);
+  for (const [k, o] of most.options.entries()) assert.ok(o.mwh <= firm.options[k].mwh + 1e-9);
 });
