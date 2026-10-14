@@ -63,7 +63,7 @@ function timeTicks(lo, hi) {
  *   refLines?: {value: number, color: string, label: string}[],
  *   bands?: {lower: [number, number][], upper: [number, number][], color: string, opacity?: number}[],
  *   tooltip?: (t: number, values: {series, value, point}[]) => string,
- *   height?: number, xMin?: number, xMax?: number, yTicks?: number[], zeroLine?: boolean,
+ *   height?: number, xMin?: number, xMax?: number, yTicks?: number[], zeroLine?: boolean, fitData?: boolean,
  * }} opts
  */
 export function lineChart(host, opts) {
@@ -80,13 +80,24 @@ export function lineChart(host, opts) {
   }
   const xMin = opts.xMin ?? Math.min(...all.map((p) => p[0]));
   const xMax = opts.xMax ?? Math.max(...all.map((p) => p[0]));
-  const ys = all.map((p) => p[1]).filter(Number.isFinite).concat((opts.refLines ?? []).map((r) => r.value));
+  // fitData leaves reference lines out of the range, so a small series isn't
+  // squashed flat by a threshold far above it; lines out of range are hidden.
+  const ys = all.map((p) => p[1]).filter(Number.isFinite).concat(opts.fitData ? [] : (opts.refLines ?? []).map((r) => r.value));
   let yMin = opts.yMin ?? Math.min(0, ...ys);
   let yMax = Math.max(...ys);
   if (opts.yLog) {
     yMin = Math.max(opts.yMin ?? 1e-9, Math.min(...ys.filter((v) => v > 0)));
     yMax = Math.max(yMax, yMin * 10);
-  } else if (yMax === yMin) yMax = yMin + 1;
+  } else {
+    if (yMax === yMin) yMax = yMin + 1;
+    // Round the limits out to the tick step, so the axis ends on a labelled value.
+    const ticks = niceTicks(yMin, yMax);
+    const step = ticks.length > 1 ? ticks[1] - ticks[0] : 0;
+    if (step > 0 && !opts.yTicks) {
+      yMax = Number((Math.ceil(yMax / step - 1e-9) * step).toPrecision(10));
+      if (yMin < 0) yMin = Number((Math.floor(yMin / step + 1e-9) * step).toPrecision(10));
+    }
+  }
   const ly = (v) => Math.log10(v);
   const x = (t) => m.left + ((t - xMin) / (xMax - xMin || 1)) * w;
   const y = opts.yLog
@@ -109,6 +120,7 @@ export function lineChart(host, opts) {
   if (opts.zeroLine && yMin < 0) el('line', { x1: m.left, x2: m.left + w, y1: y(0), y2: y(0), class: 'zero' }, svg);
 
   for (const r of opts.refLines ?? []) {
+    if (r.value < yMin - 1e-9 || r.value > yMax + 1e-9) continue;
     el('line', { x1: m.left, x2: m.left + w, y1: y(r.value), y2: y(r.value), stroke: r.color, class: 'ref' }, svg);
   }
 

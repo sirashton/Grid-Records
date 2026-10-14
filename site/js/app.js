@@ -356,24 +356,15 @@ const ENVELOPE_POINTS = { 7: 48, 30: 144, 365: 14, all: 365 };
 const ENVELOPE_LABEL = { 7: '24-hour', 30: '3-day', 365: '14-day', all: '365-day' };
 let envelopeCache = null;
 
-function renderTimeline(values) {
-  const thresholds = orderedThresholds();
-  const end = lastComplete(data, ['gas']) + 1;
-  const daily = state.range === 'all' || Number(state.range) > 60;
-  const raw = windowPoints(values, state.range, end);
-  const key = `${seriesCache.key}|${state.range}|${end}`;
-  if (envelopeCache?.key !== key) {
-    envelopeCache = { key, ...envelopes(raw.map(([, v]) => v), ENVELOPE_POINTS[state.range] ?? 48) };
-  }
+/** The line, its two envelope bands and their edges, as lineChart series and bands. */
+function envelopeLayers(raw, env, name) {
   const edge = (arr) => raw.map(([t], i) => [t, arr[i]]);
-  const [min, max, lo, hi] = ['min', 'max', 'lo', 'hi'].map((k) => edge(envelopeCache[k]));
+  const [min, max, lo, hi] = ['min', 'max', 'lo', 'hi'].map((k) => edge(env[k]));
   const color = css('--s2');
   const ink = css('--fossil-ink');
-  const span = ENVELOPE_LABEL[state.range] ?? '24-hour';
-  $('timeline-note').textContent = `Over each rolling ${span} window, the light band spans every value and the darker band the middle 99%, leaving out the rarest spikes.`;
-  lineChart($('timeline'), {
+  return {
     series: [
-      { name: `${groupName()}${daily ? ' (daily mean)' : ''}`, color, points: raw, width: 1.2, opacity: 0.35 },
+      { name, color, points: raw, width: 1.2, opacity: 0.35 },
       { name: '100% band, high', color: ink, points: max, width: 1, opacity: 0.55 },
       { name: '99% band, high', color: ink, points: hi, width: 2 },
       { name: '99% band, low', color: ink, points: lo, width: 2 },
@@ -383,8 +374,25 @@ function renderTimeline(values) {
       { lower: min, upper: max, color, opacity: 0.12 },
       { lower: lo, upper: hi, color, opacity: 0.2 },
     ],
+  };
+}
+
+function renderTimeline(values) {
+  const thresholds = orderedThresholds();
+  const end = lastComplete(data, ['gas']) + 1;
+  const daily = state.range === 'all' || Number(state.range) > 60;
+  const raw = windowPoints(values, state.range, end);
+  const key = `${seriesCache.key}|${state.range}|${end}`;
+  if (envelopeCache?.key !== key) {
+    envelopeCache = { key, ...envelopes(raw.map(([, v]) => v), ENVELOPE_POINTS[state.range] ?? 48) };
+  }
+  const span = ENVELOPE_LABEL[state.range] ?? '24-hour';
+  $('timeline-note').textContent = `Over each rolling ${span} window, the light band spans every value and the darker band the middle 99%, leaving out the rarest spikes.`;
+  lineChart($('timeline'), {
+    ...envelopeLayers(raw, envelopeCache, `${groupName()}${daily ? ' (daily mean)' : ''}`),
     refLines: thresholds.map((t, i) => ({ value: t, color: thresholdColor(i, thresholds.length) })),
     yLog: state.scale === 'log',
+    fitData: state.scale !== 'log',
     yMin: state.scale === 'log' ? (state.unit === 'pct' ? 0.5 : 0.05) : undefined,
     yTicks: state.scale === 'log' ? [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100] : undefined,
     yFormat: fmtValue,
@@ -691,6 +699,40 @@ function spellRecords(levels) {
   return levels.map((gw) => summarise(fossil, gw, 'below', { startMs: data.startMs, maxGap: 2 }).record);
 }
 
+// Battery discharge (Elexon PN) as daily means from its first full year, with
+// a rolling-year envelope and the biggest half hour of each year.
+function batteryGrowth() {
+  const dis = data.columns.pn_dis;
+  const first = dis.findIndex((v) => v > 0);
+  if (first < 0) return null;
+  const year = (i) => new Date(slotTime(i, data.startMs)).getUTCFullYear();
+  const peaks = new Map();
+  for (let i = first; i < data.length; i++) if (dis[i] > (peaks.get(year(i)) ?? 0)) peaks.set(year(i), dis[i]);
+  let recent = 0;
+  for (let i = Math.max(first, data.length - 365 * 48); i < data.length; i++) if (dis[i] > recent) recent = dis[i];
+  const startMs = Date.UTC(year(first), 0, 1);
+  const raw = windowPoints(metricSeries(data, ['battery'], { batterySource: 'pn' }), 'all').filter(([t]) => t >= startMs);
+  return { raw, env: envelopes(raw.map(([, v]) => v), 365), firstYear: year(first) + 1, peaks, recent };
+}
+
+function renderBatteryStory() {
+  const b = story.battery;
+  if (!b) return;
+  const gw = (mw) => `${(mw / 1000).toFixed(1)} GW`;
+  // The first year with data is usually partial, so compare from the year after.
+  const then = b.peaks.get(b.firstYear);
+  if (then) $('battery-take').textContent = `The most batteries gave in any half hour went from ${gw(then)} in ${b.firstYear} to ${gw(b.recent)} in the past year.`;
+  lineChart($('story-battery'), {
+    ...envelopeLayers(b.raw, b.env, 'Battery discharge (daily mean)'),
+    yLog: true,
+    yMin: 0.01,
+    yTicks: [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5],
+    yFormat: (v) => `${v.toFixed(2)} GW`,
+    yTickFormat: (v) => `${v}`,
+    tooltip: (t, vals) => `<strong>${fmtDate(t)}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? `${v.value.toFixed(2)} GW` : '—'}</b></div>`).join('')}`,
+  });
+}
+
 let story = null;
 function renderStory() {
   if (!story) {
@@ -700,6 +742,7 @@ function renderStory() {
       hours: yearlyHoursBelow(data, FOSSIL, [10000, 5000, 1000]),
       facts: facts(data),
       spells: spellRecords([1, 2, 5]),
+      battery: batteryGrowth(),
     };
   }
   const f = story.facts;
@@ -765,6 +808,7 @@ function renderStory() {
     tooltip: (ci) => `<strong>${yearTitle(hrs[ci].year)}</strong><div>Under 10 GW: <b>${fmtH(hrs[ci].hours[0])}</b> (${((hrs[ci].hours[0] / 8760) * 100).toFixed(0)}% of the year)</div><div>Under 5 GW: <b>${fmtH(hrs[ci].hours[1])}</b></div><div>Under 1 GW: <b>${fmtH(hrs[ci].hours[2])}</b></div>`,
   });
   $('story-hours-legend').innerHTML = hourStacks.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('') + '<span>★ hours under 1 GW</span>';
+  renderBatteryStory();
 }
 
 /**
