@@ -136,8 +136,7 @@
       <details class="chapter" id="chapter-4">
         <summary><span class="ch-num">4</span><span class="ch-text"><span class="ch-title">Batteries fill the gaps</span><span class="ch-take">Batteries shift power from when it's plentiful to when it's needed.</span></span></summary>
         <div class="ch-body">
-      <p>No single public feed gives the full picture of Great Britain's batteries yet, so this site runs three side by side.
-        Positive values are discharging into the grid; negative values are charging.</p>
+      <p>Above the line, batteries are feeding the grid; below it, they're charging.</p>
       <div class="segmented small" id="battery-range" role="radiogroup" aria-label="Time range">
         <button type="button" data-range="3">3 days</button>
         <button type="button" data-range="14">2 weeks</button>
@@ -145,6 +144,9 @@
       </div>
       <div class="chart-host" id="battery-chart"></div>
       <div class="legend" id="battery-legend"></div>
+      <details class="more">
+        <summary>About the battery data</summary>
+        <p class="hint">No single public feed sees all of Great Britain's batteries yet, so the chart shows three side by side.</p>
       <label class="field inline">
         <span>Battery source used in records</span>
         <select id="battery-source"></select>
@@ -159,6 +161,7 @@
         <summary id="units-summary">Battery units</summary>
         <p class="hint">Elexon has no battery fuel type, so units are matched by name (battery, BESS, storage) or by National Grid's naming convention for battery units, where the unit both imports and exports. Batteries connected to local networks outside the Balancing Mechanism are not visible in any of these feeds.</p>
         <div class="table-scroll"><table class="units" id="units"></table></div>
+      </details>
       </details>
 
       <h3>Where battery power comes from</h3>
