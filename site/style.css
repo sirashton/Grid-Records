@@ -24,7 +24,8 @@
   --f-coal: #5b5754; --f-gas: #f4a259; --f-other: #cfc8ba; --f-imports: #f28fb1; --f-biomass: #93c48b;
   --f-nuclear: #b48cf2; --f-hydro: #3b7dd8; --f-wind: #3ec1d3; --f-solar: #ffc93c;
   --f-hydro-2: #7fb3ec;
-  --fossil: #ef7d3c; --lowcarbon: #2fb56b;
+  --fossil: #ef7d3c;
+  --fossil-ink: #b8460f; --lowcarbon: #2fb56b;
 }
 
 * { box-sizing: border-box; }

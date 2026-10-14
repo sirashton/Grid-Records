@@ -61,6 +61,7 @@ function timeTicks(lo, hi) {
  *   series: {name: string, color: string, points: [number, number][], step?: boolean, dash?: string}[],
  *   yLog?: boolean, yMin?: number, yFormat: (v:number)=>string, yTickFormat?: (v:number)=>string,
  *   refLines?: {value: number, color: string, label: string}[],
+ *   bands?: {lower: [number, number][], upper: [number, number][], color: string, opacity?: number}[],
  *   tooltip?: (t: number, values: {series, value, point}[]) => string,
  *   height?: number, xMin?: number, xMax?: number, yTicks?: number[], zeroLine?: boolean,
  * }} opts
@@ -111,6 +112,14 @@ export function lineChart(host, opts) {
     el('line', { x1: m.left, x2: m.left + w, y1: y(r.value), y2: y(r.value), stroke: r.color, class: 'ref' }, svg);
   }
 
+  // Shaded bands between a lower and an upper line that share x values.
+  for (const b of opts.bands ?? []) {
+    const pts = b.lower.map((p, k) => [p[0], p[1], b.upper[k][1]]).filter((p) => Number.isFinite(p[1]) && Number.isFinite(p[2]));
+    if (pts.length < 2) continue;
+    const d = `M${pts.map((p) => `${x(p[0]).toFixed(1)},${y(p[2]).toFixed(1)}`).join('L')}L${[...pts].reverse().map((p) => `${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('L')}Z`;
+    el('path', { d, fill: b.color, 'fill-opacity': b.opacity ?? 0.18, stroke: 'none', class: 'band' }, svg);
+  }
+
   for (const s of opts.series) {
     let d = '';
     let pen = false;
@@ -126,7 +135,7 @@ export function lineChart(host, opts) {
       pen = true;
     }
     if (s.step && pen && s.extendTo) d += `H${x(s.extendTo).toFixed(1)}`;
-    el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-dasharray': s.dash ?? '', 'stroke-linejoin': 'round', class: 'line' }, svg);
+    el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': s.width ?? 2, 'stroke-opacity': s.opacity ?? 1, 'stroke-dasharray': s.dash ?? '', 'stroke-linejoin': 'round', class: 'line' }, svg);
     for (const p of s.markers ?? []) {
       el('circle', { cx: x(p[0]), cy: y(p[1]), r: 4, fill: s.color, class: 'marker' }, svg);
     }

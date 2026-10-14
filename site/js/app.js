@@ -2,6 +2,7 @@ import { loadData, metricSeries, FUELS, BATTERY_SOURCES, lastComplete, generatio
 import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './records.js';
 import { lineChart, heatmap, barChart, fmtDate, fmtDateTime } from './charts.js';
 import { recentRecords } from './recent.js';
+import { envelope } from './envelope.js';
 import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
 import { renderBatteryOrigins } from './origins.js';
 
@@ -321,19 +322,45 @@ function windowPoints(values, days, fromEnd = data.length) {
   return pts;
 }
 
+// Days the envelope is averaged over, per time range.
+const ENVELOPE_DAYS = { 7: 0, 30: 3, 365: 14, all: 365 };
+let envelopeCache = null;
+
 function renderTimeline(values) {
   const thresholds = orderedThresholds();
   const end = lastComplete(data, ['gas']) + 1;
   const daily = state.range === 'all' || Number(state.range) > 60;
+  const smooth = ENVELOPE_DAYS[state.range] ?? 0;
+  const key = `${seriesCache.key}|${smooth}`;
+  if (envelopeCache?.key !== key) envelopeCache = { key, ...envelope(values, smooth) };
+  const raw = windowPoints(values, state.range, end);
+  // Sample the envelope at the same times as the plotted points (mid-day for daily points).
+  const at = (arr) => raw.map(([t]) => {
+    const i = Math.round((t - data.startMs) / (STEP_MINUTES * 60000)) + (daily ? 24 : 0);
+    return [t, arr[Math.min(i, end - 1)]];
+  });
+  const low = at(envelopeCache.low);
+  const high = at(envelopeCache.high);
+  // For "below" records the high edge decides a spell; for "above", the low edge.
+  const keyEdge = state.mode === 'below' ? 'high' : 'low';
+  const color = css('--s2');
+  const ink = css('--fossil-ink');
+  const window = smooth ? `${smooth}-day average of each day's` : 'each 24 hours’';
+  $('timeline-note').textContent = `The shaded band runs from ${window} low to high. The bold edge is the ${keyEdge === 'low' ? 'low' : 'high'} one, which decides how long the measure can stay ${state.mode === 'below' ? 'below' : 'above'} a threshold.`;
   lineChart($('timeline'), {
-    series: [{ name: `${groupName()}${daily ? ' (daily mean)' : ''}`, color: css('--s2'), points: windowPoints(values, state.range, end) }],
+    series: [
+      { name: `${groupName()}${daily ? ' (daily mean)' : ''}`, color, points: raw, width: 1.2, opacity: 0.35 },
+      { name: 'Typical daily low', color: ink, points: low, width: keyEdge === 'low' ? 3 : 1.5, opacity: keyEdge === 'low' ? 1 : 0.6 },
+      { name: 'Typical daily high', color: ink, points: high, width: keyEdge === 'high' ? 3 : 1.5, opacity: keyEdge === 'high' ? 1 : 0.6 },
+    ],
+    bands: [{ lower: low, upper: high, color, opacity: 0.16 }],
     refLines: thresholds.map((t, i) => ({ value: t, color: thresholdColor(i, thresholds.length) })),
     yLog: state.scale === 'log',
     yMin: state.scale === 'log' ? (state.unit === 'pct' ? 0.5 : 0.05) : undefined,
     yTicks: state.scale === 'log' ? [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100] : undefined,
     yFormat: fmtValue,
     yTickFormat: (v) => `${v}${state.unit === 'pct' ? '%' : ''}`,
-    tooltip: daily ? (t, vals) => `<strong>${fmtDate(t)}</strong><div>Daily mean: <b>${Number.isFinite(vals[0].value) ? fmtValue(vals[0].value) : '—'}</b></div>` : undefined,
+    tooltip: (t, vals) => `<strong>${daily ? fmtDate(t) : fmtDateTime(t)}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? fmtValue(v.value) : '—'}</b></div>`).join('')}`,
   });
 }
 
