@@ -8,7 +8,9 @@ export const FUELS = {
   solar: { label: 'Solar' },
   hydro: { label: 'Hydro' },
   biomass: { label: 'Biomass' },
-  battery: { label: 'Battery discharge', battery: true },
+  battery: { label: 'Battery discharge', battery: 'dis' },
+  // Charging takes power off the grid, so it is a measure on its own, never part of a generation group.
+  battery_charge: { label: 'Battery charging', battery: 'chg', notGeneration: true },
   storage: { label: 'Pumped storage' },
   imports: { label: 'Imports' },
   other: { label: 'Other' },
@@ -54,7 +56,8 @@ export function metricSeries(data, members, { unit = 'gw', batterySource = 'pn' 
   const batteryCols = [];
   for (const m of members) {
     if (FUELS[m]?.battery) {
-      if (columns[`${batterySource}_dis`]) batteryCols.push(columns[`${batterySource}_dis`]);
+      const col = columns[`${batterySource}_${FUELS[m].battery}`];
+      if (col) batteryCols.push(col);
     } else {
       for (const c of FUELS[m]?.columns ?? [m]) if (columns[c]) cols.push(columns[c]);
     }
@@ -64,7 +67,7 @@ export function metricSeries(data, members, { unit = 'gw', batterySource = 'pn' 
   for (let i = 0; i < length; i++) {
     let v = 0;
     for (const c of cols) v += c[i];
-    for (const c of batteryCols) if (!Number.isNaN(c[i])) v += c[i];
+    for (const c of batteryCols) if (!Number.isNaN(c[i])) v += Math.abs(c[i]);
     out[i] = total ? (v / total[i]) * 100 : v / 1000;
   }
   return out;

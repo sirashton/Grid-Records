@@ -18,6 +18,8 @@ const PRESETS = {
   solar: { label: 'Solar', members: ['solar'], mode: 'above', gw: [2, 5, 10, 15], pct: [10, 20, 30, 40] },
   nuclear: { label: 'Nuclear', members: ['nuclear'], mode: 'below', gw: [6, 5, 4, 3], pct: [20, 15, 10, 5] },
   imports: { label: 'Imports', members: ['imports'], mode: 'above', gw: [2, 5, 8, 10], pct: [10, 15, 20, 25] },
+  battery: { label: 'Battery discharge', members: ['battery'], mode: 'above', gw: [0.5, 1, 2, 3, 4], pct: [2, 5, 10, 15] },
+  batterycharge: { label: 'Battery charging', members: ['battery_charge'], mode: 'above', gw: [0.5, 1, 2, 3, 4], pct: [2, 5, 10, 15] },
   custom: { label: 'Custom group…', members: ['wind', 'solar', 'nuclear', 'hydro', 'biomass'], mode: 'above', gw: [10, 20, 30], pct: [50, 75, 90], editable: true },
 };
 
@@ -126,6 +128,7 @@ function setupControls() {
   });
   const members = $('members');
   for (const [key, f] of Object.entries(FUELS)) {
+    if (f.notGeneration) continue;
     const label = document.createElement('label');
     label.className = 'chip';
     label.innerHTML = `<input type="checkbox" value="${key}"> ${f.label}`;
