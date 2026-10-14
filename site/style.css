@@ -45,13 +45,14 @@ a { color: var(--primary); font-weight: 600; }
 .hero-text { flex: 1 1 auto; min-width: 0; }
 .hero-art { flex: 0 0 220px; width: 220px; height: 160px; }
 .hero-art .sun circle { fill: var(--sunny); stroke: var(--line); stroke-width: 3; }
-.hero-art .rays { stroke: var(--sunny); stroke-width: 4; stroke-linecap: round; transform-origin: 168px 44px; animation: spin 40s linear infinite; }
-.hero-art .hill { fill: #a8dba0; stroke: var(--line); stroke-width: 3; }
-.hero-art .mast { fill: #fff; stroke: var(--line); stroke-width: 2.5; }
-.hero-art .blades { fill: #fff; stroke: var(--line); stroke-width: 2.5; stroke-linejoin: round; animation: spin 6s linear infinite; }
-.hero-art .small .blades { animation-duration: 4.5s; }
+.hero-art .rays { stroke: #f5b82e; stroke-width: 3.5; stroke-linecap: round; fill: none; }
+.hero-art .hill { fill: #a8dba0; }
+.hero-art .ridge { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; }
+.hero-art .mast, .hero-art .hub { fill: #fff; stroke: var(--line); stroke-width: 2.5; }
+.hero-art .blades { fill: #fff; stroke: var(--line); stroke-width: 2.5; stroke-linejoin: round; animation: spin 9s linear infinite; }
+.hero-art .blades.slow { animation-duration: 11s; animation-direction: normal; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .hero-art .blades, .hero-art .rays { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .hero-art .blades { animation: none; } }
 @media (max-width: 640px) {
   .hero-inner { flex-direction: column-reverse; align-items: flex-start; gap: 0; padding-top: 16px; }
   .hero-art { width: 150px; height: 110px; flex-basis: auto; }
