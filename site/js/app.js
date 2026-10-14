@@ -284,12 +284,19 @@ function renderByYear(summaries) {
     cols: years.map(String),
     values: values.map((r) => r.map((sp) => (sp ? sp.end - sp.start : null))),
     color: (v) => bandFor(v).color,
+    // A tick where the spell covers the whole calendar year.
+    mark: (ri, ci) => {
+      const sp = values[ri][ci];
+      const y = years[ci];
+      return !!sp && sp.end - sp.start >= (Date.UTC(y + 1, 0, 1) - Date.UTC(y, 0, 1)) / (STEP_MINUTES * 60000);
+    },
     format: formatDuration,
     title: (r, c, v) => {
       const sp = values[summaries.findIndex((s) => thresholdLabel(s.threshold) === r)][years.indexOf(Number(c))];
       const whole = sp?.spell;
       const clipped = whole && (whole.start !== sp.start || whole.end !== sp.end);
-      return sp ? `<strong>${c}, ${r}</strong><div>Longest in ${c}: <b>${formatDuration(v)}</b></div><div>${fmtDateTime(slotTime(sp.start, data.startMs))} to ${fmtDateTime(slotTime(sp.end, data.startMs))}</div>${clipped ? `<div class="when">Part of a ${formatDuration(whole.end - whole.start)} spell from ${fmtDate(slotTime(whole.start, data.startMs))} to ${fmtDate(slotTime(whole.end, data.startMs))}</div>` : ''}`
+      const full = sp && v >= (Date.UTC(+c + 1, 0, 1) - Date.UTC(+c, 0, 1)) / (STEP_MINUTES * 60000);
+      return sp ? `<strong>${c}, ${r}</strong><div>Longest in ${c}: <b>${full ? 'the whole year ✓' : formatDuration(v)}</b></div><div>${fmtDateTime(slotTime(sp.start, data.startMs))} to ${fmtDateTime(slotTime(sp.end, data.startMs))}</div>${clipped ? `<div class="when">Part of a ${formatDuration(whole.end - whole.start)} spell from ${fmtDate(slotTime(whole.start, data.startMs))} to ${fmtDate(slotTime(whole.end, data.startMs))}</div>` : ''}`
         : `<strong>${c}, ${r}</strong><div>No spells</div>`;
     },
   });

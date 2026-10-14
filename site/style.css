@@ -205,6 +205,7 @@ td.big { font-weight: 800; font-size: 1.0625rem; white-space: nowrap; }
 .chart .marker { stroke: var(--card); stroke-width: 2; }
 .chart .badge { font-size: 11px; font-weight: 800; fill: var(--ink); font-family: inherit; }
 .chart .bar .outline { stroke: var(--line); stroke-width: 2.5; }
+.chart .mark { fill: #fff; font-size: 14px; font-weight: 800; pointer-events: none; font-family: inherit; }
 .chart .cell:hover { stroke: var(--ink); stroke-width: 2; }
 .tooltip {
   position: absolute; pointer-events: none; z-index: 2;
