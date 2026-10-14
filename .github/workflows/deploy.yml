@@ -28,8 +28,14 @@ jobs:
           path: .cache
           key: battery-${{ github.run_id }}
           restore-keys: battery-
+      # Days the backfill workflow has fetched, merged in by the build.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-backfill
+          key: backfill-${{ github.run_id }}
+          restore-keys: backfill-
       - run: npm test
-      - run: node pipeline/build.mjs --budget-minutes 3
+      - run: node pipeline/build.mjs --budget-minutes 3 --concurrency 2 --merge-cache .cache-backfill
       - uses: actions/cache/save@v4
         if: always()
         with:

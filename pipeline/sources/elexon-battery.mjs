@@ -115,4 +115,27 @@ export function daysToFetch(store, { refreshDays, refreshHours }, nowMs, fromMs)
   return queue;
 }
 
+/**
+ * Combines two copies of a day store, such as the deploy's and the backfill's.
+ * For each day, a fetched day beats an empty placeholder and a later fetch
+ * beats an earlier one.
+ */
+export function mergeStores(a, b) {
+  const days = { ...a.days };
+  for (const [day, entry] of Object.entries(b.days ?? {})) {
+    const mine = days[day];
+    if (!mine) {
+      days[day] = entry;
+      continue;
+    }
+    const has = (e) => e.dis.some((v) => v !== null);
+    if (has(entry) !== has(mine)) {
+      if (has(entry)) days[day] = entry;
+    } else if ((entry.fetched ?? '') > (mine.fetched ?? '')) {
+      days[day] = entry;
+    }
+  }
+  return { ...a, days };
+}
+
 export { isoDay };

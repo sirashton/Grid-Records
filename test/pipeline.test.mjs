@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseNesoGenMix } from '../pipeline/sources/neso-genmix.mjs';
 import { classifyBatteries } from '../pipeline/sources/elexon-bmunits.mjs';
-import { pnToDay, b1610ToDay, daysToFetch } from '../pipeline/sources/elexon-battery.mjs';
+import { pnToDay, b1610ToDay, daysToFetch, mergeStores } from '../pipeline/sources/elexon-battery.mjs';
 import { encodeColumns, decodeColumns } from '../pipeline/encode.mjs';
 
 const day = Date.UTC(2026, 9, 12);
@@ -107,4 +107,23 @@ test('only new days and stale recent days are refetched', () => {
   assert.deepEqual(days.slice(0, 3), ['2026-10-12', '2026-10-11', '2026-10-09']);
   assert.ok(!days.includes('2026-10-13') && !days.includes('2026-10-10') && !days.includes('2026-09-01'));
   assert.equal(daysToFetch(store, { refreshDays: 2, refreshHours: 0 }, now, Date.UTC(2026, 9, 12)).length, 2);
+});
+
+test('merges two battery stores, keeping fetched and fresher days', () => {
+  const a = { days: {
+    '2020-01-01': { dis: [], chg: [] },
+    '2026-10-01': { dis: [1], chg: [0], fetched: '2026-10-02T00:00:00Z' },
+    '2026-10-02': { dis: [5], chg: [0], fetched: '2026-10-03T00:00:00Z' },
+  } };
+  const b = { days: {
+    '2020-01-01': { dis: [2], chg: [0], fetched: '2026-10-10T00:00:00Z' },
+    '2026-10-01': { dis: [3], chg: [0], fetched: '2026-10-05T00:00:00Z' },
+    '2026-10-02': { dis: [], chg: [] },
+    '2019-06-01': { dis: [4], chg: [0], fetched: '2026-10-10T00:00:00Z' },
+  } };
+  const m = mergeStores(a, b);
+  assert.deepEqual(m.days['2020-01-01'].dis, [2]);
+  assert.deepEqual(m.days['2026-10-01'].dis, [3]);
+  assert.deepEqual(m.days['2026-10-02'].dis, [5]);
+  assert.deepEqual(m.days['2019-06-01'].dis, [4]);
 });
