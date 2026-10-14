@@ -157,7 +157,20 @@ function setupControls() {
   let resize;
   addEventListener('resize', () => {
     clearTimeout(resize);
-    resize = setTimeout(() => { renderStory(); update(); renderSolar(data); if (!$('origin-body').hidden) renderBatteryOrigins(data); }, 150);
+    resize = setTimeout(redrawAll, 150);
+  });
+  // Story chapters: charts in a closed chapter have no width, so redraw when
+  // one opens. "Next" closes this chapter and opens the following one.
+  for (const ch of document.querySelectorAll('details.chapter')) {
+    ch.addEventListener('toggle', () => { if (ch.open && data) redrawAll(); });
+  }
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.next-ch');
+    if (!btn) return;
+    btn.closest('details.chapter').open = false;
+    const next = $(btn.dataset.next);
+    next.open = true;
+    next.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
 
@@ -193,6 +206,14 @@ function groupName() {
   if (!PRESETS[state.preset].editable) return PRESETS[state.preset].label.replace(/ \(.*\)/, '').toLowerCase();
   const names = state.members.map((m) => FUELS[m].label.toLowerCase());
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
+}
+
+function redrawAll() {
+  if (!data) return;
+  renderStory();
+  update();
+  renderSolar(data);
+  if (!$('origin-body').hidden) renderBatteryOrigins(data);
 }
 
 function update() {

@@ -38,54 +38,9 @@
       </div>
     </section>
 
-    <section class="plain story" aria-labelledby="story-h">
-      <h2 id="story-h">Since 2009</h2>
-      <div class="facts" id="facts"></div>
-
-      <h3>Where Britain's power comes from</h3>
-      <p class="hint">Share of generation each year. The last bar is the past 365 days.</p>
-      <div class="chart-host" id="story-mix"></div>
-      <div class="legend" id="story-mix-legend"></div>
-
-      <h3>Fossil fuels and low carbon cross over</h3>
-      <div class="chart-host" id="story-cross"></div>
-      <div class="legend" id="story-cross-legend"></div>
-
-      <h3>More and more hours on very little fossil fuel</h3>
-      <p class="hint">Hours each year with gas and coal together under 10, 5 and 1 GW. The last bar is the past 365 days.</p>
-      <div class="chart-host" id="story-hours"></div>
-      <div class="legend" id="story-hours-legend"></div>
-    </section>
-
-    <section class="plain solar-card" aria-labelledby="solar-h">
-      <h2 id="solar-h">Could solar and batteries do it alone?</h2>
-      <p>Solar is the cheapest power ever built, and batteries have followed it down. But the grid needs power at night and in December too. What would it cost to get one steady megawatt, every half hour of the year, from solar panels and batteries alone, and how does that compare with gas?</p>
-
-      <h3>Panels and batteries keep getting cheaper</h3>
-      <p class="hint" id="solar-kit-text">Installed cost of large solar farms and grid batteries, in 2024 pounds.</p>
-      <div class="chart-host" id="solar-kit" style="--placeholder-height: 240px"></div>
-      <div class="legend" id="solar-kit-legend"></div>
-      <p class="hint">A grid battery lasts about 15 years, slowly losing capacity, so it is bought twice over a solar farm's 30 years and needs topping up along the way. Those costs are included below.</p>
-
-      <h3>What one firm megawatt takes</h3>
-      <div class="facts" id="solar-facts"></div>
-
-      <h3>The cost of a firm megawatt</h3>
-      <p class="hint" id="solar-firm-text">Cost per MWh of power delivered around the clock, all year, in 2024 pounds, on a log scale.</p>
-      <div class="chart-host" id="solar-firm" style="--placeholder-height: 320px"></div>
-      <div class="legend" id="solar-firm-legend"></div>
-      <p class="hint" id="solar-wind-text"></p>
-
-      <h3>What the answer depends on</h3>
-      <ul class="notes" id="solar-notes"></ul>
-      <details>
-        <summary>How this is worked out, and sources</summary>
-        <div class="hint" id="solar-method"></div>
-      </details>
-    </section>
-
     <section class="card records-card" aria-labelledby="records-h">
       <h2 id="records-h">Records</h2>
+      <p class="hint">How long the grid can now run below or above any level, for any fuel or group.</p>
       <form class="controls" id="controls" onsubmit="return false">
         <label class="field">
           <span>Measure</span>
@@ -147,8 +102,41 @@
       <p class="hint" id="timeline-note"></p>
     </section>
 
-    <section class="plain battery-card" aria-labelledby="battery-h">
-      <h2 id="battery-h">Batteries</h2>
+    <section class="plain story" aria-labelledby="story-h">
+      <h2 id="story-h">The story</h2>
+      <p class="hint">Five chapters on whether renewables can now keep the lights on without fossil fuels.</p>
+      <details class="chapter" id="chapter-1" open>
+        <summary><span class="ch-num">1</span><span class="ch-text"><span class="ch-title">Coal is gone</span><span class="ch-take">Coal was Britain's biggest source of power in 2012. Now it makes none.</span></span></summary>
+        <div class="ch-body">
+      <div class="facts" id="facts"></div>
+
+      <h3>Where Britain's power comes from</h3>
+      <p class="hint">Share of generation each year. The last bar is the past 365 days.</p>
+      <div class="chart-host" id="story-mix"></div>
+      <div class="legend" id="story-mix-legend"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-2">Next: Low carbon overtakes fossil</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-2">
+        <summary><span class="ch-num">2</span><span class="ch-text"><span class="ch-title">Low carbon overtakes fossil</span><span class="ch-take">Wind, solar, nuclear and hydro now generate more than gas and coal in most months.</span></span></summary>
+        <div class="ch-body">
+      <div class="chart-host" id="story-cross"></div>
+      <div class="legend" id="story-cross-legend"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-3">Next: More hours on almost no fossil fuel</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-3">
+        <summary><span class="ch-num">3</span><span class="ch-text"><span class="ch-title">More hours on almost no fossil fuel</span><span class="ch-take">Each year the grid spends more hours running on very little gas.</span></span></summary>
+        <div class="ch-body">
+      <p class="hint">Hours each year with gas and coal together under 10, 5 and 1 GW. The last bar is the past 365 days.</p>
+      <div class="chart-host" id="story-hours"></div>
+      <div class="legend" id="story-hours-legend"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-4">Next: Batteries fill the gaps</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-4">
+        <summary><span class="ch-num">4</span><span class="ch-text"><span class="ch-title">Batteries fill the gaps</span><span class="ch-take">Batteries shift power from when it's plentiful to when it's needed.</span></span></summary>
+        <div class="ch-body">
       <p>No single public feed gives the full picture of Great Britain's batteries yet, so this site runs three side by side.
         Positive values are discharging into the grid; negative values are charging.</p>
       <div class="segmented small" id="battery-range" role="radiogroup" aria-label="Time range">
@@ -187,6 +175,37 @@
         <ul class="hint" id="origin-notes"></ul>
       </details>
       </div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-5">Next: Could solar and batteries do it alone?</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-5">
+        <summary><span class="ch-num">5</span><span class="ch-text"><span class="ch-title">Could solar and batteries do it alone?</span><span class="ch-take">What a steady megawatt from sun and storage alone would cost, compared with gas.</span></span></summary>
+        <div class="ch-body">
+      <p>Solar is the cheapest power ever built, and batteries have followed it down. But the grid needs power at night and in December too. What would it cost to get one steady megawatt, every half hour of the year, from solar panels and batteries alone, and how does that compare with gas?</p>
+
+      <h3>Panels and batteries keep getting cheaper</h3>
+      <p class="hint" id="solar-kit-text">Installed cost of large solar farms and grid batteries, in 2024 pounds.</p>
+      <div class="chart-host" id="solar-kit" style="--placeholder-height: 240px"></div>
+      <div class="legend" id="solar-kit-legend"></div>
+      <p class="hint">A grid battery lasts about 15 years, slowly losing capacity, so it is bought twice over a solar farm's 30 years and needs topping up along the way. Those costs are included below.</p>
+
+      <h3>What one firm megawatt takes</h3>
+      <div class="facts" id="solar-facts"></div>
+
+      <h3>The cost of a firm megawatt</h3>
+      <p class="hint" id="solar-firm-text">Cost per MWh of power delivered around the clock, all year, in 2024 pounds, on a log scale.</p>
+      <div class="chart-host" id="solar-firm" style="--placeholder-height: 320px"></div>
+      <div class="legend" id="solar-firm-legend"></div>
+      <p class="hint" id="solar-wind-text"></p>
+
+      <h3>What the answer depends on</h3>
+      <ul class="notes" id="solar-notes"></ul>
+      <details>
+        <summary>How this is worked out, and sources</summary>
+        <div class="hint" id="solar-method"></div>
+      </details>
+        </div>
+      </details>
     </section>
 
     <section class="plain about" aria-labelledby="about-h">
