@@ -158,11 +158,11 @@ select:focus-visible, input:focus-visible, button:focus-visible, summary:focus-v
    the donut over the middle. The bands run in behind the donut. */
 .now-card { container-type: inline-size; }
 .now-panel { position: relative; }
-.now-panel { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; --donut: min(390px, 38cqw); --gutter: calc(var(--donut) / 2 + 2px); }
+.now-panel { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; --donut: min(360px, 36cqw); --gutter: calc(var(--donut) / 2 + 2px); }
 .now-col { display: flex; flex-direction: column; min-width: 0; }
 .nr { display: grid; align-items: center; gap: 8px; height: 32px; padding: 0 10px; font-size: 0.875rem; white-space: nowrap; }
 .nr.head { height: 40px; font-weight: 800; background: color-mix(in srgb, var(--tint) 45%, #fff); border-top: 3px solid var(--line); border-bottom: 3px solid var(--line); }
-.now-left .nr { grid-template-columns: 40px 68px 50px minmax(0, 1fr); padding-right: var(--gutter); }
+.now-left .nr { grid-template-columns: 40px 64px 48px minmax(0, 1fr); padding-right: var(--gutter); }
 .now-right .nr { grid-template-columns: minmax(0, 1fr) 44px 62px 40px; gap: 6px; padding-left: var(--gutter); text-align: right; }
 .nr.head { border-left: 3px solid var(--line); border-right: 3px solid var(--line); }
 /* Eight record rows fill the same height as the left's two bands and seven
@@ -181,6 +181,27 @@ select:focus-visible, input:focus-visible, button:focus-visible, summary:focus-v
 .now-donut svg { width: 100%; height: auto; display: block; }
 .now-donut .disc { fill: var(--card); stroke: var(--line); stroke-width: 3; }
 .now-donut path { stroke: var(--line); stroke-width: 2; }
+/* Hover: partners stay bright, everything else in the donut fades. */
+.now-donut path { transition: opacity 0.15s; }
+.now-panel.hovering .now-donut path:not(.hl) { opacity: 0.25; }
+.nr[data-key] { cursor: default; }
+.nr.hl:not(.head) { background: color-mix(in srgb, var(--tint) 22%, #fff); }
+.nr.head.hl { background: color-mix(in srgb, var(--tint) 65%, #fff); }
+.nr.rec:hover { background: color-mix(in srgb, var(--tint) 18%, #fff); }
+.info {
+  display: inline-grid; place-items: center; width: 15px; height: 15px; min-height: 0; margin: 0 4px; padding: 0;
+  border: 1.5px solid var(--ink-3); border-radius: 0; background: #fff; color: var(--ink-2);
+  font: 800 10px/1 inherit; box-shadow: none; cursor: help; vertical-align: 1px;
+}
+.info:hover, .info:focus-visible { border-color: var(--line); color: var(--ink); background: var(--sunny); }
+.now-tip {
+  position: absolute; z-index: 5; max-width: 260px; padding: 8px 10px; pointer-events: none;
+  background: #fff; border: 2px solid var(--line); box-shadow: 3px 3px 0 0 var(--line);
+  font-size: 0.8125rem; font-weight: 600; color: var(--ink); white-space: normal;
+}
+.now-tip[hidden] { display: none; }
+.now-donut text { pointer-events: none; }
+.donut-sub { font-size: 12px; font-weight: 600; fill: var(--ink-3); font-family: inherit; }
 .donut-label { font-size: 13px; font-weight: 700; fill: var(--ink-2); font-family: inherit; }
 .donut-value { font-size: 24px; font-weight: 800; fill: var(--ink); font-family: inherit; }
 /* Narrower: the donut moves above the two lists, then the lists stack. */

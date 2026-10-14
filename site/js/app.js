@@ -421,7 +421,7 @@ const NOW_GROUPS = [
     { label: 'Wind', cols: ['wind', 'wind_emb'], color: '--f-wind' },
     { label: 'Solar', cols: ['solar'], color: '--f-solar' },
     { label: 'Hydro', cols: ['hydro'], color: '--f-hydro' },
-    { label: 'Pumped storage', cols: ['storage'], color: '--f-hydro-2' },
+    { label: 'Pumped hydro', cols: ['storage'], color: '--f-hydro-2' },
     { label: 'Biomass', cols: ['biomass'], color: '--f-biomass' },
   ] },
   { label: 'Other sources', color: '--f-nuclear', fuels: [
@@ -441,7 +441,8 @@ function sparkTile(values, color) {
     const pts = values.map((v, k) => (Number.isFinite(v) ? `${((k / (values.length - 1)) * 40).toFixed(1)},${(26 - ((v - lo) / (hi - lo)) * 20).toFixed(1)}` : null)).filter(Boolean).join(' ');
     line = `<polyline points="${pts}" fill="none" stroke="var(--line)" stroke-width="1.6" stroke-linejoin="round"/>`;
   }
-  return `<svg class="spark" viewBox="0 0 40 28" aria-hidden="true" style="background:var(${color})">${line}</svg>`;
+  const tip = fin.length >= 2 ? ` data-tip="Past 24 hours: ${(Math.min(...fin) / 1000).toFixed(2)} to ${(Math.max(...fin) / 1000).toFixed(2)} GW"` : '';
+  return `<svg class="spark" viewBox="0 0 40 28" aria-hidden="true" style="background:var(${color})"${tip}>${line}</svg>`;
 }
 
 function donut(groups, total) {
@@ -460,15 +461,37 @@ function donut(groups, total) {
     const ga = a;
     for (const f of g.fuels) {
       const span = (f.now / total) * Math.PI * 2;
-      if (span > 0) outer += `<path d="${arc(94, 118, a, a + span)}" fill="${css(f.color)}"><title>${f.label}: ${(f.now / 1000).toFixed(2)} GW</title></path>`;
+      if (span > 0) outer += `<path d="${arc(94, 118, a, a + span)}" fill="${css(f.color)}" data-key="${f.label}" data-group="${g.label}"></path>`;
       a += span;
     }
-    if (a > ga) inner += `<path d="${arc(66, 92, ga, a)}" fill="${css(g.color)}"><title>${g.label}: ${(g.now / 1000).toFixed(2)} GW</title></path>`;
+    if (a > ga) inner += `<path d="${arc(66, 92, ga, a)}" fill="${css(g.color)}" data-key="${g.label}"></path>`;
   }
   return `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Current generation mix"><circle class="disc" cx="${c}" cy="${c}" r="128"/>${outer}${inner}
-    <text x="${c}" y="${c - 6}" text-anchor="middle" class="donut-label">Generation</text>
-    <text x="${c}" y="${c + 20}" text-anchor="middle" class="donut-value">${(total / 1000).toFixed(1)} GW</text></svg>`;
+    <text x="${c}" y="${c - 14}" text-anchor="middle" class="donut-label">Generation</text>
+    <text x="${c}" y="${c + 12}" text-anchor="middle" class="donut-value">${(total / 1000).toFixed(1)} GW</text>
+    <text x="${c}" y="${c + 32}" text-anchor="middle" class="donut-sub"></text></svg>`;
 }
+
+// What each row means, shown from its "?" button.
+const INFO = {
+  'Fossil fuels': 'Gas and coal power stations.',
+  Gas: 'Gas power stations, mostly combined cycle plants plus some fast-starting open cycle units.',
+  Coal: 'Coal power stations. Britain\'s last one, Ratcliffe-on-Soar, closed on 30 September 2024.',
+  Renewables: 'Wind, solar, hydro, pumped storage and biomass.',
+  Wind: 'Onshore and offshore wind farms, including the smaller farms connected to local networks.',
+  Solar: 'Solar panels. Almost all are on local networks, so NESO estimates this figure.',
+  Hydro: 'Hydroelectric power stations, mostly in Scotland and Wales.',
+  'Pumped hydro': 'Pumped storage hydro stations, which pump water uphill when power is cheap and release it at peak times.',
+  Biomass: 'Power stations burning wood pellets and other plant material, such as Drax.',
+  'Other sources': 'Nuclear, imports through interconnectors, and other small sources.',
+  Nuclear: 'Nuclear power stations, which run steadily around the clock.',
+  Imports: 'Net power flowing in through the interconnectors to Europe and Ireland.',
+  Other: 'Small sources NESO doesn\'t list separately. Battery output is counted here.',
+  Discharging: 'What battery units planned to export (Elexon Physical Notifications). Counted inside Other.',
+  Charging: 'What battery units planned to import (Elexon Physical Notifications).',
+  'Metered net': 'Battery export minus import from settlement meters (Elexon B1610), which arrive about five days late.',
+};
+const info = (key) => (INFO[key] ? `<button type="button" class="info" data-tip="${INFO[key].replace(/"/g, '&quot;')}" aria-label="About ${key}">?</button>` : '');
 
 const RECORD_COLORS = { 'Fossil fuels': '--fossil', 'Low carbon': '--lowcarbon', Renewables: '--lowcarbon', Wind: '--f-wind', Solar: '--f-solar', 'Most wind': '--f-wind', 'Most solar': '--f-solar', 'Least fossil fuel': '--fossil', 'Greenest half hour': '--lowcarbon' };
 const PEAK_NAMES = { 'Least fossil fuel': 'Least fossil', 'Greenest half hour': 'Greenest' };
@@ -480,11 +503,11 @@ function recordRow(r) {
   const color = RECORD_COLORS[r.label] ?? '--sunny';
   if (r.kind === 'peak') {
     const v = r.unit === 'pct' ? `${r.value.toFixed(1)}%` : `${r.value.toFixed(r.value < 1 ? 2 : 1)} GW`;
-    return `<div class="nr rec" title="${r.label} ever, ${fmtDateTime(r.startMs)}"><span class="lbl">${PEAK_NAMES[r.label] ?? r.label} ever</span><span class="sm">${shortDay(r.startMs)}</span><span class="num">${v}</span><span class="mark-tile" style="background:var(${color})">⚡</span></div>`;
+    return `<div class="nr rec" data-tip="${r.label} ever, at ${fmtDateTime(r.startMs)} (UK time)." style="--tint: var(${color})"><span class="lbl">${PEAK_NAMES[r.label] ?? r.label} ever</span><span class="sm">${shortDay(r.startMs)}</span><span class="num">${v}</span><span class="mark-tile" style="background:var(${color})">⚡</span></div>`;
   }
   const what = `${r.label === 'Fossil fuels' ? 'Fossil' : r.label} ${r.mode === 'below' ? 'under' : 'over'} ${gw(r.threshold)}`;
   const when = r.live ? `since ${fmtDate(r.startMs)}, still going` : `${fmtDate(r.startMs)} to ${fmtDate(r.endMs)}`;
-  return `<div class="nr rec${r.live ? ' is-live' : ''}" title="Longest ever spell, ${when}"><span class="lbl">${what}</span><span class="sm">${r.live ? 'live' : shortDay(r.endMs)}</span><span class="num">${shortDuration(r.slots)}</span><span class="mark-tile${r.live ? ' record-live' : ''}" style="background:var(${r.live ? '--sunny' : color})">${r.live ? '🏆' : '⏱'}</span></div>`;
+  return `<div class="nr rec${r.live ? ' is-live' : ''}" data-tip="The longest spell on record, ${when}." style="--tint: var(${color})"><span class="lbl">${what}</span><span class="sm">${r.live ? 'live' : shortDay(r.endMs)}</span><span class="num">${shortDuration(r.slots)}</span><span class="mark-tile${r.live ? ' record-live' : ''}" style="background:var(${r.live ? '--sunny' : color})">${r.live ? '🏆' : '⏱'}</span></div>`;
 }
 
 const NOW_RECORD_ROWS = 8;
@@ -497,8 +520,8 @@ const num = (v, unit = 'GW') => `<span class="num">${v}<small>${unit}</small></s
 function nowLeftHtml(groups, total) {
   const pc = (v) => (Number.isFinite(v) && total > 0 ? `${((v / total) * 100).toFixed(1)}%` : '—');
   return groups.map((g) => `
-    <div class="nr head" style="--tint: var(${g.color})"><span></span>${num(fmtGw(g.now))}<span class="num">${pc(g.now)}</span><span class="lbl">${g.label}</span></div>
-    ${g.fuels.map((f) => `<div class="nr">${sparkTile(f.series, f.color)}${num(fmtGw(f.value))}<span class="num">${pc(f.now)}</span><span class="lbl">${f.label}</span></div>`).join('')}`).join('');
+    <div class="nr head" style="--tint: var(${g.color})" data-key="${g.label}"><span></span>${num(fmtGw(g.now))}<span class="num">${pc(g.now)}</span><span class="lbl">${g.label}${info(g.label)}</span></div>
+    ${g.fuels.map((f) => `<div class="nr" data-key="${f.label}" data-group="${g.label}" style="--tint: var(${f.color})">${sparkTile(f.series, f.color)}${num(fmtGw(f.value))}<span class="num">${pc(f.now)}</span><span class="lbl">${f.label}${info(f.label)}</span></div>`).join('')}`).join('');
 }
 
 // The right half: recent records, then batteries, mirroring the left.
@@ -515,9 +538,9 @@ function nowRightHtml(recs, bat, total) {
     <div class="nr head" style="--tint: var(--sunny)"><span class="lbl wide">Recent records <span class="sm">last 6 months</span></span><span></span></div>
     ${rows.join('')}
     <div class="nr head" style="--tint: var(--s3)"><span class="lbl">Batteries <span class="sm">${state}</span></span><span></span>${num(net)}<span></span></div>
-    <div class="nr" title="Planned output (Elexon Physical Notifications), counted inside Other"><span class="lbl">Discharging</span><span class="num">${pc(bat.dis)}</span>${num(fmtGw(bat.dis))}${sparkTile(bat.disSeries, '--s3')}</div>
-    <div class="nr" title="Planned charging (Elexon Physical Notifications)"><span class="lbl">Charging</span><span class="num">${pc(bat.chg)}</span>${num(Number.isFinite(bat.chg) ? `−${fmtGw(Math.abs(bat.chg))}` : '—')}${sparkTile(bat.chgSeries?.map((v) => -v), '--s1')}</div>
-    <div class="nr" title="Net output from settlement meters (Elexon B1610), which arrive about five days late"><span class="lbl">Metered net</span><span class="sm">${bat.meteredMs ? shortDay(bat.meteredMs) : ''}</span>${num(Number.isFinite(bat.metered) ? `${bat.metered < 0 ? '−' : ''}${fmtGw(Math.abs(bat.metered))}` : '—')}${sparkTile(bat.meteredSeries, '--s2')}</div>`;
+    <div class="nr" style="--tint: var(--s3)"><span class="lbl">${info('Discharging')}Discharging</span><span class="num">${pc(bat.dis)}</span>${num(fmtGw(bat.dis))}${sparkTile(bat.disSeries, '--s3')}</div>
+    <div class="nr" style="--tint: var(--s1)"><span class="lbl">${info('Charging')}Charging</span><span class="num">${pc(bat.chg)}</span>${num(Number.isFinite(bat.chg) ? `−${fmtGw(Math.abs(bat.chg))}` : '—')}${sparkTile(bat.chgSeries?.map((v) => -v), '--s1')}</div>
+    <div class="nr" style="--tint: var(--s2)"><span class="lbl">${info('Metered net')}Metered net</span><span class="sm">${bat.meteredMs ? shortDay(bat.meteredMs) : ''}</span>${num(Number.isFinite(bat.metered) ? `${bat.metered < 0 ? '−' : ''}${fmtGw(Math.abs(bat.metered))}` : '—')}${sparkTile(bat.meteredSeries, '--s2')}</div>`;
 }
 
 function renderBatterySources(coverage) {
@@ -526,6 +549,51 @@ function renderBatterySources(coverage) {
     ['<span class="swatch" style="background:var(--s2)"></span>Elexon B1610 metered output', 'What each battery unit actually exported or imported, from settlement meters.', 'About 5 days', 'Yes'],
     ['<span class="swatch" style="background:var(--s3)"></span>NESO generation mix "Other"', 'Battery net discharge mixed in with other small sources. NESO plans a separate battery figure.', 'About an hour', 'No'],
   ].map((r, k) => `<tr>${[...r, coverage[k]].map((v) => `<td>${v}</td>`).join('')}</tr>`).join('');
+}
+
+// Hovering a row or a donut segment highlights its partners and shows its
+// figures in the middle of the donut; "?" buttons and record rows show a tip.
+let nowFigures = {};
+function setupNowHover() {
+  const panel = document.querySelector('.now-panel');
+  const tip = document.createElement('div');
+  tip.className = 'now-tip';
+  tip.hidden = true;
+  panel.append(tip);
+  const showTip = (el) => {
+    const text = el?.dataset.tip;
+    if (!text) { tip.hidden = true; return; }
+    tip.textContent = text;
+    tip.hidden = false;
+    const p = panel.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const left = Math.min(Math.max(0, r.left - p.left + r.width / 2 - tip.offsetWidth / 2), p.width - tip.offsetWidth);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${r.bottom - p.top + 6}px`;
+  };
+  const highlight = (key) => {
+    panel.classList.toggle('hovering', !!key);
+    for (const el of panel.querySelectorAll('[data-key]')) {
+      el.classList.toggle('hl', !!key && (el.dataset.key === key || el.dataset.group === key));
+    }
+    const label = panel.querySelector('.donut-label');
+    const value = panel.querySelector('.donut-value');
+    const sub = panel.querySelector('.donut-sub');
+    if (!label || !nowFigures.total) return;
+    const f = key && nowFigures[key];
+    label.textContent = f ? key : 'Generation';
+    value.textContent = `${((f ? f.now : nowFigures.total) / 1000).toFixed(2)} GW`;
+    sub.textContent = f ? `${((f.now / nowFigures.total) * 100).toFixed(1)}% of generation` : '';
+  };
+  const over = (e) => {
+    highlight(e.target.closest('[data-key]')?.dataset.key);
+    showTip(e.target.closest('[data-tip]'));
+  };
+  panel.addEventListener('mouseover', over);
+  panel.addEventListener('focusin', over);
+  panel.addEventListener('click', (e) => { if (e.target.closest('.info')) showTip(e.target.closest('.info')); });
+  panel.addEventListener('mouseleave', () => { highlight(null); tip.hidden = true; });
+  panel.addEventListener('focusout', (e) => { if (!panel.contains(e.relatedTarget)) { highlight(null); tip.hidden = true; } });
 }
 
 function renderNow() {
@@ -552,6 +620,11 @@ function renderNow() {
   if (mI != null && c.b1610_dis) {
     const net = (k) => c.b1610_dis[k] + c.b1610_chg[k];
     Object.assign(bat, { metered: net(mI), meteredMs: slotTime(mI, data.startMs), meteredSeries: Array.from({ length: 48 }, (_, k) => net(mI - 47 + k)) });
+  }
+  nowFigures = { total };
+  for (const g of groups) {
+    nowFigures[g.label] = g;
+    for (const f of g.fuels) nowFigures[f.label] = f;
   }
   $('now-groups').innerHTML = nowLeftHtml(groups, total);
   $('now-donut').innerHTML = donut(groups, total);
@@ -666,6 +739,7 @@ async function main() {
   setupControls();
   syncControls();
   renderPlaceholders();
+  setupNowHover();
   try {
     data = await loadData();
   } catch (err) {
