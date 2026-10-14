@@ -431,13 +431,17 @@ const NOW_GROUPS = [
   ] },
 ];
 
-function sparkline(values, color) {
-  const fin = values.filter(Number.isFinite);
-  if (fin.length < 2) return '<svg class="spark"></svg>';
-  const lo = Math.min(0, ...fin);
-  const hi = Math.max(...fin, lo + 1);
-  const pts = values.map((v, k) => (Number.isFinite(v) ? `${((k / (values.length - 1)) * 48).toFixed(1)},${(18 - ((v - lo) / (hi - lo)) * 16).toFixed(1)}` : null)).filter(Boolean).join(' ');
-  return `<svg class="spark" viewBox="0 0 48 20" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+// A coloured square with the past day's trace drawn across it, as on Kate's site.
+function sparkTile(values, color) {
+  const fin = (values ?? []).filter(Number.isFinite);
+  let line = '';
+  if (fin.length >= 2) {
+    const lo = Math.min(0, ...fin);
+    const hi = Math.max(...fin, lo + 1);
+    const pts = values.map((v, k) => (Number.isFinite(v) ? `${((k / (values.length - 1)) * 40).toFixed(1)},${(26 - ((v - lo) / (hi - lo)) * 20).toFixed(1)}` : null)).filter(Boolean).join(' ');
+    line = `<polyline points="${pts}" fill="none" stroke="var(--line)" stroke-width="1.6" stroke-linejoin="round"/>`;
+  }
+  return `<svg class="spark" viewBox="0 0 40 28" aria-hidden="true" style="background:var(${color})">${line}</svg>`;
 }
 
 function donut(groups, total) {
@@ -456,25 +460,64 @@ function donut(groups, total) {
     const ga = a;
     for (const f of g.fuels) {
       const span = (f.now / total) * Math.PI * 2;
-      if (span > 0) outer += `<path d="${arc(102, 128, a, a + span)}" fill="${css(f.color)}"><title>${f.label}: ${(f.now / 1000).toFixed(2)} GW</title></path>`;
+      if (span > 0) outer += `<path d="${arc(94, 118, a, a + span)}" fill="${css(f.color)}"><title>${f.label}: ${(f.now / 1000).toFixed(2)} GW</title></path>`;
       a += span;
     }
-    if (a > ga) inner += `<path d="${arc(72, 100, ga, a)}" fill="${css(g.color)}"><title>${g.label}: ${(g.now / 1000).toFixed(2)} GW</title></path>`;
+    if (a > ga) inner += `<path d="${arc(66, 92, ga, a)}" fill="${css(g.color)}"><title>${g.label}: ${(g.now / 1000).toFixed(2)} GW</title></path>`;
   }
-  return `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Current generation mix">${outer}${inner}
+  return `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Current generation mix"><circle class="disc" cx="${c}" cy="${c}" r="128"/>${outer}${inner}
     <text x="${c}" y="${c - 6}" text-anchor="middle" class="donut-label">Generation</text>
     <text x="${c}" y="${c + 20}" text-anchor="middle" class="donut-value">${(total / 1000).toFixed(1)} GW</text></svg>`;
 }
 
-function recordLine(r) {
+const RECORD_COLORS = { 'Fossil fuels': '--fossil', 'Low carbon': '--lowcarbon', Renewables: '--lowcarbon', Wind: '--f-wind', Solar: '--f-solar', 'Most wind': '--f-wind', 'Most solar': '--f-solar', 'Least fossil fuel': '--fossil', 'Greenest half hour': '--lowcarbon' };
+const PEAK_NAMES = { 'Least fossil fuel': 'Least fossil', 'Greenest half hour': 'Greenest' };
+const shortDay = (ms) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Europe/London' });
+
+/** One row of the records list: what, when, the record, and a marker. */
+function recordRow(r) {
   const gw = (v) => `${+v.toFixed(v < 1 ? 1 : 0)} GW`;
+  const color = RECORD_COLORS[r.label] ?? '--sunny';
   if (r.kind === 'peak') {
     const v = r.unit === 'pct' ? `${r.value.toFixed(1)}%` : `${r.value.toFixed(r.value < 1 ? 2 : 1)} GW`;
-    return `<li><span class="rec-what">${r.label} ever</span><span class="rec-value">${v}</span><span class="rec-when">${fmtDateTime(r.startMs)}</span></li>`;
+    return `<div class="nr rec" title="${r.label} ever, ${fmtDateTime(r.startMs)}"><span class="lbl">${PEAK_NAMES[r.label] ?? r.label} ever</span><span class="sm">${shortDay(r.startMs)}</span><span class="num">${v}</span><span class="mark-tile" style="background:var(${color})">⚡</span></div>`;
   }
-  const what = `${r.label} ${r.mode === 'below' ? 'under' : 'at or above'} ${gw(r.threshold)}`;
-  const when = r.live ? `since ${fmtDate(r.startMs)}` : `${fmtDate(r.startMs)} to ${fmtDate(r.endMs)}`;
-  return `<li${r.live ? ' class="is-live"' : ''}><span class="rec-what">${what}</span><span class="rec-value">${shortDuration(r.slots)}${r.live ? ' <span class="live record-live">🏆 Live</span>' : ''}</span><span class="rec-when">Longest ever, ${when}</span></li>`;
+  const what = `${r.label === 'Fossil fuels' ? 'Fossil' : r.label} ${r.mode === 'below' ? 'under' : 'over'} ${gw(r.threshold)}`;
+  const when = r.live ? `since ${fmtDate(r.startMs)}, still going` : `${fmtDate(r.startMs)} to ${fmtDate(r.endMs)}`;
+  return `<div class="nr rec${r.live ? ' is-live' : ''}" title="Longest ever spell, ${when}"><span class="lbl">${what}</span><span class="sm">${r.live ? 'live' : shortDay(r.endMs)}</span><span class="num">${shortDuration(r.slots)}</span><span class="mark-tile${r.live ? ' record-live' : ''}" style="background:var(${r.live ? '--sunny' : color})">${r.live ? '🏆' : '⏱'}</span></div>`;
+}
+
+const NOW_RECORD_ROWS = 8;
+const fmtGw = (v) => (Number.isFinite(v) ? (v / 1000).toFixed(2) : '—');
+const num = (v, unit = 'GW') => `<span class="num">${v}<small>${unit}</small></span>`;
+
+// The left half of the Right now panel: a band per group, then a row per fuel.
+// Non-finite values show as dashes, which is how the loading placeholder
+// reserves the panel's exact height.
+function nowLeftHtml(groups, total) {
+  const pc = (v) => (Number.isFinite(v) && total > 0 ? `${((v / total) * 100).toFixed(1)}%` : '—');
+  return groups.map((g) => `
+    <div class="nr head" style="--tint: var(${g.color})"><span></span>${num(fmtGw(g.now))}<span class="num">${pc(g.now)}</span><span class="lbl">${g.label}</span></div>
+    ${g.fuels.map((f) => `<div class="nr">${sparkTile(f.series, f.color)}${num(fmtGw(f.value))}<span class="num">${pc(f.now)}</span><span class="lbl">${f.label}</span></div>`).join('')}`).join('');
+}
+
+// The right half: recent records, then batteries, mirroring the left.
+function nowRightHtml(recs, bat, total) {
+  // recs is null while loading, so the rows stay blank.
+  const rows = (recs ?? []).slice(0, NOW_RECORD_ROWS).map(recordRow);
+  // On phones empty rows collapse, so the placeholder keeps five, a typical count.
+  if (!recs) while (rows.length < 5) rows.push('<div class="nr rec"><span></span></div>');
+  while (rows.length < NOW_RECORD_ROWS) rows.push(`<div class="nr rec">${rows.length === 0 && recs?.length === 0 ? '<span class="lbl sm">No new records in the last six months</span>' : ''}</div>`);
+  const pc = (v) => (Number.isFinite(v) && total > 0 ? `${((Math.abs(v) / total) * 100).toFixed(1)}%` : '—');
+  const net = Number.isFinite(bat.net) ? `${bat.net < 0 ? '−' : ''}${Math.abs(bat.net / 1000).toFixed(2)}` : '—';
+  const state = Number.isFinite(bat.net) ? (bat.net >= 0 ? 'discharging' : 'charging') : bat.net === undefined ? '' : 'no data';
+  return `
+    <div class="nr head" style="--tint: var(--sunny)"><span class="lbl wide">Recent records <span class="sm">last 6 months</span></span><span></span></div>
+    ${rows.join('')}
+    <div class="nr head" style="--tint: var(--s3)"><span class="lbl">Batteries <span class="sm">${state}</span></span><span></span>${num(net)}<span></span></div>
+    <div class="nr" title="Planned output (Elexon Physical Notifications), counted inside Other"><span class="lbl">Discharging</span><span class="num">${pc(bat.dis)}</span>${num(fmtGw(bat.dis))}${sparkTile(bat.disSeries, '--s3')}</div>
+    <div class="nr" title="Planned charging (Elexon Physical Notifications)"><span class="lbl">Charging</span><span class="num">${pc(bat.chg)}</span>${num(Number.isFinite(bat.chg) ? `−${fmtGw(Math.abs(bat.chg))}` : '—')}${sparkTile(bat.chgSeries?.map((v) => -v), '--s1')}</div>
+    <div class="nr" title="Net output from settlement meters (Elexon B1610), which arrive about five days late"><span class="lbl">Metered net</span><span class="sm">${bat.meteredMs ? shortDay(bat.meteredMs) : ''}</span>${num(Number.isFinite(bat.metered) ? `${bat.metered < 0 ? '−' : ''}${fmtGw(Math.abs(bat.metered))}` : '—')}${sparkTile(bat.meteredSeries, '--s2')}</div>`;
 }
 
 function renderBatterySources(coverage) {
@@ -483,20 +526,6 @@ function renderBatterySources(coverage) {
     ['<span class="swatch" style="background:var(--s2)"></span>Elexon B1610 metered output', 'What each battery unit actually exported or imported, from settlement meters.', 'About 5 days', 'Yes'],
     ['<span class="swatch" style="background:var(--s3)"></span>NESO generation mix "Other"', 'Battery net discharge mixed in with other small sources. NESO plans a separate battery figure.', 'About an hour', 'No'],
   ].map((r, k) => `<tr>${[...r, coverage[k]].map((v) => `<td>${v}</td>`).join('')}</tr>`).join('');
-}
-
-// The group rows of the Right now panel. Values that aren't finite show as dashes,
-// which is how the loading placeholder reserves the panel's height.
-function nowGroupsHtml(groups, total, bat) {
-  const gw = (v) => (Number.isFinite(v) ? (v / 1000).toFixed(2) : '—');
-  const pc = (v) => (Number.isFinite(v) && total > 0 ? `${((v / total) * 100).toFixed(1)}%` : '—');
-  const has = Number.isFinite(bat);
-  return groups.map((g) => `
-    <div class="now-group" style="--tint: var(${g.color})">
-      <div class="now-row now-head"><span></span><span class="num">${gw(g.now)}<small>GW</small></span><span class="num">${pc(g.now)}</span><span>${g.label}</span></div>
-      ${g.fuels.map((f) => `<div class="now-row">${f.series ? sparkline(f.series, css(f.color)) : '<svg class="spark"></svg>'}<span class="num">${gw(f.value)}<small>GW</small></span><span class="num">${pc(f.now)}</span><span><span class="swatch" style="background:var(${f.color})"></span>${f.label}</span></div>`).join('')}
-    </div>`).join('') + `
-    <div class="now-row now-battery"><span></span><span class="num">${has ? `${bat >= 0 ? '+' : '−'}${Math.abs(bat / 1000).toFixed(2)}` : '—'}<small>GW</small></span><span></span><span>Batteries, ${has ? (bat >= 0 ? 'discharging' : 'charging') : bat === undefined ? '<span style="visibility: hidden">discharging</span>' : 'no data'} <small>(planned, inside Other)</small></span></div>`;
 }
 
 function renderNow() {
@@ -514,11 +543,19 @@ function renderNow() {
   });
   const total = groups.reduce((s, g) => s + g.now, 0);
   const pnI = data.meta.lastSlot.pn_dis;
-  const bat = pnI != null ? c.pn_dis[pnI] + c.pn_chg[pnI] : NaN;
-  $('now-groups').innerHTML = nowGroupsHtml(groups, total, bat);
+  const bat = { net: NaN };
+  if (pnI != null) {
+    const past = (col) => Array.from({ length: 48 }, (_, k) => c[col][pnI - 47 + k]);
+    Object.assign(bat, { dis: c.pn_dis[pnI], chg: c.pn_chg[pnI], net: c.pn_dis[pnI] + c.pn_chg[pnI], disSeries: past('pn_dis'), chgSeries: past('pn_chg') });
+  }
+  const mI = data.meta.lastSlot.b1610_dis;
+  if (mI != null && c.b1610_dis) {
+    const net = (k) => c.b1610_dis[k] + c.b1610_chg[k];
+    Object.assign(bat, { metered: net(mI), meteredMs: slotTime(mI, data.startMs), meteredSeries: Array.from({ length: 48 }, (_, k) => net(mI - 47 + k)) });
+  }
+  $('now-groups').innerHTML = nowLeftHtml(groups, total);
   $('now-donut').innerHTML = donut(groups, total);
-  const recs = recentRecords(data, { batterySource: state.battery });
-  $('now-records').innerHTML = recs.length ? recs.map(recordLine).join('') : '<li class="rec-none">No new records in the last six months.</li>';
+  $('now-right').innerHTML = nowRightHtml(recentRecords(data, { batterySource: state.battery, limit: NOW_RECORD_ROWS }), bat, total);
   $('updated').textContent = `Generation data to ${fmtDateTime(slotTime(i, data.startMs))} (UK time). Updated every 30 minutes.`;
 }
 
@@ -602,11 +639,11 @@ function renderStory() {
 function renderPlaceholders() {
   const sample = (text) => `<span style="visibility: hidden">${text}</span>`;
   const date = fmtDate(Date.now());
-  $('now-groups').innerHTML = nowGroupsHtml(NOW_GROUPS.map((g) => ({ ...g, now: NaN, fuels: g.fuels.map((f) => ({ ...f, value: NaN, now: NaN })) })), 0);
+  $('now-groups').innerHTML = nowLeftHtml(NOW_GROUPS.map((g) => ({ ...g, now: NaN, fuels: g.fuels.map((f) => ({ ...f, value: NaN, now: NaN })) })), 0);
   // An empty ring in place of the donut, the same size as the real one.
   const ring = NOW_GROUPS.map((g) => ({ ...g, color: '--cell-empty', fuels: g.fuels.map((f) => ({ ...f, color: '--cell-empty', now: 1 })) }));
   $('now-donut').innerHTML = donut(ring, ring.reduce((s, g) => s + g.fuels.length, 0)).replace(/>[\d.]+ GW</, '>— GW<');
-  $('now-records').innerHTML = Array.from({ length: 6 }, () => `<li><span class="rec-what">${sample('Fossil fuels under 1 GW')}</span><span class="rec-value">${sample('3h 30m')}</span><span class="rec-when">${sample(`Longest ever, since ${date}`)}</span></li>`).join('');
+  $('now-right').innerHTML = nowRightHtml(null, {}, 0);
   $('facts').innerHTML = [
     ['--f-coal', '🪨', 'Coal free', 'since the last coal station closed on'],
     ['--lowcarbon', '🌍', 'Greenest half hour', 'low carbon on'],
