@@ -22,7 +22,12 @@ export function steady(points) {
 }
 
 /** Years with a published figure, for marking on the chart. */
-export const PUBLISHED = { pv: [2010, 2023, 2024, 2025], battery: [2010, 2024, 2025], wind: [2010, 2024] };
+export const PUBLISHED = { pv: [2010, 2017, 2018, 2020, 2021, 2022, 2023, 2024, 2025], battery: [2010, 2023, 2024, 2025], wind: [2010, 2024] };
+
+// BNEF's turnkey battery system survey, global average, nominal USD/kWh. It
+// leaves out installation and grid connection, so it is shown for comparison
+// and not used in the costs.
+export const BNEF_TURNKEY = { 2022: 324, 2023: 263, 2024: 169, 2025: 117 };
 
 // Values per year in YEARS order. Money is converted to 2024 pounds.
 export const COSTS = {
@@ -31,10 +36,14 @@ export const COSTS = {
   // ONS USD per GBP, annual average (AUSS).
   usdPerGbp: [1.546, 1.603, 1.5851, 1.5644, 1.6477, 1.5286, 1.3542, 1.2888, 1.335, 1.2766, 1.2837, 1.3757, 1.2362, 1.2434, 1.2783, 1.3185],
   // IRENA: utility-scale solar PV total installed cost, global weighted average, 2024 USD/kW.
-  // 2023 is backed out of IRENA's "down 11% to 691"; 2025 is from IRENA's 2025 edition.
-  pvUsdPerKw: steady({ 2010: 5283, 2023: 776, 2024: 691, 2025: 667 }),
-  // IRENA (2010, 2024) and Ember (2025): utility-scale battery storage total installed cost, 2024 USD/kWh.
-  batteryUsdPerKwh: steady({ 2010: 2571, 2024: 192, 2025: 125 }),
+  // Each IRENA edition reports in its own year's dollars, so earlier editions
+  // are rescaled by the ratio of their 2010 figure to the 2024 edition's
+  // (5,283): 2017 and 2018 from the 2018 edition, 2020 from 2020, 2021 from
+  // 2021, 2022 from 2022, 2023 from 2023. 2025 is the 2025 edition as printed.
+  pvUsdPerKw: steady({ 2010: 5283, 2017: 1588, 2018: 1383, 2020: 986, 2021: 942, 2022: 903, 2023: 754, 2024: 691, 2025: 667 }),
+  // IRENA: utility-scale battery storage total installed cost, 2024 USD/kWh.
+  // 2023 is the 2023 edition rescaled the same way; 2025 is "around 140" (2025 edition).
+  batteryUsdPerKwh: steady({ 2010: 2571, 2023: 280, 2024: 192, 2025: 140 }),
   // IRENA: onshore wind total installed cost, global weighted average, 2024 USD/kW.
   windUsdPerKw: steady({ 2010: 2324, 2024: 1041 }),
   // NBP gas, annual average, nominal USD/MWh (Energy Institute, via Our World in Data).
@@ -70,8 +79,15 @@ export const ASSUMPTIONS = {
 
 export const SOURCES = [
   ['IRENA, Renewable Power Generation Costs in 2024', 'https://www.irena.org/Publications/2025/Jul/Renewable-Power-Generation-Costs-in-2024'],
-  ['IRENA, Renewable Power Generation Costs in 2025 (solar, 2025)', 'https://greentechlead.com/solar/solar-pv-installation-costs-fall-88-since-2010-as-global-capacity-surpasses-2393-gw-in-2025-irena-54058'],
-  ['Ember, battery storage costs (2025)', 'https://www.energy-storage.news/?p=92133'],
+  ['IRENA, Renewable Power Generation Costs in 2025, executive summary', 'https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2026/Jul/IRENA_TEC_RPGC_2025_Executive_summary_2026.pdf'],
+  ['IRENA, Renewable Power Generation Costs in 2023, executive summary', 'https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2024/Sep/IRENA_Renewable_power_generation_costs_in_2023_executive_summary.pdf'],
+  ['IRENA, Renewable Power Generation Costs in 2022, summary', 'https://media.ellinikahoaxes.gr/uploads/2025/02/IRENA_Renewable_power_generation_costs_in_2022_SUMMARY.pdf'],
+  ['IRENA, Renewable Power Generation Costs in 2021, summary', 'https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2022/Jul/IRENA_Power_Generation_Costs_2021_Summary.pdf'],
+  ['IRENA, Renewable Power Generation Costs in 2020, summary', 'https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2021/Jun/IRENA_Power_Generation_Costs_2020_Summary.pdf'],
+  ['IRENA, Renewable Power Generation Costs in 2018', 'https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2019/May/IRENA_Renewable-Power-Generations-Costs-in-2018.pdf'],
+  ['BNEF energy storage system cost survey 2022', 'https://www.bnef.com/insights/30443'],
+  ['BNEF energy storage system cost survey 2023', 'https://www.bnef.com/insights/33081'],
+  ['BNEF and Ember battery system prices, 2024 and 2025', 'https://www.energy-storage.news/battery-storage-system-prices-continue-to-fall-sharply-bnef-and-ember-reports-find/'],
   ['BNEF, lithium-ion battery pack prices', 'https://about.bnef.com/insights/clean-energy/lithium-ion-battery-pack-prices/'],
   ['IRENA, onshore wind installed costs (Renewable Power Generation Costs in 2024, summary)', 'https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2025/Jul/IRENA_TEC_RPGC_in_2024_Summary_2025.pdf'],
   ['DESNZ, Digest of UK Energy Statistics 2025, chapter 6 (wind load factors)', 'https://assets.publishing.service.gov.uk/media/688a193f6478525675739024/DUKES_2025_Chapter_6.pdf'],
