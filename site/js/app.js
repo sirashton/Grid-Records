@@ -223,7 +223,7 @@ function renderTable(summaries) {
     const c = s.current;
     const ongoing = r && c && c.start === r.start;
     const longest = r ? `<td class="big">${formatDuration(r.end - r.start)}<span class="when">${fmtDateTime(slotTime(r.start, data.startMs))} ${ongoing ? 'and still going' : `to ${fmtDateTime(slotTime(r.end, data.startMs))}`}</span></td>` : '<td>Never</td>';
-    const cur = c ? `<td class="big">${formatDuration(c.end - c.start)}${ongoing ? '<span class="live record-live" title="The current spell is the longest ever">🏆 Record, live</span>' : '<span class="live">Live</span>'}<span class="when">since ${fmtDateTime(slotTime(c.start, data.startMs))}</span></td>` : '<td>—</td>';
+    const cur = c ? `<td class="big">${formatDuration(c.end - c.start)}${ongoing ? '<span class="live record-live" title="The current spell is the longest ever">Record, live</span>' : '<span class="live">Live</span>'}<span class="when">since ${fmtDateTime(slotTime(c.start, data.startMs))}</span></td>` : '<td>—</td>';
     const lastYear = qualifyingSince(s.threshold, lastSlot - yearSlots);
     return `<tr><td><span class="swatch" style="background:${thresholdColor(i, n)}"></span><b>${thresholdLabel(s.threshold).replace('<', '&lt;')}</b></td>${longest}${cur}
       <td class="big">${pct(lastYear, yearSlots)}</td><td>${s.count.toLocaleString('en-GB')}</td></tr>`;
@@ -503,11 +503,11 @@ function recordRow(r) {
   const color = RECORD_COLORS[r.label] ?? '--sunny';
   if (r.kind === 'peak') {
     const v = r.unit === 'pct' ? `${r.value.toFixed(1)}%` : `${r.value.toFixed(r.value < 1 ? 2 : 1)} GW`;
-    return `<div class="nr rec" data-tip="${r.label} ever, at ${fmtDateTime(r.startMs)} (UK time)." style="--tint: var(${color})"><span class="lbl">${PEAK_NAMES[r.label] ?? r.label} ever</span><span class="sm">${shortDay(r.startMs)}</span><span class="num">${v}</span><span class="mark-tile" style="background:var(${color})">⚡</span></div>`;
+    return `<div class="nr rec" data-tip="${r.label} ever, at ${fmtDateTime(r.startMs)} (UK time)." style="--tint: var(${color})"><span class="lbl">${PEAK_NAMES[r.label] ?? r.label} ever</span><span class="sm">${shortDay(r.startMs)}</span><span class="num">${v}</span><span class="mark-tile" style="background:var(${color})"></span></div>`;
   }
   const what = `${r.label === 'Fossil fuels' ? 'Fossil' : r.label} ${r.mode === 'below' ? 'under' : 'over'} ${gw(r.threshold)}`;
   const when = r.live ? `since ${fmtDate(r.startMs)}, still going` : `${fmtDate(r.startMs)} to ${fmtDate(r.endMs)}`;
-  return `<div class="nr rec${r.live ? ' is-live' : ''}" data-tip="The longest spell on record, ${when}." style="--tint: var(${color})"><span class="lbl">${what}</span><span class="sm">${r.live ? 'live' : shortDay(r.endMs)}</span><span class="num">${shortDuration(r.slots)}</span><span class="mark-tile${r.live ? ' record-live' : ''}" style="background:var(${r.live ? '--sunny' : color})">${r.live ? '🏆' : '⏱'}</span></div>`;
+  return `<div class="nr rec${r.live ? ' is-live' : ''}" data-tip="The longest spell on record, ${when}." style="--tint: var(${color})"><span class="lbl">${what}</span><span class="sm">${r.live ? 'live' : shortDay(r.endMs)}</span><span class="num">${shortDuration(r.slots)}</span><span class="mark-tile" style="background:var(${r.live ? '--sunny' : color})">${r.live ? 'LIVE' : ''}</span></div>`;
 }
 
 const NOW_RECORD_ROWS = 8;
@@ -632,6 +632,12 @@ function renderNow() {
   $('updated').textContent = `Generation data to ${fmtDateTime(slotTime(i, data.startMs))} (UK time). Updated every 30 minutes.`;
 }
 
+// One headline figure set large, with the other highlights as a list beside it.
+function factsHtml(big, sub, rest) {
+  return `<div class="headline"><div class="big">${big}</div><div class="sub">${sub}</div></div>
+    <ul class="fact-list">${rest.map(([c, label, v, when]) => `<li><span class="swatch" style="background:var(${c})"></span><span><b>${label}</b> <span class="v">${v}</span> <span class="sub">${when}</span></span></li>`).join('')}</ul>`;
+}
+
 let story = null;
 function renderStory() {
   if (!story) {
@@ -645,14 +651,12 @@ function renderStory() {
   const f = story.facts;
   const at = (i) => fmtDate(slotTime(i, data.startMs));
   const days = Math.floor((data.length - 1 - f.lastCoal) / 48);
-  const cards = [
-    ['--f-coal', '🪨', 'Coal free', `${days.toLocaleString('en-GB')} days`, `since the last coal station closed on ${at(f.lastCoal)}`],
-    ['--lowcarbon', '🌍', 'Greenest half hour', `${f.green.v.toFixed(1)}%`, `low carbon on ${at(f.green.i)}`],
-    ['--f-wind', '🌬️', 'Windiest half hour', `${(f.wind.v / 1000).toFixed(1)} GW`, `from wind on ${at(f.wind.i)}`],
-    ['--f-solar', '☀️', 'Sunniest half hour', `${(f.solar.v / 1000).toFixed(1)} GW`, `from solar on ${at(f.solar.i)}`],
-    ['--fossil', '🔥', 'Least fossil fuel', `${(f.fossil.v / 1000).toFixed(2)} GW`, `gas and coal on ${at(f.fossil.i)}`],
-  ];
-  $('facts').innerHTML = cards.map(([c, e, l, v, sub]) => `<div class="fact" style="--tint: color-mix(in srgb, var(${c}) 20%, #fff)"><div class="label"><span aria-hidden="true">${e}</span> ${l}</div><div class="big">${v}</div><div class="sub">${sub}</div></div>`).join('');
+  $('facts').innerHTML = factsHtml(`${days.toLocaleString('en-GB')} days`, `without coal power, since the last coal station closed on ${at(f.lastCoal)}`, [
+    ['--lowcarbon', 'Greenest half hour', `${f.green.v.toFixed(1)}%`, `low carbon, ${at(f.green.i)}`],
+    ['--f-wind', 'Windiest half hour', `${(f.wind.v / 1000).toFixed(1)} GW`, `from wind, ${at(f.wind.i)}`],
+    ['--f-solar', 'Sunniest half hour', `${(f.solar.v / 1000).toFixed(1)} GW`, `from solar, ${at(f.solar.i)}`],
+    ['--fossil', 'Least fossil fuel', `${(f.fossil.v / 1000).toFixed(2)} GW`, `of gas and coal, ${at(f.fossil.i)}`],
+  ]);
 
   const yearLabel = (y) => (y === 'past365' ? '365d' : String(y));
   const yearTitle = (y) => (y === 'past365' ? 'Past 365 days' : String(y));
@@ -717,13 +721,12 @@ function renderPlaceholders() {
   const ring = NOW_GROUPS.map((g) => ({ ...g, color: '--cell-empty', fuels: g.fuels.map((f) => ({ ...f, color: '--cell-empty', now: 1 })) }));
   $('now-donut').innerHTML = donut(ring, ring.reduce((s, g) => s + g.fuels.length, 0)).replace(/>[\d.]+ GW</, '>— GW<');
   $('now-right').innerHTML = nowRightHtml(null, {}, 0);
-  $('facts').innerHTML = [
-    ['--f-coal', '🪨', 'Coal free', 'since the last coal station closed on'],
-    ['--lowcarbon', '🌍', 'Greenest half hour', 'low carbon on'],
-    ['--f-wind', '🌬️', 'Windiest half hour', 'from wind on'],
-    ['--f-solar', '☀️', 'Sunniest half hour', 'from solar on'],
-    ['--fossil', '🔥', 'Least fossil fuel', 'gas and coal on'],
-  ].map(([c, e, l, sub]) => `<div class="fact" style="--tint: color-mix(in srgb, var(${c}) 20%, #fff)"><div class="label"><span aria-hidden="true">${e}</span> ${l}</div><div class="big">—</div><div class="sub">${sample(`${sub} ${date}`)}</div></div>`).join('');
+  $('facts').innerHTML = factsHtml('—', sample(`without coal power, since the last coal station closed on ${date}`), [
+    ['--lowcarbon', 'Greenest half hour', '—', sample(`low carbon, ${date}`)],
+    ['--f-wind', 'Windiest half hour', '—', sample(`from wind, ${date}`)],
+    ['--f-solar', 'Sunniest half hour', '—', sample(`from solar, ${date}`)],
+    ['--fossil', 'Least fossil fuel', '—', sample(`of gas and coal, ${date}`)],
+  ]);
   renderQuestion();
   const cell = `<td class="big">—<span class="when">${sample(date)}</span></td>`;
   $('records-table').innerHTML = `<thead><tr><th>Threshold</th><th>Longest spell</th><th>Current spell</th><th>Share of past 365 days</th><th>Spells</th></tr></thead><tbody>${orderedThresholds().map((t) => `<tr><td><span class="swatch"></span><b>${thresholdLabel(t).replace('<', '&lt;')}</b></td>${cell}${cell}<td class="big">—</td><td>—</td></tr>`).join('')}</tbody>`;
