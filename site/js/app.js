@@ -6,6 +6,7 @@ import { envelopes } from './envelope.js';
 import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
 import { renderBatteryOrigins } from './origins.js';
 import { renderSolar } from './solar-view.js';
+import { startAnalytics } from './analytics.js';
 
 const PRESETS = {
   fossil: { label: 'Fossil fuels', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
@@ -798,6 +799,8 @@ function renderPlaceholders() {
 }
 
 async function main() {
+  // Before readHash, so a link that arrived with settings is still visible.
+  startAnalytics();
   readHash();
   setupControls();
   syncControls();
