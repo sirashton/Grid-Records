@@ -162,10 +162,9 @@ select:focus-visible, input:focus-visible, button:focus-visible, summary:focus-v
 .now-panel { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; --donut: min(360px, 36cqw); --gutter: calc(var(--donut) / 2 + 2px); }
 .now-col { display: flex; flex-direction: column; min-width: 0; }
 .nr { display: grid; align-items: center; gap: 8px; height: 32px; padding: 0 10px; font-size: 0.875rem; white-space: nowrap; }
-.nr.head { height: 40px; font-weight: 800; background: color-mix(in srgb, var(--tint) 45%, #fff); border-top: 3px solid var(--line); border-bottom: 3px solid var(--line); }
+.nr.head { height: 40px; font-weight: 800; background: color-mix(in srgb, var(--tint) 45%, #fff); }
 .now-left .nr { grid-template-columns: 40px 64px 48px minmax(0, 1fr); padding-right: var(--gutter); }
 .now-right .nr { grid-template-columns: minmax(0, 1fr) 44px 62px 40px; gap: 6px; padding-left: var(--gutter); text-align: right; }
-.nr.head { border-left: 3px solid var(--line); border-right: 3px solid var(--line); }
 /* Eight record rows fill the same height as the left's two bands and seven
    rows, so the Batteries band lines up with Other sources. */
 .now-right .nr.rec { height: 33px; }
@@ -180,8 +179,9 @@ select:focus-visible, input:focus-visible, button:focus-visible, summary:focus-v
 .mark-tile { display: grid; place-items: center; font-size: 0.625rem; font-weight: 800; letter-spacing: 0.04em; }
 .now-donut { position: absolute; left: 50%; top: 50%; width: var(--donut); transform: translate(-50%, -50%); }
 .now-donut svg { width: 100%; height: auto; display: block; }
-.now-donut .disc { fill: var(--card); stroke: var(--line); stroke-width: 3; }
-.now-donut path { stroke: var(--line); stroke-width: 2; }
+.now-donut .disc { fill: var(--card); stroke: var(--grid); stroke-width: 1; }
+/* Thin white gaps between segments, as on Kate's site, rather than ink outlines. */
+.now-donut path { stroke: var(--card); stroke-width: 1.5; stroke-linejoin: round; }
 /* Hover: partners stay bright, everything else in the donut fades. */
 .now-donut path { transition: opacity 0.15s; }
 .now-panel.hovering .now-donut path:not(.hl) { opacity: 0.25; }
