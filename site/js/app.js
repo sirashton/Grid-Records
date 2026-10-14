@@ -5,6 +5,7 @@ import { recentRecords } from './recent.js';
 import { envelope } from './envelope.js';
 import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
 import { renderBatteryOrigins } from './origins.js';
+import { renderSolar } from './solar-view.js';
 
 const PRESETS = {
   fossil: { label: 'Fossil fuels', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
@@ -156,7 +157,7 @@ function setupControls() {
   let resize;
   addEventListener('resize', () => {
     clearTimeout(resize);
-    resize = setTimeout(() => { renderStory(); update(); if (!$('origin-body').hidden) renderBatteryOrigins(data); }, 150);
+    resize = setTimeout(() => { renderStory(); update(); renderSolar(data); if (!$('origin-body').hidden) renderBatteryOrigins(data); }, 150);
   });
 }
 
@@ -639,6 +640,8 @@ async function main() {
   renderNow();
   renderStory();
   update();
+  // Sizing the solar farm takes a moment, so let the rest of the page paint first.
+  setTimeout(() => renderSolar(data), 0);
   $('origin-toggle').addEventListener('click', () => {
     const body = $('origin-body');
     body.hidden = !body.hidden;

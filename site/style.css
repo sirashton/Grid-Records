@@ -75,9 +75,10 @@ h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -
 .story { --tint-shadow: var(--accent-green); }
 .records-card { --tint-shadow: var(--primary); }
 .battery-card { --tint-shadow: var(--f-nuclear); }
+.solar-card { --tint-shadow: var(--f-solar); }
 /* A coloured block behind the card, outlined in black all the way round. The
    black copy is spread by the border width so it frames the colour on every side. */
-.now-card, .story, .records-card, .battery-card {
+.now-card, .story, .records-card, .battery-card, .solar-card {
   box-shadow: var(--shadow) var(--shadow) 0 0 var(--tint-shadow), var(--shadow) var(--shadow) 0 3px var(--line);
 }
 .emoji { display: inline-block; margin-right: 2px; }
@@ -229,3 +230,9 @@ details { margin-top: 16px; }
 summary { cursor: pointer; font-weight: 700; }
 .about p { max-width: 50em; }
 footer { padding-bottom: 40px; }
+
+/* Firm megawatt section. */
+.swatch.dashed { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; color: var(--f-solar); }
+.notes { padding-left: 20px; margin: 4px 0 12px; }
+.notes li { margin-bottom: 6px; }
+.tooltip .small { color: var(--ink-3); font-size: 0.75rem; margin: 4px 0 0; }
