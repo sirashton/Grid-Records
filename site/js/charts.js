@@ -67,7 +67,7 @@ function timeTicks(lo, hi) {
  */
 export function lineChart(host, opts) {
   host.innerHTML = '';
-  const width = Math.max(320, host.clientWidth || 640);
+  const width = Math.max(240, host.clientWidth || 640);
   const height = opts.height ?? 280;
   const m = { top: 12, right: 16, bottom: 28, left: 56 };
   const w = width - m.left - m.right;
@@ -192,7 +192,7 @@ function logTicks(lo, hi) {
  */
 export function heatmap(host, opts) {
   host.innerHTML = '';
-  const width = Math.max(320, host.clientWidth || 640);
+  const width = Math.max(240, host.clientWidth || 640);
   const m = { top: 8, right: 8, bottom: 26, left: 64 };
   const cw = (width - m.left - m.right) / opts.cols.length;
   const ch = 28;
@@ -211,7 +211,7 @@ export function heatmap(host, opts) {
     opts.cols.forEach((c, ci) => {
       const v = opts.values[ri][ci];
       const fill = !(v > 0) ? 'var(--cell-empty)' : opts.color ? opts.color(v) : opts.ramp[Math.min(opts.ramp.length - 1, Math.max(0, Math.round(scale(v) * (opts.ramp.length - 1))))];
-      const cell = el('rect', { x: m.left + ci * cw + 1, y: m.top + ri * ch + 1, width: Math.max(1, cw - 2), height: ch - 2, rx: 3, fill, class: 'cell' }, svg);
+      const cell = el('rect', { x: m.left + ci * cw + 1, y: m.top + ri * ch + 1, width: Math.max(1, cw - 2), height: ch - 2, fill, class: 'cell' }, svg);
       cell.addEventListener('pointerenter', () => {
         tip.innerHTML = opts.title(r, c, v);
         tip.hidden = false;
@@ -236,7 +236,7 @@ export function heatmap(host, opts) {
  */
 export function barChart(host, opts) {
   host.innerHTML = '';
-  const width = Math.max(320, host.clientWidth || 640);
+  const width = Math.max(240, host.clientWidth || 640);
   const height = opts.height ?? 280;
   const m = { top: 12, right: 8, bottom: 28, left: 48 };
   const w = width - m.left - m.right;
