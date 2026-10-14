@@ -597,6 +597,27 @@ function setupNowHover() {
   panel.addEventListener('focusout', (e) => { if (!panel.contains(e.relatedTarget)) { highlight(null); tip.hidden = true; } });
 }
 
+// Like Kate's site, the tab icon is a pie of the current generation mix.
+function liveFavicon(groups, total) {
+  const c = 32;
+  const r = 29;
+  let a = 0;
+  let slices = '';
+  for (const g of groups) {
+    for (const f of g.fuels) {
+      const span = (f.now / total) * Math.PI * 2;
+      if (!(span > 0)) continue;
+      const p = (t) => `${(c + r * Math.sin(t)).toFixed(2)},${(c - r * Math.cos(t)).toFixed(2)}`;
+      slices += span >= Math.PI * 2 - 1e-6
+        ? `<circle cx="${c}" cy="${c}" r="${r}" fill="${css(f.color)}"/>`
+        : `<path d="M${c},${c}L${p(a)}A${r},${r} 0 ${span > Math.PI ? 1 : 0} 1 ${p(a + span)}Z" fill="${css(f.color)}"/>`;
+      a += span;
+    }
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">${slices}<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${css('--line')}" stroke-width="4"/></svg>`;
+  document.querySelector('link[rel="icon"]').href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 function renderNow() {
   const c = data.columns;
   const i = lastComplete(data, ['gas', 'wind']);
@@ -629,6 +650,7 @@ function renderNow() {
   }
   $('now-groups').innerHTML = nowLeftHtml(groups, total);
   $('now-donut').innerHTML = donut(groups, total);
+  liveFavicon(groups, total);
   $('now-right').innerHTML = nowRightHtml(recentRecords(data, { batterySource: state.battery, limit: NOW_RECORD_ROWS }), bat, total);
   $('updated').textContent = `Generation data to ${fmtDateTime(slotTime(i, data.startMs))} (UK time). Updated every 30 minutes.`;
 }
