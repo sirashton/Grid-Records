@@ -169,6 +169,9 @@ td.big { font-weight: 800; font-size: 1.0625rem; white-space: nowrap; }
 .units td, .units th { font-size: 0.8125rem; padding: 4px 8px; }
 
 .chart-host { position: relative; width: 100%; min-height: 60px; }
+/* Hold a chart's space until it is drawn, so the page doesn't jump as data loads. */
+.chart-host:empty { min-height: var(--placeholder-height, 280px); }
+.legend:empty { min-height: 1.55em; }
 .chart { display: block; overflow: visible; }
 .chart .grid line { stroke: var(--grid); stroke-width: 1; }
 .chart .tick { fill: var(--ink-3); font-size: 11px; font-family: inherit; }
