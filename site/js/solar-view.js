@@ -10,6 +10,19 @@ const gbp = (v) => `£${Math.round(v).toLocaleString('en-GB')}`;
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 let model = null;
+let scale = 'log';
+let wired = false;
+
+/** One switch sets both charts to a log or a linear scale. */
+function wireScale(data) {
+  if (wired) return;
+  wired = true;
+  document.querySelectorAll('[data-solar-scale]').forEach((b) => b.addEventListener('click', () => {
+    scale = b.dataset.solarScale;
+    document.querySelectorAll('[data-solar-scale]').forEach((x) => x.setAttribute('aria-checked', x === b));
+    renderSolar(data);
+  }));
+}
 
 /** Weather years used for sizing: 2015 (a mature panel fleet) to the last complete year. */
 function weatherYears(data) {
@@ -31,6 +44,8 @@ export function renderSolar(data) {
   if (!data) return;
   if (!model) model = build(data);
   if (!model) return;
+  wireScale(data);
+  const log = scale === 'log';
   const { rows, months, from, to } = model;
   const first = rows[0];
   const last = rows[rows.length - 1];
@@ -48,8 +63,8 @@ export function renderSolar(data) {
   $('solar-kit-text').textContent = `Since ${first.year}, the cost of building a large solar farm has fallen by ${drop(first.panelPerMw, last.panelPerMw)} and the cost of a grid battery by ${drop(first.batteryPerMwh, last.batteryPerMwh)}, after inflation. Dots mark published figures; the years between are filled in at a steady rate.`;
   lineChart($('solar-kit'), {
     series: kit.map((s) => ({ ...s, width: 3, markers: s.points.filter((p) => s.published.includes(new Date(p[0]).getUTCFullYear())) })),
-    yLog: true,
-    yMin: 50,
+    yLog: log,
+    yMin: log ? 50 : 0,
     yFormat: gbp,
     height: 240,
     tooltip: (t, vals) => `<strong>${new Date(t).getUTCFullYear()}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${gbp(v.value)}</b></div>`).join('')}`,
@@ -79,9 +94,9 @@ export function renderSolar(data) {
   ];
   lineChart($('solar-firm'), {
     series: lines.map((s) => ({ ...s, markers: s.points })),
-    yLog: true,
-    yMin: 30,
-    yTicks: [30, 50, 100, 200, 500, 1000, 2000, 5000],
+    yLog: log,
+    yMin: log ? 30 : 0,
+    yTicks: log ? [30, 50, 100, 200, 500, 1000, 2000, 5000] : undefined,
     yFormat: gbp,
     height: 320,
     tooltip: (t, vals) => {
