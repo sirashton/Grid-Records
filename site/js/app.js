@@ -198,14 +198,18 @@ function update() {
   const values = currentSeries();
   const thresholds = orderedThresholds();
   const summaries = thresholds.map((t) => summarise(values, t, state.mode, { startMs: data.startMs, maxGap: 2 }));
-  const verb = state.mode === 'below' ? 'below' : 'at or above';
-  const what = state.unit === 'pct' ? `${groupName()} as a share of generation` : groupName();
-  $('question').textContent = `What is the longest the grid has run with ${what} ${verb} each threshold?`;
+  renderQuestion();
   renderTable(summaries);
   renderProgression(summaries);
   renderByYear(summaries);
   renderTimeline(values);
   renderBattery();
+}
+
+function renderQuestion() {
+  const verb = state.mode === 'below' ? 'below' : 'at or above';
+  const what = state.unit === 'pct' ? `${groupName()} as a share of generation` : groupName();
+  $('question').textContent = `What is the longest the grid has run with ${what} ${verb} each threshold?`;
 }
 
 function renderTable(summaries) {
@@ -357,11 +361,11 @@ function renderBattery() {
   const first = (s) => (cov[s]?.first != null ? fmtDate(slotTime(cov[s].first, data.startMs)) : 'not yet');
   const last = (name) => (data.meta.lastSlot[name] != null ? fmtDateTime(slotTime(data.meta.lastSlot[name], data.startMs)) : '—');
   const backfill = (s) => (cov[s]?.backfillRemaining ? ` (still backfilling ${cov[s].backfillRemaining} days)` : '');
-  $('battery-sources').innerHTML = [
-    ['<span class="swatch" style="background:var(--s1)"></span>Elexon Physical Notifications', 'Each battery unit\'s planned output, summed. A plan, so it misses later balancing instructions.', 'Live', 'Yes', `${first('pn')} to ${last('pn_dis')}${backfill('pn')}`],
-    ['<span class="swatch" style="background:var(--s2)"></span>Elexon B1610 metered output', 'What each battery unit actually exported or imported, from settlement meters.', 'About 5 days', 'Yes', `${first('b1610')} to ${last('b1610_dis')}${backfill('b1610')}`],
-    ['<span class="swatch" style="background:var(--s3)"></span>NESO generation mix "Other"', 'Battery net discharge mixed in with other small sources. NESO plans a separate battery figure.', 'About an hour', 'No', `2009 to ${last('other')}`],
-  ].map((r) => `<tr>${r.map((v) => `<td>${v}</td>`).join('')}</tr>`).join('');
+  renderBatterySources([
+    `${first('pn')} to ${last('pn_dis')}${backfill('pn')}`,
+    `${first('b1610')} to ${last('b1610_dis')}${backfill('b1610')}`,
+    `2009 to ${last('other')}`,
+  ]);
   const units = data.meta.battery.units;
   const mw = units.reduce((n, u) => n + u.mw, 0);
   $('units-summary').textContent = `${units.length} battery units, ${(mw / 1000).toFixed(1)} GW of export capacity`;
@@ -371,6 +375,14 @@ function renderBattery() {
 // "3h 30m", "4d 20h": short enough for a tile.
 function shortDuration(slots) {
   return formatDuration(slots).replace(/ (minute|hour|day)s?/g, (_, u) => u[0]);
+}
+
+function renderBatterySources(coverage) {
+  $('battery-sources').innerHTML = [
+    ['<span class="swatch" style="background:var(--s1)"></span>Elexon Physical Notifications', 'Each battery unit\'s planned output, summed. A plan, so it misses later balancing instructions.', 'Live', 'Yes'],
+    ['<span class="swatch" style="background:var(--s2)"></span>Elexon B1610 metered output', 'What each battery unit actually exported or imported, from settlement meters.', 'About 5 days', 'Yes'],
+    ['<span class="swatch" style="background:var(--s3)"></span>NESO generation mix "Other"', 'Battery net discharge mixed in with other small sources. NESO plans a separate battery figure.', 'About an hour', 'No'],
+  ].map((r, k) => `<tr>${[...r, coverage[k]].map((v) => `<td>${v}</td>`).join('')}</tr>`).join('');
 }
 
 function renderNow() {
@@ -468,10 +480,47 @@ function renderStory() {
   $('story-hours-legend').innerHTML = hourStacks.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('') + '<span>★ hours under 1 GW</span>';
 }
 
+/**
+ * Fills the page with stand-ins the same size as what the data will put there,
+ * so nothing jumps down the page when it arrives. Hidden sample text (a date,
+ * a duration) makes a line wrap the way the real text will. Charts reserve
+ * their height in CSS, until they are drawn.
+ */
+function renderPlaceholders() {
+  const sample = (text) => `<span style="visibility: hidden">${text}</span>`;
+  const date = fmtDate(Date.now());
+  const tints = ['--fossil', '--lowcarbon', '--f-wind', '--f-solar', '--f-nuclear', '--f-nuclear', '--accent-green'];
+  $('now').innerHTML = [
+    ['Fossil fuels', '00% of generation'],
+    ['Low carbon', 'wind, solar, nuclear, hydro, pumped storage'],
+    ['Wind', '00%'],
+    ['Solar', '00%'],
+    ['Nuclear', '00%'],
+    ['Batteries', 'net discharging (planned)'],
+    ['Fossil under 5 GW', 'current spell'],
+  ].map(([l, s], k) => `<div class="tile" style="--tint: color-mix(in srgb, var(${tints[k]}) 18%, #fff)"><div class="label">${l}</div><div class="value">—</div><div class="sub">${sample(s)}</div></div>`).join('');
+  $('facts').innerHTML = [
+    ['--f-coal', '🪨', 'Coal free', 'since the last coal station closed on'],
+    ['--lowcarbon', '🌍', 'Greenest half hour', 'low carbon on'],
+    ['--f-wind', '🌬️', 'Windiest half hour', 'from wind on'],
+    ['--f-solar', '☀️', 'Sunniest half hour', 'from solar on'],
+    ['--fossil', '🔥', 'Least fossil fuel', 'gas and coal on'],
+  ].map(([c, e, l, sub]) => `<div class="fact" style="--tint: color-mix(in srgb, var(${c}) 20%, #fff)"><div class="label"><span aria-hidden="true">${e}</span> ${l}</div><div class="big">—</div><div class="sub">${sample(`${sub} ${date}`)}</div></div>`).join('');
+  renderQuestion();
+  const cell = `<td class="big">—<span class="when">${sample(date)}</span></td>`;
+  $('records-table').innerHTML = `<thead><tr><th>Threshold</th><th>Longest spell</th><th>Current spell</th><th>Share of past 365 days</th><th>Spells</th></tr></thead><tbody>${orderedThresholds().map((t) => `<tr><td><span class="swatch"></span><b>${thresholdLabel(t).replace('<', '&lt;')}</b></td>${cell}${cell}<td class="big">—</td><td>—</td></tr>`).join('')}</tbody>`;
+  $('by-year-legend').innerHTML = SPELL_BANDS.map((b) => `<span><span class="swatch" style="background:${b.color}"></span>${b.label}</span>`).join('');
+  const dt = fmtDateTime(Date.now());
+  renderBatterySources([sample(`${date} to ${dt}`), sample(`${date} to ${dt}`), sample(`2009 to ${dt}`)]);
+  // The heatmap is 28px a row plus its axis.
+  $('by-year').style.setProperty('--placeholder-height', `${34 + 28 * state.thresholds.length}px`);
+}
+
 async function main() {
   readHash();
   setupControls();
   syncControls();
+  renderPlaceholders();
   try {
     data = await loadData();
   } catch (err) {
