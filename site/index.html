@@ -185,6 +185,14 @@
         <div class="ch-body">
       <p>Solar is the cheapest power ever built, and batteries have followed it down. But the grid needs power at night and in December too. What would it cost to get one steady megawatt, every half hour of the year, from solar panels and batteries alone, and how does that compare with gas?</p>
 
+      <div class="field inline">
+        <span>Chart scale</span>
+        <div class="segmented small" id="solar-scale" role="radiogroup" aria-label="Chart scale">
+          <button type="button" data-solar-scale="log" role="radio" aria-checked="true">Log</button>
+          <button type="button" data-solar-scale="linear" role="radio" aria-checked="false">Linear</button>
+        </div>
+      </div>
+
       <h3>Panels and batteries keep getting cheaper</h3>
       <p class="hint" id="solar-kit-text">Installed cost of large solar farms and grid batteries, in 2024 pounds.</p>
       <div class="chart-host" id="solar-kit" style="--placeholder-height: 240px"></div>
@@ -195,7 +203,7 @@
       <div class="facts" id="solar-facts"></div>
 
       <h3>The cost of a firm megawatt</h3>
-      <p class="hint" id="solar-firm-text">Cost per MWh of power delivered around the clock, all year, in 2024 pounds, on a log scale.</p>
+      <p class="hint" id="solar-firm-text">Cost per MWh of power delivered around the clock, all year, in 2024 pounds.</p>
       <div class="chart-host" id="solar-firm" style="--placeholder-height: 320px"></div>
       <div class="legend" id="solar-firm-legend"></div>
       <p class="hint" id="solar-wind-text"></p>

@@ -1,7 +1,7 @@
 // Draws the "firm megawatt" section: falling panel and battery costs, and the
 // cost of 1 MW around the clock from solar and batteries against gas.
 import { lineChart } from './charts.js';
-import { YEARS, PUBLISHED, ASSUMPTIONS as A, SOURCES, solarShape, fleetShape, sizing, mixSizing, firmCosts, monthlyLoadFactor, yearInputs } from './solarcost.js';
+import { YEARS, PUBLISHED, BNEF_TURNKEY, COSTS, ASSUMPTIONS as A, SOURCES, solarShape, fleetShape, sizing, mixSizing, firmCosts, monthlyLoadFactor, yearInputs } from './solarcost.js';
 
 const $ = (id) => document.getElementById(id);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -10,6 +10,19 @@ const gbp = (v) => `£${Math.round(v).toLocaleString('en-GB')}`;
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 let model = null;
+let scale = 'log';
+let wired = false;
+
+/** One switch sets both charts to a log or a linear scale. */
+function wireScale(data) {
+  if (wired) return;
+  wired = true;
+  document.querySelectorAll('[data-solar-scale]').forEach((b) => b.addEventListener('click', () => {
+    scale = b.dataset.solarScale;
+    document.querySelectorAll('[data-solar-scale]').forEach((x) => x.setAttribute('aria-checked', x === b));
+    renderSolar(data);
+  }));
+}
 
 /** Weather years used for sizing: 2015 (a mature panel fleet) to the last complete year. */
 function weatherYears(data) {
@@ -31,6 +44,8 @@ export function renderSolar(data) {
   if (!data) return;
   if (!model) model = build(data);
   if (!model) return;
+  wireScale(data);
+  const log = scale === 'log';
   const { rows, months, from, to } = model;
   const first = rows[0];
   const last = rows[rows.length - 1];
@@ -45,16 +60,30 @@ export function renderSolar(data) {
     { name: 'Solar panels, installed (£ per kW)', color: css('--f-solar'), points: rows.map((r) => [at(r.year), r.panelPerMw / 1000]), published: PUBLISHED.pv },
     { name: 'Grid batteries, installed (£ per kWh)', color: css('--f-nuclear'), points: rows.map((r) => [at(r.year), r.batteryPerMwh / 1000]), published: PUBLISHED.battery },
   ];
+  // BNEF's survey is in each year's dollars: convert at that year's rate, then to 2024 pounds.
+  const k24 = YEARS.indexOf(2024);
+  const bnef = {
+    name: 'Battery systems, BNEF survey, before installation (£ per kWh)',
+    color: css('--f-hydro'),
+    points: Object.entries(BNEF_TURNKEY).map(([y, usd]) => {
+      const k = YEARS.indexOf(Number(y));
+      return [at(Number(y)), (usd / COSTS.usdPerGbp[k]) * (COSTS.cpi[k24] / COSTS.cpi[k])];
+    }),
+  };
   $('solar-kit-text').textContent = `Since ${first.year}, the cost of building a large solar farm has fallen by ${drop(first.panelPerMw, last.panelPerMw)} and the cost of a grid battery by ${drop(first.batteryPerMwh, last.batteryPerMwh)}, after inflation. Dots mark published figures; the years between are filled in at a steady rate.`;
   lineChart($('solar-kit'), {
-    series: kit.map((s) => ({ ...s, width: 3, markers: s.points.filter((p) => s.published.includes(new Date(p[0]).getUTCFullYear())) })),
-    yLog: true,
-    yMin: 50,
+    series: [
+      ...kit.map((s) => ({ ...s, width: 3, markers: s.points.filter((p) => s.published.includes(new Date(p[0]).getUTCFullYear())) })),
+      { ...bnef, width: 1.5, dash: '3 3', markers: bnef.points },
+    ],
+    yLog: log,
+    yMin: log ? 50 : 0,
     yFormat: gbp,
     height: 240,
-    tooltip: (t, vals) => `<strong>${new Date(t).getUTCFullYear()}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${gbp(v.value)}</b></div>`).join('')}`,
+    tooltip: (t, vals) => `<strong>${new Date(t).getUTCFullYear()}</strong>${vals.filter((v) => v.point?.[0] === t).map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${gbp(v.value)}</b></div>`).join('')}`,
   });
-  $('solar-kit-legend').innerHTML = kit.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
+  $('solar-kit-legend').innerHTML = kit.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('')
+    + `<span><span class="swatch dashed" style="background:${bnef.color}; color:${bnef.color}"></span>${bnef.name}</span>`;
 
   // What a firm megawatt takes.
   const now = firm(last);
@@ -79,9 +108,9 @@ export function renderSolar(data) {
   ];
   lineChart($('solar-firm'), {
     series: lines.map((s) => ({ ...s, markers: s.points })),
-    yLog: true,
-    yMin: 30,
-    yTicks: [30, 50, 100, 200, 500, 1000, 2000, 5000],
+    yLog: log,
+    yMin: log ? 30 : 0,
+    yTicks: log ? [30, 50, 100, 200, 500, 1000, 2000, 5000] : undefined,
     yFormat: gbp,
     height: 320,
     tooltip: (t, vals) => {
@@ -116,13 +145,12 @@ export function renderSolar(data) {
     '<b>Solar alone is not the plan.</b> Britain\'s grid mixes wind, solar, nuclear, interconnectors and storage, and they cover each other\'s gaps. This is a yardstick for how far solar and batteries have come, not a design.',
   ].map((t) => `<li>${t}</li>`).join('');
 
-  const k24 = YEARS.indexOf(2024);
   const i24 = yearInputs(k24);
   $('solar-method').innerHTML = [
     `Solar output comes from the NESO half-hourly solar figures on this page, for ${from} to ${to}. Each day is divided by an estimate of how many panels were installed then, and the result is scaled to an average of ${A.solarLoadFactor * 100}% of capacity, DESNZ's figure for large solar farms.`,
     `For each size of solar farm, from 10 to 150 MW per firm MW, the smallest battery that never runs out over those years is found. Charging loses ${Math.round((1 - A.roundTrip) * 100)}% of the energy. The 99% line uses the smallest battery that leaves no more than 1% of the energy unserved. Each year, the cheapest combination at that year's prices is chosen.`,
     `Panels last ${A.solarLifeYears} years and cost ${gbp(A.solarOmPerMw)} per MW a year to run. Batteries last ${A.batteryLifeYears} years (NREL), so they are bought twice in a solar farm's life, and cost ${A.batteryOmShare * 100}% of their price a year to run, which covers topping up capacity as cells wear (around 2.6% a year, Lazard). Money is borrowed at ${A.solarWacc * 100}% a year after inflation.`,
-    `Panel costs are IRENA's global average for large solar farms, and battery costs IRENA's for grid batteries, with Ember's survey for ${YEARS[YEARS.length - 1]}. IRENA publishes both for every year, but only some years were available here: panels for 2010 and 2023 to 2025, batteries for 2010, 2024 and 2025. The years between are filled in at a steady rate of decline, so the shape of those lines between published points is an estimate. British batteries have cost more: Modo's survey put two-hour systems at about £325 per kWh in 2024, against ${gbp(i24.batteryPerMwh / 1000)} here. Two-hour systems pay more per kWh for their inverters than the long-running batteries this needs.`,
+    `Panel costs are IRENA's global average for large solar farms, and battery costs IRENA's for grid batteries, taken from IRENA's yearly reports. Each report is in its own year's dollars, so older ones are rescaled to 2024 dollars by how their 2010 figure compares with the latest report's. Panels have published figures for 2010, 2017, 2018 and 2020 to 2025; batteries for 2010 and 2023 to 2025. The years between are filled in at a steady rate of decline, so those stretches of line are estimates. BNEF's survey of battery system prices, which leaves out installation and grid connection, is drawn for comparison but not used in the costs. British batteries have cost more: Modo's survey put two-hour systems at about £325 per kWh in 2024, against ${gbp(i24.batteryPerMwh / 1000)} here. Two-hour systems pay more per kWh for their inverters than the long-running batteries this needs.`,
     `Gas: DESNZ's 2025 central estimate for a large modern plant (${gbp(A.gasCapexPerMw / 1000)} per kW, ${A.gasLifeYears} years, ${A.gasAvailability * 100}% available, so a firm MW needs ${(1 / A.gasAvailability).toFixed(2)} MW of plant, borrowed at ${A.gasWacc * 100}%). Fuel is each year's average NBP gas price; carbon is the EU ETS until 2020, the UK ETS from 2021, plus the Carbon Price Support. Running an existing plant counts fuel, carbon and upkeep but not the cost of building it.`,
     `Wind uses NESO's half-hourly wind output (including wind on local networks), treated the same way and scaled to ${A.windLoadFactor * 100}%. Costs are IRENA's global average for onshore wind (2010 and 2024, steady in between, ${YEARS[YEARS.length - 1]} held at 2024), ${gbp(A.windOmPerMw)} per MW a year to run (DESNZ 2023), and ${A.windLifeYears} years of life. Mixes of 1 to 20 MW of wind with 0 to 40 MW of panels are tried, and the cheapest kept.`,
     'All money is in 2024 pounds, using the ONS consumer price index and yearly exchange rates.',
