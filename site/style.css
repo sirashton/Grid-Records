@@ -274,7 +274,7 @@ footer { padding-bottom: 40px; }
 }
 
 /* Firm megawatt section. */
-.swatch.dashed { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; color: var(--f-solar); }
+.swatch.dashed { background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px) !important; }
 .notes { padding-left: 20px; margin: 4px 0 12px; }
 .notes li { margin-bottom: 6px; }
 .tooltip .small { color: var(--ink-3); font-size: 0.75rem; margin: 4px 0 0; }

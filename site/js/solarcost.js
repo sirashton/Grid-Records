@@ -22,7 +22,7 @@ export function steady(points) {
 }
 
 /** Years with a published figure, for marking on the chart. */
-export const PUBLISHED = { pv: [2010, 2023, 2024, 2025], battery: [2010, 2024, 2025] };
+export const PUBLISHED = { pv: [2010, 2023, 2024, 2025], battery: [2010, 2024, 2025], wind: [2010, 2024] };
 
 // Values per year in YEARS order. Money is converted to 2024 pounds.
 export const COSTS = {
@@ -35,6 +35,8 @@ export const COSTS = {
   pvUsdPerKw: steady({ 2010: 5283, 2023: 776, 2024: 691, 2025: 667 }),
   // IRENA (2010, 2024) and Ember (2025): utility-scale battery storage total installed cost, 2024 USD/kWh.
   batteryUsdPerKwh: steady({ 2010: 2571, 2024: 192, 2025: 125 }),
+  // IRENA: onshore wind total installed cost, global weighted average, 2024 USD/kW.
+  windUsdPerKw: steady({ 2010: 2324, 2024: 1041 }),
   // NBP gas, annual average, nominal USD/MWh (Energy Institute, via Our World in Data).
   gasUsdPerMwh: [22.24, 30.71, 32.15, 36.16, 28.03, 22.26, 15.86, 19.71, 27.2, 15.23, 10.83, 52.72, 83.76, 41.97, 36.47, 39.75],
   // Carbon on GB power: EU ETS (real 2023 EUR/t) to 2020, then UK ETS (nominal £/t).
@@ -48,6 +50,9 @@ export const ASSUMPTIONS = {
   solarLoadFactor: 0.11, // DESNZ large-scale solar
   solarLifeYears: 30,
   solarOmPerMw: 7500, // £/MW/yr, DESNZ 2023 (£6,000 in 2021 £), rounded up to 2024 £
+  windLoadFactor: 0.3, // a new onshore farm: GB's fleet achieves about 25% onshore and 36% offshore
+  windLifeYears: 25,
+  windOmPerMw: 30500, // £/MW/yr, DESNZ 2023 (£25,400 in 2021 £)
   batteryLifeYears: 15, // NREL ATB
   batteryOmShare: 0.025, // of capex per year
   roundTrip: 0.87,
@@ -68,6 +73,8 @@ export const SOURCES = [
   ['IRENA, Renewable Power Generation Costs in 2025 (solar, 2025)', 'https://greentechlead.com/solar/solar-pv-installation-costs-fall-88-since-2010-as-global-capacity-surpasses-2393-gw-in-2025-irena-54058'],
   ['Ember, battery storage costs (2025)', 'https://www.energy-storage.news/?p=92133'],
   ['BNEF, lithium-ion battery pack prices', 'https://about.bnef.com/insights/clean-energy/lithium-ion-battery-pack-prices/'],
+  ['IRENA, onshore wind installed costs (Renewable Power Generation Costs in 2024, summary)', 'https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2025/Jul/IRENA_TEC_RPGC_in_2024_Summary_2025.pdf'],
+  ['DESNZ, Digest of UK Energy Statistics 2025, chapter 6 (wind load factors)', 'https://assets.publishing.service.gov.uk/media/688a193f6478525675739024/DUKES_2025_Chapter_6.pdf'],
   ['NREL Annual Technology Baseline 2025, utility-scale batteries', 'https://atb.nlr.gov/electricity/2025/utility-scale_battery_storage'],
   ['Lazard, Levelized Cost of Storage 2025', 'https://www.lazard.com/media/uounhon4/lazards-lcoeplus-june-2025.pdf'],
   ['Modo Energy, GB battery capex survey', 'https://modoenergy.com/research/battery-energy-storage-capex-containerised-bess-development-costs-oem-balance-plant-bop-grid-connections-survey-2024'],
@@ -95,13 +102,22 @@ const DAY = 48;
  * long-run load factor.
  */
 export function solarShape(data, fromYear, toYear, loadFactor = ASSUMPTIONS.solarLoadFactor) {
+  return fleetShape(data, ['solar'], fromYear, toYear, loadFactor);
+}
+
+/** The same for any group of columns, such as onshore and offshore wind. */
+export function fleetShape(data, names, fromYear, toYear, loadFactor) {
   const { columns, startMs } = data;
-  const solar = columns.solar;
+  const total = new Float64Array(data.length);
+  for (const n of names) {
+    const c = columns[n];
+    if (c) for (let i = 0; i < c.length; i++) if (c[i] > 0) total[i] += c[i];
+  }
   const days = Math.floor(data.length / DAY);
   const peaks = new Float64Array(days);
   for (let d = 0; d < days; d++) {
     let m = 0;
-    for (let k = d * DAY; k < (d + 1) * DAY; k++) if (solar[k] > m) m = solar[k];
+    for (let k = d * DAY; k < (d + 1) * DAY; k++) if (total[k] > m) m = total[k];
     peaks[d] = m;
   }
   const from = Math.round((Date.UTC(fromYear, 0, 1) - startMs) / 18e5);
@@ -113,7 +129,7 @@ export function solarShape(data, fromYear, toYear, loadFactor = ASSUMPTIONS.sola
     const win = Array.from(peaks.subarray(lo, Math.min(days, lo + 365))).sort((a, b) => a - b);
     const cap = win[Math.floor(win.length * 0.95)] || 1;
     for (let k = 0; k < DAY; k++) {
-      const v = solar[d * DAY + k];
+      const v = total[d * DAY + k];
       out[d * DAY + k - from] = Number.isFinite(v) && v > 0 ? v / cap : 0;
     }
   }
@@ -130,6 +146,11 @@ export function solarShape(data, fromYear, toYear, loadFactor = ASSUMPTIONS.sola
  * round trip on the way in; anything beyond that is spilled.
  */
 export function batteryForFirm(shape, panels, roundTrip = ASSUMPTIONS.roundTrip) {
+  return firmBattery(shape, panels, roundTrip);
+}
+
+/** As batteryForFirm, for output that is already in MW per firm MW (scale 1). */
+function firmBattery(shape, panels, roundTrip = ASSUMPTIONS.roundTrip) {
   let deficit = 0;
   let worst = 0;
   for (let i = 0; i < shape.length; i++) {
@@ -157,12 +178,12 @@ export function unservedShare(shape, panels, mwh, roundTrip = ASSUMPTIONS.roundT
   return missed / (shape.length * 0.5);
 }
 
-/** Smallest battery that supplies at least `share` of the energy. */
+/** Smallest battery that supplies at least `share` of the energy, to within 1%. */
 export function batteryForShare(shape, panels, share) {
-  let hi = batteryForFirm(shape, panels);
+  let hi = firmBattery(shape, panels);
   let lo = 0;
   if (unservedShare(shape, panels, 0) <= 1 - share) return 0;
-  for (let k = 0; k < 24 && hi - lo > 0.05; k++) {
+  for (let k = 0; k < 24 && hi - lo > Math.max(0.05, hi * 0.01); k++) {
     const mid = (lo + hi) / 2;
     if (unservedShare(shape, panels, mid) <= 1 - share) hi = mid;
     else lo = mid;
@@ -178,6 +199,23 @@ export function sizing(shape, shares = [1, 0.99]) {
   }));
 }
 
+// Wind and solar mixes tried: MW of wind and of panels per firm MW.
+export const WIND_SIZES = [1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20];
+export const MIX_PANEL_SIZES = [0, 2, 5, 10, 20, 40];
+
+/** Battery needed for each wind and solar mix, for each reliability level. */
+export function mixSizing(solar, wind, shares = [1, 0.99]) {
+  const combos = [];
+  const gen = new Float64Array(solar.length);
+  for (const turbines of WIND_SIZES) {
+    for (const panels of MIX_PANEL_SIZES) {
+      for (let i = 0; i < gen.length; i++) gen[i] = panels * solar[i] + turbines * wind[i];
+      combos.push({ panels, turbines, mwh: shares.map((share) => (share === 1 ? firmBattery(gen, 1) : batteryForShare(gen, 1, share))) });
+    }
+  }
+  return shares.map((share, k) => ({ share, options: combos.map((c) => ({ panels: c.panels, turbines: c.turbines, mwh: c.mwh[k] })) }));
+}
+
 const crf = (r, n) => (r * (1 + r) ** n) / ((1 + r) ** n - 1);
 
 /** Yearly cost inputs converted to 2024 pounds. */
@@ -191,6 +229,7 @@ export function yearInputs(k, c = COSTS) {
     year: YEARS[k],
     panelPerMw: (c.pvUsdPerKw[k] * 1000) / usd24,
     batteryPerMwh: (c.batteryUsdPerKwh[k] * 1000) / usd24,
+    windPerMw: (c.windUsdPerKw[k] * 1000) / usd24,
     gasPerMwhFuel: (c.gasUsdPerMwh[k] / c.usdPerGbp[k]) * toReal,
     carbonPerT: carbon + c.cpsGbp[k] * toReal,
   };
@@ -200,9 +239,10 @@ export function yearInputs(k, c = COSTS) {
 export function cheapestSolar(options, inp, a = ASSUMPTIONS) {
   const panelYear = inp.panelPerMw * crf(a.solarWacc, a.solarLifeYears) + a.solarOmPerMw;
   const batteryYear = inp.batteryPerMwh * (crf(a.solarWacc, a.batteryLifeYears) + a.batteryOmShare);
+  const windYear = (inp.windPerMw ?? 0) * crf(a.solarWacc, a.windLifeYears) + a.windOmPerMw;
   let best = null;
   for (const o of options) {
-    const cost = (o.panels * panelYear + o.mwh * batteryYear) / 8760;
+    const cost = (o.panels * panelYear + (o.turbines ?? 0) * windYear + o.mwh * batteryYear) / 8760;
     if (!best || cost < best.cost) best = { ...o, cost, panelShare: (o.panels * panelYear) / 8760 / cost };
   }
   return best;
@@ -220,10 +260,11 @@ export function gasCost(inp, a = ASSUMPTIONS) {
 }
 
 /** The full comparison, one row per year. */
-export function firmCosts(sized, c = COSTS) {
+export function firmCosts(sized, mixed = [], c = COSTS) {
   return YEARS.map((year, k) => {
     const inp = yearInputs(k, c);
-    return { ...inp, solar: sized.map((s) => ({ share: s.share, ...cheapestSolar(s.options, inp) })), gas: gasCost(inp) };
+    const pick = (list) => list.map((s) => ({ share: s.share, ...cheapestSolar(s.options, inp) }));
+    return { ...inp, solar: pick(sized), mix: pick(mixed), gas: gasCost(inp) };
   });
 }
 
