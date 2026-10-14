@@ -270,3 +270,21 @@ footer { padding-bottom: 40px; }
 .notes { padding-left: 20px; margin: 4px 0 12px; }
 .notes li { margin-bottom: 6px; }
 .tooltip .small { color: var(--ink-3); font-size: 0.75rem; margin: 4px 0 0; }
+
+/* Story chapters: each a row you can open, numbered, with its takeaway. */
+.chapter { border-top: 2px solid var(--grid); }
+.chapter:last-of-type { border-bottom: 2px solid var(--grid); }
+.chapter > summary { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; cursor: pointer; list-style: none; }
+.chapter > summary::-webkit-details-marker { display: none; }
+.ch-num { flex: 0 0 auto; width: 36px; height: 36px; display: grid; place-items: center; border: 3px solid var(--line); font-weight: 800; font-size: 1.125rem; background: var(--card); }
+.chapter[open] .ch-num { background: var(--line); color: #fff; }
+.ch-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ch-title { font-size: 1.25rem; font-weight: 800; }
+.ch-take { color: var(--ink-2); font-weight: 400; }
+.chapter > summary::after { content: '+'; margin-left: auto; font-size: 1.5rem; font-weight: 700; line-height: 36px; color: var(--ink-3); }
+.chapter[open] > summary::after { content: '−'; }
+.chapter > summary:hover .ch-title { text-decoration: underline; text-underline-offset: 3px; }
+.ch-body { padding: 0 0 24px 52px; }
+.ch-body > h3:first-child { margin-top: 0; }
+.next-ch { margin-top: 20px; }
+@media (max-width: 640px) { .ch-body { padding-left: 0; } }
