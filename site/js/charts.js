@@ -15,7 +15,7 @@ export const fmtDate = (ms) => dateFmt.format(ms);
 export const fmtDateTime = (ms) => dateTimeFmt.format(ms);
 
 /** Picks "nice" tick values for a linear range. */
-function niceTicks(lo, hi, count = 5) {
+export function niceTicks(lo, hi, count = 5) {
   if (!(hi > lo)) return [lo];
   const raw = (hi - lo) / count;
   const mag = 10 ** Math.floor(Math.log10(raw));
@@ -63,7 +63,7 @@ function timeTicks(lo, hi) {
  *   refLines?: {value: number, color: string, label: string}[],
  *   bands?: {lower: [number, number][], upper: [number, number][], color: string, opacity?: number}[],
  *   tooltip?: (t: number, values: {series, value, point}[]) => string,
- *   height?: number, xMin?: number, xMax?: number, yTicks?: number[], zeroLine?: boolean, fitData?: boolean,
+ *   height?: number, xMin?: number, xMax?: number, yTicks?: number[], zeroLine?: boolean, fitData?: boolean, yMax?: number,
  * }} opts
  */
 export function lineChart(host, opts) {
@@ -84,7 +84,7 @@ export function lineChart(host, opts) {
   // squashed flat by a threshold far above it; lines out of range are hidden.
   const ys = all.map((p) => p[1]).filter(Number.isFinite).concat(opts.fitData ? [] : (opts.refLines ?? []).map((r) => r.value));
   let yMin = opts.yMin ?? Math.min(0, ...ys);
-  let yMax = Math.max(...ys);
+  let yMax = opts.yMax ?? Math.max(...ys);
   if (opts.yLog) {
     yMin = Math.max(opts.yMin ?? 1e-9, Math.min(...ys.filter((v) => v > 0)));
     yMax = Math.max(yMax, yMin * 10);

@@ -1,6 +1,6 @@
 import { loadData, metricSeries, FUELS, BATTERY_SOURCES, lastComplete, generationTotal } from './data.js';
 import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './records.js';
-import { lineChart, heatmap, barChart, fmtDate, fmtDateTime } from './charts.js';
+import { lineChart, heatmap, barChart, niceTicks, fmtDate, fmtDateTime } from './charts.js';
 import { recentRecords } from './recent.js';
 import { envelopes } from './envelope.js';
 import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
@@ -145,6 +145,11 @@ function setupControls() {
     state.battery = bat.value;
     update();
   });
+  document.querySelectorAll('[data-prog-scale]').forEach((b) => b.addEventListener('click', () => {
+    progScale = b.dataset.progScale;
+    document.querySelectorAll('[data-prog-scale]').forEach((x) => x.setAttribute('aria-checked', x === b));
+    if (lastSummaries) renderProgression(lastSummaries);
+  }));
   document.querySelectorAll('[data-scale]').forEach((b) => b.addEventListener('click', () => {
     state.scale = b.dataset.scale;
     syncControls();
@@ -270,7 +275,24 @@ function qualifyingSince(threshold, fromSlot) {
 
 const pct = (a, b) => `${b ? ((a / b) * 100).toFixed(a / b < 0.01 ? 2 : 1) : 0}%`;
 
+// The records chart has its own scale switch; log by default, since records
+// run from half an hour to days.
+let progScale = 'log';
+
+/** Evenly spaced ticks in hours, stepping in whole days once records pass three days. */
+function linearHourTicks(series) {
+  const max = Math.max(1, ...series.flatMap((s) => s.points.map((p) => p[1])));
+  const days = max > 72;
+  const ticks = niceTicks(0, days ? max / 24 : max);
+  const step = ticks[1] - ticks[0];
+  if (ticks[ticks.length - 1] < (days ? max / 24 : max)) ticks.push(Number((ticks[ticks.length - 1] + step).toPrecision(10)));
+  return days ? ticks.map((d) => d * 24) : ticks;
+}
+let lastSummaries = null;
+
 function renderProgression(summaries) {
+  lastSummaries = summaries;
+  const log = progScale === 'log';
   const n = summaries.length;
   const now = slotTime(data.length, data.startMs);
   const series = summaries.map((s, i) => ({
@@ -282,16 +304,20 @@ function renderProgression(summaries) {
     records: s.progression,
   }));
   series.forEach((s) => { s.markers = s.points; });
+  const linTicks = log ? null : linearHourTicks(series);
   lineChart($('progression'), {
     series,
-    yLog: true,
-    yMin: 0.5,
+    yLog: log,
+    yMin: log ? 0.5 : 0,
     xMin: data.startMs,
     xMax: now,
     stepLookup: true,
     yFormat: (h) => formatDuration(Math.round((h * 60) / STEP_MINUTES)),
-    yTickFormat: (h) => (h >= 8760 ? `${+(h / 8760).toFixed(0)}y` : h >= 48 ? `${+(h / 24).toFixed(0)}d` : `${h}h`),
-    yTicks: [0.5, 1, 3, 6, 12, 24, 72, 168, 720, 2160, 8760, 17520, 43800],
+    yTickFormat: log
+      ? (h) => (h >= 8760 ? `${+(h / 8760).toFixed(0)}y` : h >= 48 ? `${+(h / 24).toFixed(0)}d` : `${h}h`)
+      : (h) => (linTicks[linTicks.length - 1] > 72 ? `${+(h / 24).toFixed(1)}d` : `${h}h`),
+    yTicks: log ? [0.5, 1, 3, 6, 12, 24, 72, 168, 720, 2160, 8760, 17520, 43800] : linTicks,
+    yMax: log ? undefined : linTicks[linTicks.length - 1],
     tooltip: (t, vals) => `<strong>Records as of ${fmtDate(t)}</strong>${vals.map((v) => {
       const rec = v.point ? v.series.records[v.series.points.indexOf(v.point)] : null;
       return `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${rec ? formatDuration(rec.end - rec.start) : 'none yet'}</b>${rec ? ` <span class="when">set ${fmtDate(slotTime(rec.start, data.startMs))}</span>` : ''}</div>`;
