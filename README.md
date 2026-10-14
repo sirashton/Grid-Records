@@ -27,6 +27,10 @@ Live at https://grid.gathered.consulting once DNS and GitHub Pages are set up.
 
 Contains BMRS data © Elexon Limited copyright and database right. Contains NESO data licensed under the NESO Open Data Licence.
 
+## Usage analytics
+
+Cookie-free page views and events through GoatCounter. What is measured and how to read it: [docs/analytics.md](docs/analytics.md).
+
 ## Development
 
 Requires Node 20 or later. No dependencies.

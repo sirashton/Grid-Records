@@ -1,0 +1,39 @@
+name: Analytics snapshot
+# Once a day, saves the last 30 days of GoatCounter statistics to the
+# `analytics` branch, so usage history can be read from git. Needs the
+# GOATCOUNTER_TOKEN repository secret; does nothing until it is set.
+on:
+  schedule:
+    - cron: '15 5 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: analytics
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Fetch statistics
+        env:
+          GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
+        run: |
+          export GOATCOUNTER_CODE="$(sed -n "s/^const GOATCOUNTER = '\(.*\)';/\1/p" site/js/analytics.js)"
+          node pipeline/analytics-snapshot.mjs --days 30 --out /tmp/analytics/latest.json
+      - name: Commit to the analytics branch
+        run: |
+          [ -f /tmp/analytics/latest.json ] || exit 0
+          git fetch -q origin analytics:analytics && git checkout -q analytics || git checkout -q --orphan analytics
+          git rm -rqf --cached . 2>/dev/null || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name snapshots -exec rm -rf {} +
+          mkdir -p snapshots
+          cp /tmp/analytics/latest.json latest.json
+          cp /tmp/analytics/latest.json "snapshots/$(date -u +%F).json"
+          printf 'Daily GoatCounter snapshots for Grid Records. See docs/analytics.md on main.\n' > README.md
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Analytics snapshot $(date -u +%F)" || exit 0
+          git push -q origin analytics

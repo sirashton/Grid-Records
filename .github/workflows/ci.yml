@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches-ignore: [main, preview]
+    branches-ignore: [main, preview, analytics]
   workflow_dispatch:
 permissions:
   contents: write
