@@ -368,6 +368,11 @@ function renderBattery() {
   $('units').innerHTML = `<thead><tr><th>Unit</th><th>Name</th><th>Operator</th><th>MW</th><th>Matched by</th></tr></thead><tbody>${units.map((u) => `<tr><td>${u.ng ?? u.elexon}</td><td>${u.name}</td><td>${u.party ?? ''}</td><td>${Math.round(u.mw)}</td><td>${u.reason}</td></tr>`).join('')}</tbody>`;
 }
 
+// "3h 30m", "4d 20h": short enough for a tile.
+function shortDuration(slots) {
+  return formatDuration(slots).replace(/ (minute|hour|day)s?/g, (_, u) => u[0]);
+}
+
 function renderNow() {
   const c = data.columns;
   const i = lastComplete(data, ['gas', 'wind']);
@@ -385,7 +390,7 @@ function renderNow() {
     ['Solar', gw(c.solar[i]), `${((c.solar[i] / total) * 100).toFixed(0)}%`],
     ['Nuclear', gw(c.nuclear[i]), `${((c.nuclear[i] / total) * 100).toFixed(0)}%`],
     ['Batteries', Number.isFinite(bat) ? `${bat >= 0 ? '+' : '−'}${Math.abs(bat / 1000).toFixed(1)} GW` : '—', Number.isFinite(bat) ? (bat >= 0 ? 'net discharging (planned)' : 'net charging (planned)') : 'no data yet'],
-    ['Fossil under 5 GW', fossilRecord.current ? formatDuration(fossilRecord.current.end - fossilRecord.current.start) : 'Not now', fossilRecord.current ? 'current spell' : `record ${formatDuration(fossilRecord.record.end - fossilRecord.record.start)}`],
+    ['Fossil under 5 GW', fossilRecord.current ? shortDuration(fossilRecord.current.end - fossilRecord.current.start) : 'Not now', fossilRecord.current ? 'current spell' : `record ${shortDuration(fossilRecord.record.end - fossilRecord.record.start)}`],
   ];
   const tints = ['--fossil', '--lowcarbon', '--f-wind', '--f-solar', '--f-nuclear', '--f-nuclear', '--accent-green'];
   $('now').innerHTML = tiles.map(([l, v, s], k) => `<div class="tile" style="--tint: color-mix(in srgb, var(${tints[k]}) 18%, #fff)"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join('');
