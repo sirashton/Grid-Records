@@ -159,6 +159,8 @@ select:focus-visible, input:focus-visible, button:focus-visible, summary:focus-v
 /* Right now, after grid.iamkate.com: two mirrored lists of bands and rows with
    the donut over the middle. The bands run in behind the donut. */
 .now-card { container-type: inline-size; }
+.now-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 12px; }
+.now-head h2 { margin: 0; }
 .now-panel { position: relative; }
 .now-panel { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; --donut: min(360px, 36cqw); --gutter: calc(var(--donut) / 2 + 2px); }
 .now-col { display: flex; flex-direction: column; min-width: 0; }
