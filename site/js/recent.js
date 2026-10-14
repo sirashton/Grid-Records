@@ -8,7 +8,7 @@ import { metricSeries, generationTotal } from './data.js';
 export const WATCH = [
   { label: 'Fossil fuels', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1] },
   { label: 'Low carbon', members: ['wind', 'solar', 'nuclear', 'hydro', 'storage', 'battery'], mode: 'above', gw: [10, 15, 20, 25, 30, 35] },
-  { label: 'Renewables', members: ['wind', 'solar', 'hydro', 'biomass'], mode: 'above', gw: [10, 15, 20, 25, 30, 35] },
+  { label: 'Renewables', members: ['wind', 'solar', 'hydro', 'storage', 'biomass'], mode: 'above', gw: [10, 15, 20, 25, 30, 35] },
   { label: 'Wind', members: ['wind'], mode: 'above', gw: [10, 15, 20, 25] },
   { label: 'Solar', members: ['solar'], mode: 'above', gw: [5, 10, 15, 20] },
 ];

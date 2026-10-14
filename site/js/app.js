@@ -8,7 +8,7 @@ import { renderBatteryOrigins } from './origins.js';
 const PRESETS = {
   fossil: { label: 'Fossil fuels', members: ['gas', 'coal'], mode: 'below', gw: [20, 10, 5, 2, 1, 0.5, 0.1, 0], pct: [50, 30, 20, 10, 5, 2, 1, 0] },
   lowcarbon: { label: 'Low carbon', members: ['wind', 'solar', 'nuclear', 'hydro', 'storage', 'battery'], mode: 'above', gw: [1, 2, 5, 10, 15, 20, 25, 30], pct: [10, 20, 30, 50, 70, 80, 90, 95], editable: true },
-  renewables: { label: 'Renewables', members: ['wind', 'solar', 'hydro', 'biomass'], mode: 'above', gw: [1, 2, 5, 10, 15, 20, 25, 30], pct: [10, 20, 30, 50, 60, 70, 80, 90], editable: true },
+  renewables: { label: 'Renewables', members: ['wind', 'solar', 'hydro', 'storage', 'biomass'], mode: 'above', gw: [1, 2, 5, 10, 15, 20, 25, 30], pct: [10, 20, 30, 50, 60, 70, 80, 90], editable: true },
   gas: { label: 'Gas', members: ['gas'], mode: 'below', gw: [10, 5, 2, 1, 0.5, 0.1, 0], pct: [30, 20, 10, 5, 1, 0] },
   coal: { label: 'Coal', members: ['coal'], mode: 'below', gw: [5, 1, 0.5, 0.1, 0], pct: [20, 10, 5, 1, 0] },
   wind: { label: 'Wind', members: ['wind'], mode: 'above', gw: [5, 10, 15, 20, 25], pct: [25, 40, 50, 60, 70] },
@@ -390,12 +390,12 @@ const NOW_GROUPS = [
     { label: 'Wind', cols: ['wind', 'wind_emb'], color: '--f-wind' },
     { label: 'Solar', cols: ['solar'], color: '--f-solar' },
     { label: 'Hydro', cols: ['hydro'], color: '--f-hydro' },
+    { label: 'Pumped storage', cols: ['storage'], color: '--f-hydro-2' },
     { label: 'Biomass', cols: ['biomass'], color: '--f-biomass' },
   ] },
   { label: 'Other sources', color: '--f-nuclear', fuels: [
     { label: 'Nuclear', cols: ['nuclear'], color: '--f-nuclear' },
     { label: 'Imports', cols: ['imports'], color: '--f-imports' },
-    { label: 'Pumped storage', cols: ['storage'], color: '--f-hydro-2' },
     { label: 'Other', cols: ['other'], color: '--f-other' },
   ] },
 ];
