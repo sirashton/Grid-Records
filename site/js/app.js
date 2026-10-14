@@ -684,6 +684,12 @@ function factsHtml(big, sub, rest) {
     <ul class="fact-list">${rest.map(([c, label, v, when]) => `<li><span class="swatch" style="background:var(${c})"></span><span><b>${label}</b> <span class="v">${v}</span> <span class="sub">${when}</span></span></li>`).join('')}</ul>`;
 }
 
+// Longest spells with gas and coal below each level (GW).
+function spellRecords(levels) {
+  const fossil = metricSeries(data, FOSSIL, { batterySource: 'none' });
+  return levels.map((gw) => summarise(fossil, gw, 'below', { startMs: data.startMs, maxGap: 2 }).record);
+}
+
 let story = null;
 function renderStory() {
   if (!story) {
@@ -692,16 +698,23 @@ function renderStory() {
       cross: monthlyShares(data, { fossil: FOSSIL, low: LOW_CARBON }),
       hours: yearlyHoursBelow(data, FOSSIL, [10000, 5000, 1000]),
       facts: facts(data),
+      spells: spellRecords([1, 2, 5]),
     };
   }
   const f = story.facts;
   const at = (i) => fmtDate(slotTime(i, data.startMs));
   const days = Math.floor((data.length - 1 - f.lastCoal) / 48);
-  $('facts').innerHTML = factsHtml(`${days.toLocaleString('en-GB')} days`, `without coal power, since the last coal station closed on ${at(f.lastCoal)}`, [
+  // Lead with how long the grid can run on almost no fossil fuel; coal is done.
+  const spellText = (r) => (r ? formatDuration(r.end - r.start) : 'Never');
+  const from = (r) => (r ? `from ${at(r.start)}` : 'not yet');
+  const [r1, r2, r5] = story.spells;
+  const past = story.hours[story.hours.length - 1].hours;
+  $('facts').innerHTML = factsHtml(spellText(r1), `with gas and coal under 1 GW, ${from(r1)}. The longest Britain has run on almost no fossil fuel.`, [
+    ['--fossil', 'Under 2 GW of fossil fuel', spellText(r2), from(r2)],
+    ['--fossil', 'Under 5 GW of fossil fuel', spellText(r5), from(r5)],
+    ['--lowcarbon', 'Hours under 5 GW', `${Math.round(past[1]).toLocaleString('en-GB')} h`, 'in the past 365 days'],
+    ['--f-coal', 'Without coal', `${days.toLocaleString('en-GB')} days`, `since the last coal station closed on ${at(f.lastCoal)}`],
     ['--lowcarbon', 'Greenest half hour', `${f.green.v.toFixed(1)}%`, `low carbon, ${at(f.green.i)}`],
-    ['--f-wind', 'Windiest half hour', `${(f.wind.v / 1000).toFixed(1)} GW`, `from wind, ${at(f.wind.i)}`],
-    ['--f-solar', 'Sunniest half hour', `${(f.solar.v / 1000).toFixed(1)} GW`, `from solar, ${at(f.solar.i)}`],
-    ['--fossil', 'Least fossil fuel', `${(f.fossil.v / 1000).toFixed(2)} GW`, `of gas and coal, ${at(f.fossil.i)}`],
   ]);
 
   const yearLabel = (y) => (y === 'past365' ? '365d' : String(y));
@@ -767,11 +780,12 @@ function renderPlaceholders() {
   const ring = NOW_GROUPS.map((g) => ({ ...g, color: '--cell-empty', fuels: g.fuels.map((f) => ({ ...f, color: '--cell-empty', now: 1 })) }));
   $('now-donut').innerHTML = donut(ring, ring.reduce((s, g) => s + g.fuels.length, 0)).replace(/>[\d.]+ GW</, '>— GW<');
   $('now-right').innerHTML = nowRightHtml(null, {}, 0);
-  $('facts').innerHTML = factsHtml('—', sample(`without coal power, since the last coal station closed on ${date}`), [
+  $('facts').innerHTML = factsHtml('—', sample(`with gas and coal under 1 GW, from ${date}. The longest Britain has run on almost no fossil fuel.`), [
+    ['--fossil', 'Under 2 GW of fossil fuel', '—', sample(`from ${date}`)],
+    ['--fossil', 'Under 5 GW of fossil fuel', '—', sample(`from ${date}`)],
+    ['--lowcarbon', 'Hours under 5 GW', '—', sample('in the past 365 days')],
+    ['--f-coal', 'Without coal', '—', sample(`since the last coal station closed on ${date}`)],
     ['--lowcarbon', 'Greenest half hour', '—', sample(`low carbon, ${date}`)],
-    ['--f-wind', 'Windiest half hour', '—', sample(`from wind, ${date}`)],
-    ['--f-solar', 'Sunniest half hour', '—', sample(`from solar, ${date}`)],
-    ['--fossil', 'Least fossil fuel', '—', sample(`of gas and coal, ${date}`)],
   ]);
   renderQuestion();
   const cell = `<td class="big">—<span class="when">${sample(date)}</span></td>`;
