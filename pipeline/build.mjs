@@ -5,13 +5,18 @@
 // Actions cache (.cache/), otherwise from the live site, and new days are
 // fetched within a time budget. A fresh start backfills over several runs.
 //
-// Usage: node pipeline/build.mjs [--budget-minutes N] [--backfill-from YYYY-MM-DD]
+// The half-hourly deploy has a short budget, so a separate backfill workflow
+// fetches history for longer, in parallel, into its own cache. Each job merges
+// the other's latest cache (--merge-cache) so neither loses the other's days.
+//
+// Usage: node pipeline/build.mjs [--budget-minutes N] [--concurrency N]
+//   [--backfill-from YYYY-MM-DD] [--merge-cache DIR]
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { fetchNesoGenMix } from './sources/neso-genmix.mjs';
 import { fetchBatteryUnits } from './sources/elexon-bmunits.mjs';
-import { BATTERY_SOURCES, daysToFetch } from './sources/elexon-battery.mjs';
+import { BATTERY_SOURCES, daysToFetch, mergeStores } from './sources/elexon-battery.mjs';
 import { encodeColumns } from './encode.mjs';
 import { fetchJson, dayStart, isoDay, DAY_MS, SLOT_MS, log } from './lib.mjs';
 
@@ -22,31 +27,45 @@ const { values: args } = parseArgs({
     'live-url': { type: 'string', default: process.env.LIVE_URL ?? 'https://sirashton.github.io/Grid-Records' },
     out: { type: 'string', default: 'site/data' },
     cache: { type: 'string', default: '.cache' },
+    'merge-cache': { type: 'string' },
+    concurrency: { type: 'string', default: '1' },
   },
 });
 
 const OUT = args.out;
 const CACHE = args.cache;
 const BUDGET_MS = Number(args['budget-minutes']) * 60000;
+const CONCURRENCY = Math.max(1, Number(args.concurrency));
 const BACKFILL_FROM = Date.parse(`${args['backfill-from']}T00:00:00Z`);
 const started = Date.now();
 
+async function readStore(dir, source) {
+  const file = `${dir}/battery-${source}.json`;
+  return existsSync(file) ? JSON.parse(await readFile(file, 'utf8')) : null;
+}
+
 async function loadStore(source) {
-  const file = `${CACHE}/battery-${source}.json`;
-  if (existsSync(file)) {
-    log(`battery ${source}: restored from cache`);
-    return JSON.parse(await readFile(file, 'utf8'));
-  }
-  try {
-    const live = await fetchJson(`${args['live-url']}/data/battery-${source}.json`, { retries: 1 });
-    if (live?.days) {
-      log(`battery ${source}: restored ${Object.keys(live.days).length} days from the live site`);
-      return live;
+  let store = await readStore(CACHE, source);
+  if (store) log(`battery ${source}: restored ${Object.keys(store.days).length} days from cache`);
+  if (!store) {
+    try {
+      const live = await fetchJson(`${args['live-url']}/data/battery-${source}.json`, { retries: 1 });
+      if (live?.days) {
+        log(`battery ${source}: restored ${Object.keys(live.days).length} days from the live site`);
+        store = live;
+      }
+    } catch (err) {
+      log(`battery ${source}: no live copy (${err.message})`);
     }
-  } catch (err) {
-    log(`battery ${source}: no live copy (${err.message})`);
   }
-  return { days: {} };
+  store ??= { days: {} };
+  const other = args['merge-cache'] && await readStore(args['merge-cache'], source);
+  if (other) {
+    const before = Object.keys(store.days).length;
+    store = mergeStores(store, other);
+    log(`battery ${source}: merged ${args['merge-cache']}, ${Object.keys(store.days).length - before} days added`);
+  }
+  return store;
 }
 
 /** Fetches missing and recent days, newest first, until the budget runs out. */
@@ -56,22 +75,27 @@ async function updateStore(source, store, batteries, deadline) {
   const queue = daysToFetch(store, BATTERY_SOURCES[source], Date.now(), BACKFILL_FROM);
   let fetched = 0;
   let empty = 0;
-  for (const d of queue) {
-    if (Date.now() > deadline) break;
-    try {
-      const day = await fetchDay(d, batteries);
-      if (day && day.dis.some((v) => v !== null)) {
-        store.days[isoDay(d)] = { ...day, fetched: new Date().toISOString() };
-        fetched++;
-      } else {
-        empty++;
-        // Before battery data exists, record the day as empty so it is not refetched.
-        if (today - d > 30 * DAY_MS) store.days[isoDay(d)] = { dis: [], chg: [] };
+  let next = 0;
+  // A few workers share the queue, newest days first.
+  const worker = async () => {
+    while (next < queue.length && Date.now() < deadline) {
+      const d = queue[next++];
+      try {
+        const day = await fetchDay(d, batteries);
+        if (day && day.dis.some((v) => v !== null)) {
+          store.days[isoDay(d)] = { ...day, fetched: new Date().toISOString() };
+          fetched++;
+        } else {
+          empty++;
+          // Before battery data exists, record the day as empty so it is not refetched.
+          if (today - d > 30 * DAY_MS) store.days[isoDay(d)] = { dis: [], chg: [] };
+        }
+      } catch (err) {
+        log(`battery ${source}: ${isoDay(d)} failed: ${err.message}`);
       }
-    } catch (err) {
-      log(`battery ${source}: ${isoDay(d)} failed: ${err.message}`);
     }
-  }
+  };
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   const remaining = queue.length - fetched - empty;
   log(`battery ${source}: fetched ${fetched} days, ${empty} empty, ${Math.max(0, remaining)} still to backfill`);
   store.backfillRemaining = Math.max(0, remaining);
