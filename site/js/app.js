@@ -494,7 +494,7 @@ const NOW_GROUPS = [
 ];
 
 // A coloured square with the past day's trace drawn across it, as on Kate's site.
-function sparkTile(values, color) {
+function sparkTile(values, color, span = NOW_WINDOWS[nowWindow].span) {
   const fin = (values ?? []).filter(Number.isFinite);
   let line = '';
   if (fin.length >= 2) {
@@ -503,11 +503,11 @@ function sparkTile(values, color) {
     const pts = values.map((v, k) => (Number.isFinite(v) ? `${((k / (values.length - 1)) * 40).toFixed(1)},${(26 - ((v - lo) / (hi - lo)) * 20).toFixed(1)}` : null)).filter(Boolean).join(' ');
     line = `<polyline points="${pts}" fill="none" stroke="var(--line)" stroke-width="1.6" stroke-linejoin="round"/>`;
   }
-  const tip = fin.length >= 2 ? ` data-tip="Past 24 hours: ${(Math.min(...fin) / 1000).toFixed(2)} to ${(Math.max(...fin) / 1000).toFixed(2)} GW"` : '';
+  const tip = fin.length >= 2 ? ` data-tip="${span}: ${(Math.min(...fin) / 1000).toFixed(2)} to ${(Math.max(...fin) / 1000).toFixed(2)} GW"` : '';
   return `<svg class="spark" viewBox="0 0 40 28" aria-hidden="true" style="background:var(${color})"${tip}>${line}</svg>`;
 }
 
-function donut(groups, total) {
+function donut(groups, total, sub = '') {
   const size = 260;
   const c = size / 2;
   const arc = (r0, r1, a0, a1) => {
@@ -531,7 +531,7 @@ function donut(groups, total) {
   return `<svg viewBox="0 0 ${size} ${size}" role="img" aria-label="Current generation mix"><circle class="disc" cx="${c}" cy="${c}" r="128"/>${outer}${inner}
     <text x="${c}" y="${c - 14}" text-anchor="middle" class="donut-label">Generation</text>
     <text x="${c}" y="${c + 12}" text-anchor="middle" class="donut-value">${(total / 1000).toFixed(1)} GW</text>
-    <text x="${c}" y="${c + 32}" text-anchor="middle" class="donut-sub"></text></svg>`;
+    <text x="${c}" y="${c + 32}" text-anchor="middle" class="donut-sub">${sub}</text></svg>`;
 }
 
 // What each row means, shown from its "?" button.
@@ -645,7 +645,7 @@ function setupNowHover() {
     const f = key && nowFigures[key];
     label.textContent = f ? key : 'Generation';
     value.textContent = `${((f ? f.now : nowFigures.total) / 1000).toFixed(2)} GW`;
-    sub.textContent = f ? `${((f.now / nowFigures.total) * 100).toFixed(1)}% of generation` : '';
+    sub.textContent = f ? `${((f.now / nowFigures.total) * 100).toFixed(1)}% of generation` : nowFigures.sub;
   };
   const over = (e) => {
     highlight(e.target.closest('[data-key]')?.dataset.key);
@@ -679,39 +679,73 @@ function liveFavicon(groups, total) {
   document.querySelector('link[rel="icon"]').href = `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
-function renderNow() {
+// Time frames for the Right now panel: the latest half hour, or the average
+// over a window. Sparklines always cover at least a day, in up to 48 steps.
+const NOW_WINDOWS = {
+  live: { slots: 1, label: 'Live', span: 'Past 24 hours', sub: '' },
+  day: { slots: 48, label: '24 hours', span: 'Past 24 hours', sub: 'average, past 24 hours' },
+  week: { slots: 48 * 7, label: '7 days', span: 'Past 7 days', sub: 'average, past 7 days' },
+  year: { slots: 48 * 365, label: '365 days', span: 'Past 365 days', sub: 'average, past 365 days' },
+};
+let nowWindow = 'live';
+
+/** Mean of fn(k) over the n slots ending at end, and a sparkline of up to 48 bucket means over max(n, 48) slots. */
+function windowFigures(fn, end, n) {
+  const mean = (a, b) => {
+    let sum = 0;
+    let cnt = 0;
+    for (let k = Math.max(0, a); k <= b; k++) {
+      const v = fn(k);
+      if (Number.isFinite(v)) { sum += v; cnt++; }
+    }
+    return cnt ? sum / cnt : NaN;
+  };
+  const span = Math.max(n, 48);
+  const step = span / 48;
+  const series = Array.from({ length: 48 }, (_, b) => (step === 1 ? fn(end - 47 + b) : mean(Math.round(end - span + 1 + b * step), Math.round(end - span + (b + 1) * step))));
+  return { value: n === 1 ? fn(end) : mean(end - n + 1, end), series };
+}
+
+function nowGroups(i, n) {
   const c = data.columns;
-  const i = lastComplete(data, ['gas', 'wind']);
-  const from = Math.max(0, i - 47);
   const groups = NOW_GROUPS.map((g) => {
     const fuels = g.fuels.map((f) => {
-      const at = (k) => f.cols.reduce((sum, col) => sum + (c[col]?.[k] ?? 0), 0);
-      const series = [];
-      for (let k = from; k <= i; k++) series.push(at(k));
-      return { ...f, value: at(i), now: Math.max(0, at(i)), series };
+      const { value, series } = windowFigures((k) => f.cols.reduce((sum, col) => sum + (c[col]?.[k] ?? 0), 0), i, n);
+      return { ...f, value, now: Math.max(0, value), series };
     });
     return { ...g, fuels, now: fuels.reduce((s, f) => s + f.now, 0) };
   });
-  const total = groups.reduce((s, g) => s + g.now, 0);
+  return { groups, total: groups.reduce((s, g) => s + g.now, 0) };
+}
+
+function renderNow() {
+  const c = data.columns;
+  const i = lastComplete(data, ['gas', 'wind']);
+  const win = NOW_WINDOWS[nowWindow];
+  const n = win.slots;
+  const { groups, total } = nowGroups(i, n);
   const pnI = data.meta.lastSlot.pn_dis;
   const bat = { net: NaN };
   if (pnI != null) {
-    const past = (col) => Array.from({ length: 48 }, (_, k) => c[col][pnI - 47 + k]);
-    Object.assign(bat, { dis: c.pn_dis[pnI], chg: c.pn_chg[pnI], net: c.pn_dis[pnI] + c.pn_chg[pnI], disSeries: past('pn_dis'), chgSeries: past('pn_chg') });
+    const dis = windowFigures((k) => c.pn_dis[k], pnI, n);
+    const chg = windowFigures((k) => c.pn_chg[k], pnI, n);
+    Object.assign(bat, { dis: dis.value, chg: chg.value, net: dis.value + chg.value, disSeries: dis.series, chgSeries: chg.series });
   }
   const mI = data.meta.lastSlot.b1610_dis;
   if (mI != null && c.b1610_dis) {
-    const net = (k) => c.b1610_dis[k] + c.b1610_chg[k];
-    Object.assign(bat, { metered: net(mI), meteredMs: slotTime(mI, data.startMs), meteredSeries: Array.from({ length: 48 }, (_, k) => net(mI - 47 + k)) });
+    const m = windowFigures((k) => c.b1610_dis[k] + c.b1610_chg[k], mI, n);
+    Object.assign(bat, { metered: m.value, meteredMs: slotTime(mI, data.startMs), meteredSeries: m.series });
   }
-  nowFigures = { total };
+  nowFigures = { total, sub: win.sub, span: win.span };
   for (const g of groups) {
     nowFigures[g.label] = g;
     for (const f of g.fuels) nowFigures[f.label] = f;
   }
   $('now-groups').innerHTML = nowLeftHtml(groups, total);
-  $('now-donut').innerHTML = donut(groups, total);
-  liveFavicon(groups, total);
+  $('now-donut').innerHTML = donut(groups, total, win.sub);
+  // The tab icon always shows the latest half hour.
+  const live = n === 1 ? { groups, total } : nowGroups(i, 1);
+  liveFavicon(live.groups, live.total);
   $('now-right').innerHTML = nowRightHtml(recentRecords(data, { batterySource: state.battery, limit: NOW_RECORD_ROWS }), bat, total);
   $('updated').textContent = `Generation data to ${fmtDateTime(slotTime(i, data.startMs))} (UK time). Updated every 30 minutes.`;
 }
@@ -879,6 +913,11 @@ async function main() {
   syncControls();
   renderPlaceholders();
   setupNowHover();
+  document.querySelectorAll('[data-now-window]').forEach((b) => b.addEventListener('click', () => {
+    nowWindow = b.dataset.nowWindow;
+    document.querySelectorAll('[data-now-window]').forEach((x) => x.setAttribute('aria-checked', x === b));
+    if (data) renderNow();
+  }));
   try {
     data = await loadData();
   } catch (err) {
