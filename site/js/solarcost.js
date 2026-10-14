@@ -6,16 +6,35 @@
 
 export const YEARS = [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
+/**
+ * Published figures for some years only: the years between are filled in at a
+ * steady rate of decline. Returns one value per year in YEARS order.
+ */
+export function steady(points) {
+  const known = Object.keys(points).map(Number).sort((a, b) => a - b);
+  return YEARS.map((y) => {
+    if (points[y] != null) return points[y];
+    const a = known.filter((k) => k < y).pop();
+    const b = known.find((k) => k > y);
+    if (a == null || b == null) return points[a ?? b];
+    return points[a] * (points[b] / points[a]) ** ((y - a) / (b - a));
+  });
+}
+
+/** Years with a published figure, for marking on the chart. */
+export const PUBLISHED = { pv: [2010, 2023, 2024, 2025], battery: [2010, 2024, 2025] };
+
 // Values per year in YEARS order. Money is converted to 2024 pounds.
 export const COSTS = {
   // ONS CPI index (D7BT, 2015 = 100), annual average.
-  cpi: [89.4, 93.4, 96.1, 98.5, 99.6, 100.0, 100.7, 103.4, 105.9, 107.8, 108.7, 111.6, 121.7, 130.5, 133.9, 138.6],
+  cpi: [89.4, 93.4, 96.1, 98.5, 100.0, 100.0, 100.7, 103.4, 105.9, 107.8, 108.7, 111.6, 121.7, 130.5, 133.9, 138.4],
   // ONS USD per GBP, annual average (AUSS).
   usdPerGbp: [1.546, 1.603, 1.5851, 1.5644, 1.6477, 1.5286, 1.3542, 1.2888, 1.335, 1.2766, 1.2837, 1.3757, 1.2362, 1.2434, 1.2783, 1.3185],
   // IRENA: utility-scale solar PV total installed cost, global weighted average, 2024 USD/kW.
-  pvUsdPerKw: [5283, 4319, 3530, 2400, 2078, 1800, 1576, 1380, 1188, 1020, 958, 900, 826, 758, 691, 650],
-  // IRENA (to 2024) and Ember (2025): utility-scale battery storage total installed cost, 2024 USD/kWh.
-  batteryUsdPerKwh: [2571, 2125, 1757, 1452, 1200, 992, 820, 678, 561, 463, 383, 317, 262, 216, 192, 125],
+  // 2023 is backed out of IRENA's "down 11% to 691"; 2025 is from IRENA's 2025 edition.
+  pvUsdPerKw: steady({ 2010: 5283, 2023: 776, 2024: 691, 2025: 667 }),
+  // IRENA (2010, 2024) and Ember (2025): utility-scale battery storage total installed cost, 2024 USD/kWh.
+  batteryUsdPerKwh: steady({ 2010: 2571, 2024: 192, 2025: 125 }),
   // NBP gas, annual average, nominal USD/MWh (Energy Institute, via Our World in Data).
   gasUsdPerMwh: [22.24, 30.71, 32.15, 36.16, 28.03, 22.26, 15.86, 19.71, 27.2, 15.23, 10.83, 52.72, 83.76, 41.97, 36.47, 39.75],
   // Carbon on GB power: EU ETS (real 2023 EUR/t) to 2020, then UK ETS (nominal £/t).
@@ -46,6 +65,7 @@ export const ASSUMPTIONS = {
 
 export const SOURCES = [
   ['IRENA, Renewable Power Generation Costs in 2024', 'https://www.irena.org/Publications/2025/Jul/Renewable-Power-Generation-Costs-in-2024'],
+  ['IRENA, Renewable Power Generation Costs in 2025 (solar, 2025)', 'https://greentechlead.com/solar/solar-pv-installation-costs-fall-88-since-2010-as-global-capacity-surpasses-2393-gw-in-2025-irena-54058'],
   ['Ember, battery storage costs (2025)', 'https://www.energy-storage.news/?p=92133'],
   ['BNEF, lithium-ion battery pack prices', 'https://about.bnef.com/insights/clean-energy/lithium-ion-battery-pack-prices/'],
   ['NREL Annual Technology Baseline 2025, utility-scale batteries', 'https://atb.nlr.gov/electricity/2025/utility-scale_battery_storage'],

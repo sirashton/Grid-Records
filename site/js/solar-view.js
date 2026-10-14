@@ -1,7 +1,7 @@
 // Draws the "firm megawatt" section: falling panel and battery costs, and the
 // cost of 1 MW around the clock from solar and batteries against gas.
 import { lineChart } from './charts.js';
-import { YEARS, ASSUMPTIONS as A, SOURCES, solarShape, sizing, firmCosts, monthlyLoadFactor, yearInputs } from './solarcost.js';
+import { YEARS, PUBLISHED, ASSUMPTIONS as A, SOURCES, solarShape, sizing, firmCosts, monthlyLoadFactor, yearInputs } from './solarcost.js';
 
 const $ = (id) => document.getElementById(id);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -38,12 +38,12 @@ export function renderSolar(data) {
 
   // Panel and battery prices.
   const kit = [
-    { name: 'Solar panels, installed (£ per kW)', color: css('--f-solar'), points: rows.map((r) => [at(r.year), r.panelPerMw / 1000]) },
-    { name: 'Grid batteries, installed (£ per kWh)', color: css('--f-nuclear'), points: rows.map((r) => [at(r.year), r.batteryPerMwh / 1000]) },
+    { name: 'Solar panels, installed (£ per kW)', color: css('--f-solar'), points: rows.map((r) => [at(r.year), r.panelPerMw / 1000]), published: PUBLISHED.pv },
+    { name: 'Grid batteries, installed (£ per kWh)', color: css('--f-nuclear'), points: rows.map((r) => [at(r.year), r.batteryPerMwh / 1000]), published: PUBLISHED.battery },
   ];
-  $('solar-kit-text').textContent = `Since ${first.year}, the cost of building a large solar farm has fallen by ${drop(first.panelPerMw, last.panelPerMw)} and the cost of a grid battery by ${drop(first.batteryPerMwh, last.batteryPerMwh)}, after inflation.`;
+  $('solar-kit-text').textContent = `Since ${first.year}, the cost of building a large solar farm has fallen by ${drop(first.panelPerMw, last.panelPerMw)} and the cost of a grid battery by ${drop(first.batteryPerMwh, last.batteryPerMwh)}, after inflation. Dots mark published figures; the years between are filled in at a steady rate.`;
   lineChart($('solar-kit'), {
-    series: kit.map((s) => ({ ...s, width: 3, markers: s.points })),
+    series: kit.map((s) => ({ ...s, width: 3, markers: s.points.filter((p) => s.published.includes(new Date(p[0]).getUTCFullYear())) })),
     yLog: true,
     yMin: 50,
     yFormat: gbp,
@@ -111,7 +111,7 @@ export function renderSolar(data) {
     `Solar output comes from the NESO half-hourly solar figures on this page, for ${from} to ${to}. Each day is divided by an estimate of how many panels were installed then, and the result is scaled to an average of ${A.solarLoadFactor * 100}% of capacity, DESNZ's figure for large solar farms.`,
     `For each size of solar farm, from 10 to 150 MW per firm MW, the smallest battery that never runs out over those years is found. Charging loses ${Math.round((1 - A.roundTrip) * 100)}% of the energy. The 99% line uses the smallest battery that leaves no more than 1% of the energy unserved. Each year, the cheapest combination at that year's prices is chosen.`,
     `Panels last ${A.solarLifeYears} years and cost ${gbp(A.solarOmPerMw)} per MW a year to run. Batteries last ${A.batteryLifeYears} years (NREL), so they are bought twice in a solar farm's life, and cost ${A.batteryOmShare * 100}% of their price a year to run, which covers topping up capacity as cells wear (around 2.6% a year, Lazard). Money is borrowed at ${A.solarWacc * 100}% a year after inflation.`,
-    `Panel costs are IRENA's global average for large solar farms, and battery costs IRENA's for grid batteries, with Ember's survey for ${YEARS[YEARS.length - 1]}. British batteries have cost more: Modo's survey put two-hour systems at about £325 per kWh in 2024, against ${gbp(i24.batteryPerMwh / 1000)} here. Two-hour systems pay more per kWh for their inverters than the long-running batteries this needs.`,
+    `Panel costs are IRENA's global average for large solar farms, and battery costs IRENA's for grid batteries, with Ember's survey for ${YEARS[YEARS.length - 1]}. IRENA publishes both for every year, but only some years were available here: panels for 2010 and 2023 to 2025, batteries for 2010, 2024 and 2025. The years between are filled in at a steady rate of decline, so the shape of those lines between published points is an estimate. British batteries have cost more: Modo's survey put two-hour systems at about £325 per kWh in 2024, against ${gbp(i24.batteryPerMwh / 1000)} here. Two-hour systems pay more per kWh for their inverters than the long-running batteries this needs.`,
     `Gas: DESNZ's 2025 central estimate for a large modern plant (${gbp(A.gasCapexPerMw / 1000)} per kW, ${A.gasLifeYears} years, ${A.gasAvailability * 100}% available, so a firm MW needs ${(1 / A.gasAvailability).toFixed(2)} MW of plant, borrowed at ${A.gasWacc * 100}%). Fuel is each year's average NBP gas price; carbon is the EU ETS until 2020, the UK ETS from 2021, plus the Carbon Price Support. Running an existing plant counts fuel, carbon and upkeep but not the cost of building it.`,
     'All money is in 2024 pounds, using the ONS consumer price index and yearly exchange rates.',
   ].map((t) => `<p>${t}</p>`).join('')
