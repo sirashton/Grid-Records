@@ -732,7 +732,7 @@ function nowGroups(i, n) {
   return { groups, total: groups.reduce((s, g) => s + g.now, 0) };
 }
 
-function renderNow() {
+function renderNow(animate = false) {
   const c = data.columns;
   const i = lastComplete(data, ['gas', 'wind']);
   const win = NOW_WINDOWS[nowWindow];
@@ -755,14 +755,52 @@ function renderNow() {
     nowFigures[g.label] = g;
     for (const f of g.fuels) nowFigures[f.label] = f;
   }
-  $('now-groups').innerHTML = nowLeftHtml(groups, total);
-  $('now-donut').innerHTML = donut(groups, total, win.sub);
-  fitDonutText();
   // The tab icon always shows the latest half hour.
   const live = n === 1 ? { groups, total } : nowGroups(i, 1);
   liveFavicon(live.groups, live.total);
-  $('now-right').innerHTML = nowRightHtml(recentRecords(data, { batterySource: state.battery, limit: NOW_RECORD_ROWS }), bat, total);
+  const recs = recentRecords(data, { batterySource: state.battery, limit: NOW_RECORD_ROWS });
+  const target = { groups, total, bat };
+  if (animate && nowShown) tweenNow(nowShown, target, recs, win.sub);
+  else drawNow(target, recs, win.sub);
   $('updated').textContent = `Generation data to ${fmtDateTime(slotTime(i, data.startMs))} (UK time). Updated every 30 minutes.`;
+}
+
+let nowShown = null;
+let nowTween = 0;
+
+function drawNow(figs, recs, sub) {
+  nowShown = figs;
+  $('now-groups').innerHTML = nowLeftHtml(figs.groups, figs.total);
+  $('now-donut').innerHTML = donut(figs.groups, figs.total, sub);
+  fitDonutText();
+  $('now-right').innerHTML = nowRightHtml(recs, figs.bat, figs.total);
+}
+
+// Switching time frame eases every figure, and so every donut segment, from
+// its old value to its new one.
+function tweenNow(from, to, recs, sub) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { drawNow(to, recs, sub); return; }
+  const id = ++nowTween;
+  const lerp = (a, b, t) => (Number.isFinite(a) && Number.isFinite(b) ? a + (b - a) * t : b);
+  const start = performance.now();
+  const step = (now) => {
+    if (id !== nowTween) return;
+    const p = Math.min(1, (now - start) / 600);
+    const t = 1 - (1 - p) ** 3;
+    const groups = to.groups.map((g, gi) => {
+      const fuels = g.fuels.map((f, fi) => {
+        const o = from.groups[gi].fuels[fi];
+        return { ...f, value: lerp(o.value, f.value, t), now: lerp(o.now, f.now, t) };
+      });
+      return { ...g, fuels, now: fuels.reduce((sum, f) => sum + f.now, 0) };
+    });
+    const bat = { ...to.bat };
+    for (const k of ['dis', 'chg', 'net', 'metered']) bat[k] = lerp(from.bat[k], to.bat[k], t);
+    drawNow({ groups, total: groups.reduce((sum, g) => sum + g.now, 0), bat }, recs, sub);
+    if (p < 1) requestAnimationFrame(step);
+    else nowShown = to;
+  };
+  requestAnimationFrame(step);
 }
 
 // One headline figure set large, with the other highlights as a list beside it.
@@ -931,7 +969,7 @@ async function main() {
   document.querySelectorAll('[data-now-window]').forEach((b) => b.addEventListener('click', () => {
     nowWindow = b.dataset.nowWindow;
     document.querySelectorAll('[data-now-window]').forEach((x) => x.setAttribute('aria-checked', x === b));
-    if (data) renderNow();
+    if (data) renderNow(true);
   }));
   try {
     data = await loadData();
