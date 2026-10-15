@@ -2,7 +2,7 @@ import { loadData, metricSeries, FUELS, BATTERY_SOURCES, lastComplete, generatio
 import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from './records.js';
 import { lineChart, heatmap, barChart, niceTicks, fmtDate, fmtDateTime } from './charts.js';
 import { recentRecords } from './recent.js';
-import { envelopes } from './envelope.js';
+import { envelopes, windowEnvelopes } from './envelope.js';
 import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
 import { renderBatteryOrigins } from './origins.js';
 import { renderSolar } from './solar-view.js';
@@ -413,10 +413,16 @@ function renderTimeline(values) {
   const raw = windowPoints(values, state.range, end);
   const key = `${seriesCache.key}|${state.range}|${end}`;
   if (envelopeCache?.key !== key) {
-    envelopeCache = { key, ...envelopes(raw.map(([, v]) => v), ENVELOPE_POINTS[state.range] ?? 48) };
+    const w = ENVELOPE_POINTS[state.range] ?? 48;
+    // Daily means hide the half-hour peaks (solar's best day averages about a
+    // third of its best half hour), so for daily points the bands come from
+    // the half hours themselves.
+    envelopeCache = { key, ...(daily
+      ? windowEnvelopes(values, raw.map(([t]) => Math.round((t - data.startMs) / 1800000) + 24), Math.floor((w * 48) / 2))
+      : envelopes(raw.map(([, v]) => v), w)) };
   }
   const span = ENVELOPE_LABEL[state.range] ?? '24-hour';
-  $('timeline-note').textContent = `Over each rolling ${span} window, the light band spans every value and the darker band the middle 99%, leaving out the rarest spikes.`;
+  $('timeline-note').textContent = `Over each rolling ${span} window, the light band spans every half-hour value and the darker band the middle 99%, leaving out the rarest spikes.`;
   lineChart($('timeline'), {
     ...envelopeLayers(raw, envelopeCache, `${groupName()}${daily ? ' (daily mean)' : ''}`),
     refLines: thresholds.map((t, i) => ({ value: t, color: thresholdColor(i, thresholds.length) })),
