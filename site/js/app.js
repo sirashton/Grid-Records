@@ -613,6 +613,19 @@ function renderBatterySources(coverage) {
   ].map((r, k) => `<tr>${[...r, coverage[k]].map((v) => `<td>${v}</td>`).join('')}</tr>`).join('');
 }
 
+// Widest each line of the donut's centre text can be (in its 260-unit
+// viewBox) and stay inside the inner ring; longer text is scaled down.
+const DONUT_TEXT_WIDTH = { 'donut-label': 112, 'donut-value': 118, 'donut-sub': 104 };
+function fitDonutText() {
+  for (const [cls, max] of Object.entries(DONUT_TEXT_WIDTH)) {
+    const t = document.querySelector(`#now-donut .${cls}`);
+    if (!t) continue;
+    t.style.fontSize = '';
+    const w = t.getComputedTextLength();
+    if (w > max) t.style.fontSize = `${parseFloat(getComputedStyle(t).fontSize) * (max / w)}px`;
+  }
+}
+
 // Hovering a row or a donut segment highlights its partners and shows its
 // figures in the middle of the donut; "?" buttons and record rows show a tip.
 let nowFigures = {};
@@ -645,7 +658,8 @@ function setupNowHover() {
     const f = key && nowFigures[key];
     label.textContent = f ? key : 'Generation';
     value.textContent = `${((f ? f.now : nowFigures.total) / 1000).toFixed(2)} GW`;
-    sub.textContent = f ? `${((f.now / nowFigures.total) * 100).toFixed(1)}% of generation` : nowFigures.sub;
+    sub.textContent = f ? `${((f.now / nowFigures.total) * 100).toFixed(1)}% of total` : nowFigures.sub;
+    fitDonutText();
   };
   const over = (e) => {
     highlight(e.target.closest('[data-key]')?.dataset.key);
@@ -683,9 +697,9 @@ function liveFavicon(groups, total) {
 // over a window. Sparklines always cover at least a day, in up to 48 steps.
 const NOW_WINDOWS = {
   live: { slots: 1, label: 'Live', span: 'Past 24 hours', sub: '' },
-  day: { slots: 48, label: '24 hours', span: 'Past 24 hours', sub: 'average, past 24 hours' },
-  week: { slots: 48 * 7, label: '7 days', span: 'Past 7 days', sub: 'average, past 7 days' },
-  year: { slots: 48 * 365, label: '365 days', span: 'Past 365 days', sub: 'average, past 365 days' },
+  day: { slots: 48, label: '24 hours', span: 'Past 24 hours', sub: '24h average' },
+  week: { slots: 48 * 7, label: '7 days', span: 'Past 7 days', sub: '7d average' },
+  year: { slots: 48 * 365, label: '365 days', span: 'Past 365 days', sub: '365d average' },
 };
 let nowWindow = 'live';
 
@@ -743,6 +757,7 @@ function renderNow() {
   }
   $('now-groups').innerHTML = nowLeftHtml(groups, total);
   $('now-donut').innerHTML = donut(groups, total, win.sub);
+  fitDonutText();
   // The tab icon always shows the latest half hour.
   const live = n === 1 ? { groups, total } : nowGroups(i, 1);
   liveFavicon(live.groups, live.total);
