@@ -51,3 +51,53 @@ export function envelopes(values, w, q = 0.005) {
   }
   return out;
 }
+
+/**
+ * Envelopes of the underlying half hours for a chart that plots coarser
+ * points (such as daily means): for each centre index into `values`, the
+ * window centre ± half. Values are counted into `bins` buckets as the window
+ * slides, so long windows stay fast. min and lo round down to their bucket's
+ * lower edge and max and hi up to its upper edge, so the 100% band always
+ * contains every value. Same { min, max, lo, hi } as envelopes, one per centre.
+ */
+export function windowEnvelopes(values, centres, half, q = 0.005, bins = 4000) {
+  let vmin = Infinity;
+  let vmax = -Infinity;
+  for (const v of values) if (Number.isFinite(v)) { if (v < vmin) vmin = v; if (v > vmax) vmax = v; }
+  const m = centres.length;
+  const out = { min: new Float64Array(m).fill(NaN), max: new Float64Array(m).fill(NaN), lo: new Float64Array(m).fill(NaN), hi: new Float64Array(m).fill(NaN) };
+  if (!(vmax >= vmin)) return out;
+  const width = (vmax - vmin) / bins || 1;
+  const bin = (v) => Math.min(bins - 1, Math.floor((v - vmin) / width));
+  const hist = new Int32Array(bins);
+  let count = 0;
+  const add = (j, d) => {
+    const v = values[j];
+    if (Number.isFinite(v)) { hist[bin(v)] += d; count += d; }
+  };
+  let a = 0;
+  let b = 0; // window is [a, b)
+  for (let k = 0; k < m; k++) {
+    const from = Math.max(0, centres[k] - half);
+    const to = Math.min(values.length, centres[k] + half + 1);
+    while (b < to) add(b++, 1);
+    while (a < from) add(a++, -1);
+    if (!count) continue;
+    const need = Math.max(1, Math.ceil(count * q));
+    let seen = 0;
+    for (let i = 0; i < bins; i++) {
+      if (!hist[i]) continue;
+      if (seen === 0) out.min[k] = vmin + i * width;
+      seen += hist[i];
+      if (seen >= need) { out.lo[k] = vmin + i * width; break; }
+    }
+    seen = 0;
+    for (let i = bins - 1; i >= 0; i--) {
+      if (!hist[i]) continue;
+      if (seen === 0) out.max[k] = vmin + (i + 1) * width;
+      seen += hist[i];
+      if (seen >= need) { out.hi[k] = vmin + (i + 1) * width; break; }
+    }
+  }
+  return out;
+}
