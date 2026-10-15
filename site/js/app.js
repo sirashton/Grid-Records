@@ -613,6 +613,19 @@ function renderBatterySources(coverage) {
   ].map((r, k) => `<tr>${[...r, coverage[k]].map((v) => `<td>${v}</td>`).join('')}</tr>`).join('');
 }
 
+// Widest each line of the donut's centre text can be (in its 260-unit
+// viewBox) and stay inside the inner ring; longer text is scaled down.
+const DONUT_TEXT_WIDTH = { 'donut-label': 112, 'donut-value': 118, 'donut-sub': 104 };
+function fitDonutText() {
+  for (const [cls, max] of Object.entries(DONUT_TEXT_WIDTH)) {
+    const t = document.querySelector(`#now-donut .${cls}`);
+    if (!t) continue;
+    t.style.fontSize = '';
+    const w = t.getComputedTextLength();
+    if (w > max) t.style.fontSize = `${parseFloat(getComputedStyle(t).fontSize) * (max / w)}px`;
+  }
+}
+
 // Hovering a row or a donut segment highlights its partners and shows its
 // figures in the middle of the donut; "?" buttons and record rows show a tip.
 let nowFigures = {};
@@ -645,7 +658,8 @@ function setupNowHover() {
     const f = key && nowFigures[key];
     label.textContent = f ? key : 'Generation';
     value.textContent = `${((f ? f.now : nowFigures.total) / 1000).toFixed(2)} GW`;
-    sub.textContent = f ? `${((f.now / nowFigures.total) * 100).toFixed(1)}% of generation` : nowFigures.sub;
+    sub.textContent = f ? `${((f.now / nowFigures.total) * 100).toFixed(1)}% of total` : nowFigures.sub;
+    fitDonutText();
   };
   const over = (e) => {
     highlight(e.target.closest('[data-key]')?.dataset.key);
@@ -683,9 +697,9 @@ function liveFavicon(groups, total) {
 // over a window. Sparklines always cover at least a day, in up to 48 steps.
 const NOW_WINDOWS = {
   live: { slots: 1, label: 'Live', span: 'Past 24 hours', sub: '' },
-  day: { slots: 48, label: '24 hours', span: 'Past 24 hours', sub: 'average, past 24 hours' },
-  week: { slots: 48 * 7, label: '7 days', span: 'Past 7 days', sub: 'average, past 7 days' },
-  year: { slots: 48 * 365, label: '365 days', span: 'Past 365 days', sub: 'average, past 365 days' },
+  day: { slots: 48, label: '24 hours', span: 'Past 24 hours', sub: '24h average' },
+  week: { slots: 48 * 7, label: '7 days', span: 'Past 7 days', sub: '7d average' },
+  year: { slots: 48 * 365, label: '365 days', span: 'Past 365 days', sub: '365d average' },
 };
 let nowWindow = 'live';
 
@@ -718,7 +732,7 @@ function nowGroups(i, n) {
   return { groups, total: groups.reduce((s, g) => s + g.now, 0) };
 }
 
-function renderNow() {
+function renderNow(animate = false) {
   const c = data.columns;
   const i = lastComplete(data, ['gas', 'wind']);
   const win = NOW_WINDOWS[nowWindow];
@@ -741,13 +755,52 @@ function renderNow() {
     nowFigures[g.label] = g;
     for (const f of g.fuels) nowFigures[f.label] = f;
   }
-  $('now-groups').innerHTML = nowLeftHtml(groups, total);
-  $('now-donut').innerHTML = donut(groups, total, win.sub);
   // The tab icon always shows the latest half hour.
   const live = n === 1 ? { groups, total } : nowGroups(i, 1);
   liveFavicon(live.groups, live.total);
-  $('now-right').innerHTML = nowRightHtml(recentRecords(data, { batterySource: state.battery, limit: NOW_RECORD_ROWS }), bat, total);
+  const recs = recentRecords(data, { batterySource: state.battery, limit: NOW_RECORD_ROWS });
+  const target = { groups, total, bat };
+  if (animate && nowShown) tweenNow(nowShown, target, recs, win.sub);
+  else drawNow(target, recs, win.sub);
   $('updated').textContent = `Generation data to ${fmtDateTime(slotTime(i, data.startMs))} (UK time). Updated every 30 minutes.`;
+}
+
+let nowShown = null;
+let nowTween = 0;
+
+function drawNow(figs, recs, sub) {
+  nowShown = figs;
+  $('now-groups').innerHTML = nowLeftHtml(figs.groups, figs.total);
+  $('now-donut').innerHTML = donut(figs.groups, figs.total, sub);
+  fitDonutText();
+  $('now-right').innerHTML = nowRightHtml(recs, figs.bat, figs.total);
+}
+
+// Switching time frame eases every figure, and so every donut segment, from
+// its old value to its new one.
+function tweenNow(from, to, recs, sub) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { drawNow(to, recs, sub); return; }
+  const id = ++nowTween;
+  const lerp = (a, b, t) => (Number.isFinite(a) && Number.isFinite(b) ? a + (b - a) * t : b);
+  const start = performance.now();
+  const step = (now) => {
+    if (id !== nowTween) return;
+    const p = Math.min(1, (now - start) / 600);
+    const t = 1 - (1 - p) ** 3;
+    const groups = to.groups.map((g, gi) => {
+      const fuels = g.fuels.map((f, fi) => {
+        const o = from.groups[gi].fuels[fi];
+        return { ...f, value: lerp(o.value, f.value, t), now: lerp(o.now, f.now, t) };
+      });
+      return { ...g, fuels, now: fuels.reduce((sum, f) => sum + f.now, 0) };
+    });
+    const bat = { ...to.bat };
+    for (const k of ['dis', 'chg', 'net', 'metered']) bat[k] = lerp(from.bat[k], to.bat[k], t);
+    drawNow({ groups, total: groups.reduce((sum, g) => sum + g.now, 0), bat }, recs, sub);
+    if (p < 1) requestAnimationFrame(step);
+    else nowShown = to;
+  };
+  requestAnimationFrame(step);
 }
 
 // One headline figure set large, with the other highlights as a list beside it.
@@ -916,7 +969,7 @@ async function main() {
   document.querySelectorAll('[data-now-window]').forEach((b) => b.addEventListener('click', () => {
     nowWindow = b.dataset.nowWindow;
     document.querySelectorAll('[data-now-window]').forEach((x) => x.setAttribute('aria-checked', x === b));
-    if (data) renderNow();
+    if (data) renderNow(true);
   }));
   try {
     data = await loadData();
