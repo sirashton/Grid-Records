@@ -16,6 +16,15 @@ Live at https://grid.gathered.consulting once DNS and GitHub Pages are set up.
 - Battery history is kept between runs in the Actions cache, falling back to the published site, and is
   backfilled to 2017 a little each run (about three minutes of fetching), so a fresh start takes a few days to fill in.
 
+## New Zealand
+
+A second page at `/nz/` covers New Zealand. `pipeline/build-nz.mjs` reads the Electricity Authority's monthly
+[generation output by plant](https://www.emi.ea.govt.nz/Wholesale/Datasets/Generation/Generation_MD) files (half-hourly,
+every grid-connected plant, since August 1997) and writes `site/data/nz/`. Parsed months are kept in the Actions cache
+(`.cache-nz/`); each run refreshes only the last four months, once a day. The data arrives a few weeks after each month ends.
+The page's last chapter (`site/js/nz/firming.js`) estimates when a 100% renewable grid costs less than keeping fossil backup
+for dry years.
+
 ## Data sources
 
 | Source | Used for | Delay |
