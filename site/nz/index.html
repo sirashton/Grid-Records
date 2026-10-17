@@ -107,7 +107,7 @@
     <section class="plain story" aria-labelledby="story-h">
       <h2 id="story-h">The story</h2>
       <div class="facts" id="facts"></div>
-      <p class="hint">Four chapters on how close New Zealand is to a fully renewable grid, and what stands in the way.</p>
+      <p class="hint">Five chapters on how close New Zealand is to a fully renewable grid, what stands in the way, and when going all the way gets cheaper.</p>
       <details class="chapter" id="chapter-1" open>
         <summary><span class="ch-num">1</span><span class="ch-text"><span class="ch-title">Mostly renewable already</span><span class="ch-take" id="mix-take">Hydro and geothermal have carried the grid for decades. Wind and solar are now adding to them.</span></span></summary>
         <div class="ch-body">
@@ -144,6 +144,45 @@
       <h3>Battery output over time</h3>
       <p class="hint">Daily mean battery discharge into the grid, in MW. The Electricity Authority's data shows what batteries send to the grid, not what they take when charging.</p>
       <div class="chart-host" id="story-battery"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-5">Next: When does 100% get cheaper?</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-5">
+        <summary><span class="ch-num">5</span><span class="ch-text"><span class="ch-title">When does 100% get cheaper?</span><span class="ch-take" id="firm-take">The cost of covering the driest year on record with renewables, against keeping coal and gas on standby.</span></span></summary>
+        <div class="ch-body">
+      <p>Getting rid of the last fossil fuel means covering the worst dry year without it. That takes enough extra renewable generation to replace the water the lakes don't get, and enough fast capacity to replace the gas and coal plants at the evening peaks. In wetter years, much of that extra energy isn't needed.</p>
+      <h3>What has to be replaced</h3>
+      <div class="facts" id="firm-facts"></div>
+      <h3>Yearly cost of each way through the weather on record</h3>
+      <div class="firm-controls">
+        <div class="field">
+          <span>Carbon price (NZ$ per tonne)</span>
+          <div class="segmented small" role="radiogroup" aria-label="Carbon price">
+            <button type="button" data-carbon="60" role="radio">60</button>
+            <button type="button" data-carbon="100" role="radio">100</button>
+            <button type="button" data-carbon="150" role="radio">150</button>
+            <button type="button" data-carbon="200" role="radio">200</button>
+          </div>
+        </div>
+        <div class="field">
+          <span>Value of spare renewable energy (NZ$ per MWh)</span>
+          <div class="segmented small" role="radiogroup" aria-label="Value of spare energy">
+            <button type="button" data-surplus="0" role="radio">Nothing</button>
+            <button type="button" data-surplus="20" role="radio">20</button>
+            <button type="button" data-surplus="40" role="radio">40</button>
+          </div>
+        </div>
+      </div>
+      <p class="hint">NZ$ million a year, in 2025 dollars. Each renewable line is enough of that one source, plus batteries, to get through the driest year on record with no fossil fuel. Renewable and battery costs fall a little each year; fuel and carbon are held at the chosen price.</p>
+      <div class="chart-host" id="firm-chart"></div>
+      <div class="legend" id="firm-legend"></div>
+      <p id="firm-answer"></p>
+      <h3>What the answer depends on</h3>
+      <ul class="notes" id="firm-notes"></ul>
+      <details>
+        <summary>How this is worked out, and sources</summary>
+        <div class="hint" id="firm-method"></div>
+      </details>
         </div>
       </details>
     </section>

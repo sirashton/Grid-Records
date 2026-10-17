@@ -5,6 +5,7 @@ import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from '../rec
 import { lineChart, heatmap, barChart, niceTicks, fmtDate, fmtDateTime, setTimeZone } from '../charts.js';
 import { envelopes, windowEnvelopes } from '../envelope.js';
 import { FUELS, FOSSIL, RENEWABLE, metricSeries, yearlyEnergy, yearlyHoursBelow, recentMix } from './data.js';
+import { ASSUMPTIONS as A, needs, projection, yearCosts, SOURCES } from './firming.js';
 
 setTimeZone('Pacific/Auckland');
 
@@ -465,6 +466,69 @@ function renderStory() {
   $('story-hours-legend').innerHTML = hourStacks.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
 
   renderBatteryStory();
+  renderFirming();
+}
+
+const firmOpts = { carbon: 60, surplusValue: 0 };
+let firmWired = false;
+const nzd = (v) => `$${nzNum(Math.round(v))}`;
+
+function renderFirming() {
+  if (!firmWired) {
+    firmWired = true;
+    document.querySelectorAll('[data-carbon]').forEach((b) => b.addEventListener('click', () => { firmOpts.carbon = Number(b.dataset.carbon); renderFirming(); }));
+    document.querySelectorAll('[data-surplus]').forEach((b) => b.addEventListener('click', () => { firmOpts.surplusValue = Number(b.dataset.surplus); renderFirming(); }));
+  }
+  document.querySelectorAll('[data-carbon]').forEach((b) => b.setAttribute('aria-checked', Number(b.dataset.carbon) === firmOpts.carbon));
+  document.querySelectorAll('[data-surplus]').forEach((b) => b.setAttribute('aria-checked', Number(b.dataset.surplus) === firmOpts.surplusValue));
+  story.needs ??= needs(story.energy, metricSeries(data, FOSSIL), end);
+  const n = story.needs;
+  const twh = (v) => `${v.toFixed(1)} TWh`;
+  $('firm-facts').innerHTML = factsHtml(twh(n.driest.fossil), `of fossil generation today's grid would need in a year as dry as ${n.driest.year}, the driest of ${n.years[0]} to ${n.years[1]}.`, [
+    ['--fossil', 'In a year of average rainfall', twh(n.normalFossil), "today's fleet, average water"],
+    ['--f-hydro', `Hydro short in ${n.driest.year}`, twh(n.driest.deficit), `against the ${twh(n.meanHydro)} average`],
+    ['--fossil', 'Fossil capacity at the peaks', `${n.peakGw.toFixed(2)} GW`, `99th percentile, latest ${A.peakYears} years`],
+  ]);
+  const { rows, crossover } = projection(n, firmOpts);
+  const at = (y) => Date.UTC(y, 6, 1);
+  const series = [
+    { key: 'keep', name: 'Keep coal and gas on standby', color: css('--fossil'), points: rows.map((r) => [at(r.year), r.keep]), width: 3 },
+    ...Object.entries(A.tech).map(([k, g]) => ({ key: k, name: `100% renewable: ${g.label.toLowerCase()} and batteries`, color: css(FUELS[k].color), points: rows.map((r) => [at(r.year), r.renewables[k].cost]) })),
+  ];
+  lineChart($('firm-chart'), {
+    series,
+    yMin: 0,
+    yFormat: (v) => `${nzd(v)}m`,
+    yTickFormat: (v) => `${nzd(v)}m`,
+    tooltip: (t, vals) => `<strong>${new Date(t).getUTCFullYear()}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${nzd(v.value)}m</b></div>`).join('')}`,
+  });
+  $('firm-legend').innerHTML = series.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
+  const first = rows[0];
+  const named = Object.entries(crossover).filter(([, y]) => y).sort((x, y) => x[1] - y[1]);
+  const when = ([k, y], i) => {
+    const name = i ? A.tech[k].label.toLowerCase() : A.tech[k].label;
+    return y === rows[0].year ? `${name} is already cheaper` : `${name} gets cheaper in ${y}`;
+  };
+  const never = Object.keys(A.tech).filter((k) => !crossover[k]).map((k) => A.tech[k].label.toLowerCase());
+  const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
+  $('firm-answer').innerHTML = `<b>At NZ$${firmOpts.carbon} a tonne${firmOpts.surplusValue ? ` and NZ$${firmOpts.surplusValue}/MWh for spare energy` : ', with spare energy worth nothing'}:</b> keeping fossil backup costs about ${nzd(first.keep)}m a year. `
+    + (named.length ? `${list(named.map(when))}.` : 'No single renewable source gets cheaper by 2045.')
+    + (named.length && never.length ? ` Not ${list(never)}, before 2045.` : '');
+  $('firm-take').textContent = named.length
+    ? `At NZ$${firmOpts.carbon} a tonne of carbon, ${A.tech[named[0][0]].label.toLowerCase()} plus batteries ${named[0][1] === rows[0].year ? 'already beats' : `beats`} keeping fossil backup${named[0][1] === rows[0].year ? '' : ` from ${named[0][1]}`}.`
+    : 'At today\'s carbon price, keeping fossil backup stays cheaper for now.';
+  const g = first.renewables.geothermal;
+  $('firm-notes').innerHTML = [
+    `<b>The value of spare energy.</b> Renewables sized for the driest year make about ${twh(n.driest.fossil - n.expectedFossil)} more than an average year needs. If that sells, to new electric demand, to flexible industry like the Tiwai smelter, or by keeping lakes fuller, the renewable lines fall a long way.`,
+    `<b>The carbon price.</b> Each NZ$50 a tonne adds about ${nzd(yearCosts(n, first.year, { ...firmOpts, carbon: firmOpts.carbon + 50 }).keep - first.keep)}m a year to keeping fossil backup.`,
+    `<b>Geothermal is limited.</b> It is the cheapest here, at about ${nzd(g.lcoe)} per MWh, but it needs ${g.gw.toFixed(2)} GW of new plant, which is near the limit of what the known fields can add.`,
+    `<b>Wind and sun in a dry winter.</b> Each source is sized on its yearly average. Dry years tend to be winters, when solar makes a third of its summer output, and 2024 was dry and still. Hydro lakes can hold some summer energy back, but solar in particular would need more than shown.`,
+    `<b>Batteries.</b> Two-hour batteries in place of ${n.peakGw.toFixed(2)} GW of fossil peak capacity cost about ${nzd(first.battery)}m a year, a large share of each renewable line. More demand response, or hydro run harder at peaks, would cut that.`,
+  ].map((x) => `<li>${x}</li>`).join('');
+  $('firm-method').innerHTML = `<p>Hydro output stands in for rainfall. The hydro fleet has barely changed since the late 1990s, so a year with less hydro had less water. Today's need for fossil fuel in an average year is the latest 365 days' fossil output (${twh(story.energy.at(-1).fossil)}) plus how much wetter than average those days were. Each year from ${n.years[0]} to ${n.years[1]} then adds its own shortfall of water. The driest year sets the size of the renewable build.</p>
+    <p>Keeping fossil backup costs NZ$${A.thermalFixedPerKw}/kW a year to keep ${n.peakGw.toFixed(2)} GW of existing plant open (an assumption; the Huntly reserve's price is not public), plus fuel and carbon for each year's need. Gas covers the fossil an average year needs (${nzd(first.keepPerMwh.gas)}/MWh at this carbon price), and coal covers the extra in a dry year (${nzd(first.keepPerMwh.coal)}/MWh).</p>
+    <p>Renewables are annualised at ${A.wacc * 100}% real. ${Object.values(A.tech).map((t) => `${t.label}: NZ$${nzNum(t.capexPerKw)}/kW, ${Math.round(t.loadFactor * 100)}% load factor, ${t.life} years, falling ${(t.decline * 100).toFixed(t.decline < 0.01 ? 2 : 1)}% a year`).join('; ')}. Batteries: NZ$${nzNum(A.battery.capexPerKw)}/kW for two hours, ${A.battery.life} years, falling ${A.battery.decline * 100}% a year. The rates of decline are assumptions.</p>
+    <ul>${SOURCES.map(([what, who, url]) => `<li>${what}: <a href="${url}">${who}</a></li>`).join('')}</ul>`;
 }
 
 function renderBatteryStory() {

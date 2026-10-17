@@ -95,3 +95,28 @@ test('adds up NZ years in NZ time and works out the renewable share', async () =
   assert.ok(Math.abs(rows[1].renewablePct - 75) < 1e-9);
   assert.equal(metricSeries(data, ['gas'], { unit: 'pct' })[0], 25);
 });
+
+test('sizes the dry-year need from hydro shortfalls and finds when renewables get cheaper', async () => {
+  const { needs, yearCosts, projection, crf } = await import('../site/js/nz/firming.js');
+  assert.ok(Math.abs(crf(0.06, 30) - 0.07265) < 1e-4);
+  const row = (year, hydro, fossil) => ({ year, twh: { hydro }, fossil, coverage: 1 });
+  // Average hydro 23 TWh; the latest year was 1 TWh wet and used 2 TWh of fossil.
+  const rows = [row(2001, 21, 6), row(2002, 25, 3), row(2003, 23, 4), { ...row('past365', 24, 2) }];
+  const fossil = new Float64Array(1000).fill(0.5);
+  const n = needs(rows, fossil, 1000);
+  assert.equal(n.normalFossil, 3);
+  assert.equal(n.driest.year, 2001);
+  assert.equal(n.driest.fossil, 5);
+  assert.equal(n.expectedFossil, 3);
+  assert.equal(n.peakGw, 0.5);
+  // Fuel cost rises with the carbon price; renewables don't.
+  const lo = yearCosts(n, 2025, { carbon: 50, surplusValue: 0 });
+  const hi = yearCosts(n, 2025, { carbon: 200, surplusValue: 0 });
+  assert.ok(hi.keep > lo.keep);
+  assert.equal(hi.renewables.wind.cost, lo.renewables.wind.cost);
+  // Valuing the spare 2 TWh at $20/MWh takes $40m a year off.
+  const sv = yearCosts(n, 2025, { carbon: 50, surplusValue: 20 });
+  assert.ok(Math.abs(lo.renewables.wind.cost - sv.renewables.wind.cost - 40) < 1e-6);
+  const p = projection(n, { carbon: 500, surplusValue: 40 });
+  assert.equal(p.crossover.geothermal, 2025);
+});
