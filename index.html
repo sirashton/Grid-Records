@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grid Records</title>
+  <meta name="description" content="Records for Great Britain's electricity grid: the longest spells below and above generation thresholds for fossil fuels, low carbon sources and more, plus battery charging and discharging.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-text">
+        <nav class="region-nav" aria-label="Country"><span aria-current="page">Great Britain</span><a href="nz/">New Zealand</a></nav>
+        <h1>Grid Records</h1>
+        <p class="lede">I'm a big fan of Kate Morley's National Grid: Live. With coal gone from Britain's grid, I wanted to follow the next part of the story: how long the grid can now run on little or no gas, whether those spells keep getting longer, and what the batteries are doing as fossil plants retire.</p>
+        <p class="updated" id="updated">Loading the latest generation data. Updated every 30 minutes.</p>
+      </div>
+      <svg class="hero-art" viewBox="0 0 220 160" aria-hidden="true">
+        <g class="sun"><path class="rays" d="M200.0 38.0L208.0 38.0M193.0 55.0L198.6 60.6M176.0 62.0L176.0 70.0M159.0 55.0L153.4 60.6M152.0 38.0L144.0 38.0M159.0 21.0L153.4 15.4M176.0 14.0L176.0 6.0M193.0 21.0L198.6 15.4"/><circle cx="176" cy="38" r="18"/></g>
+        <path class="hill" d="M0 160 C40 112 90 114 130 136 S200 122 220 130 V160 Z"/><path class="ridge" d="M0 160 C40 112 90 114 130 136 S200 122 220 130"/>
+        <g transform="translate(62 60)"><path class="mast" d="M-2.5 0 L2.5 0 L4.5 66 L-4.5 66 Z"/><g class="blades"><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(120)"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(240)"/></g><circle class="hub" r="4.5"/></g>
+        <g transform="translate(146 100) scale(0.6)"><path class="mast" d="M-2.5 0 L2.5 0 L4.5 66 L-4.5 66 Z"/><g class="blades slow"><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(120)"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(240)"/></g><circle class="hub" r="4.5"/></g>
+      </svg>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card now-card" aria-labelledby="now-h">
+      <div class="now-head">
+        <h2 id="now-h">Right now</h2>
+        <div class="segmented small" id="now-window" role="radiogroup" aria-label="Time frame">
+          <button type="button" data-now-window="live" role="radio" aria-checked="true">Live</button>
+          <button type="button" data-now-window="day" role="radio" aria-checked="false">24 hours</button>
+          <button type="button" data-now-window="week" role="radio" aria-checked="false">7 days</button>
+          <button type="button" data-now-window="year" role="radio" aria-checked="false">365 days</button>
+        </div>
+      </div>
+      <div class="now-panel">
+        <div class="now-col now-left" id="now-groups"></div>
+        <div class="now-donut" id="now-donut"></div>
+        <div class="now-col now-right" id="now-right"></div>
+      </div>
+    </section>
+
+    <section class="card records-card" aria-labelledby="records-h">
+      <h2 id="records-h">Records</h2>
+      <p class="hint">How long the grid can now run below or above any level, for any fuel or group.</p>
+      <form class="controls" id="controls" onsubmit="return false">
+        <label class="field">
+          <span>Measure</span>
+          <select id="preset"></select>
+        </label>
+        <div class="field">
+          <span>Record type</span>
+          <div class="segmented" role="radiogroup" aria-label="Record type">
+            <button type="button" data-mode="below" role="radio">Below</button>
+            <button type="button" data-mode="above" role="radio">Above</button>
+          </div>
+        </div>
+        <div class="field">
+          <span>Units</span>
+          <div class="segmented" role="radiogroup" aria-label="Units">
+            <button type="button" data-unit="gw" role="radio">GW</button>
+            <button type="button" data-unit="pct" role="radio">% of generation</button>
+          </div>
+        </div>
+        <label class="field grow">
+          <span>Thresholds</span>
+          <input id="thresholds" inputmode="decimal" autocomplete="off">
+        </label>
+        <div class="field" id="members-field">
+          <span>Sources</span>
+          <button type="button" class="edit-btn" id="members-toggle" aria-expanded="false" aria-controls="members"></button>
+        </div>
+        <fieldset class="field members" id="members" hidden>
+          <legend>Sources in the group</legend>
+        </fieldset>
+      </form>
+      <p class="question" id="question"></p>
+      <div class="table-scroll">
+        <table class="records" id="records-table"></table>
+      </div>
+
+      <h3>How the records have grown</h3>
+      <p class="hint">Each step is a new longest spell.</p>
+      <div class="segmented small" id="prog-scale" role="radiogroup" aria-label="Y axis scale">
+        <button type="button" data-prog-scale="linear" role="radio" aria-checked="false">Linear</button>
+        <button type="button" data-prog-scale="log" role="radio" aria-checked="true">Log</button>
+      </div>
+      <div class="chart-host" id="progression"></div>
+      <div class="legend" id="progression-legend"></div>
+
+      <h3>Longest spell in each year</h3>
+      <p class="hint">✓ marks a spell that lasted the whole year.</p>
+      <div class="chart-host" id="by-year"></div>
+      <div class="legend" id="by-year-legend"></div>
+
+      <h3>The measure over time</h3>
+      <div class="segmented small" id="range" role="radiogroup" aria-label="Time range">
+        <button type="button" data-range="7">Week</button>
+        <button type="button" data-range="30">Month</button>
+        <button type="button" data-range="365">Year</button>
+        <button type="button" data-range="all">All time</button>
+      </div>
+      <div class="segmented small" id="scale" role="radiogroup" aria-label="Y axis scale">
+        <button type="button" data-scale="linear" role="radio">Linear</button>
+        <button type="button" data-scale="log" role="radio">Log</button>
+      </div>
+      <div class="chart-host" id="timeline"></div>
+      <p class="hint" id="timeline-note"></p>
+    </section>
+
+    <section class="plain story" aria-labelledby="story-h">
+      <h2 id="story-h">The story</h2>
+      <div class="facts" id="facts"></div>
+      <p class="hint">Five chapters on whether renewables can now keep the lights on without fossil fuels.</p>
+      <details class="chapter" id="chapter-1" open>
+        <summary><span class="ch-num">1</span><span class="ch-text"><span class="ch-title">Coal is gone</span><span class="ch-take">Coal was Britain's biggest source of power in 2012. Now it makes none.</span></span></summary>
+        <div class="ch-body">
+      <h3>Where Britain's power comes from</h3>
+      <p class="hint">Share of generation each year. The last bar is the past 365 days.</p>
+      <div class="chart-host" id="story-mix"></div>
+      <div class="legend" id="story-mix-legend"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-2">Next: Low carbon overtakes fossil</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-2">
+        <summary><span class="ch-num">2</span><span class="ch-text"><span class="ch-title">Low carbon overtakes fossil</span><span class="ch-take">Wind, solar, nuclear and hydro now generate more than gas and coal in most months.</span></span></summary>
+        <div class="ch-body">
+      <div class="chart-host" id="story-cross"></div>
+      <div class="legend" id="story-cross-legend"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-3">Next: More hours on almost no fossil fuel</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-3">
+        <summary><span class="ch-num">3</span><span class="ch-text"><span class="ch-title">More hours on almost no fossil fuel</span><span class="ch-take">Each year the grid spends more hours running on very little gas.</span></span></summary>
+        <div class="ch-body">
+      <p class="hint">Hours each year with gas and coal together under 10, 5 and 1 GW. The last bar is the past 365 days.</p>
+      <div class="chart-host" id="story-hours"></div>
+      <div class="legend" id="story-hours-legend"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-4">Next: Batteries are coming</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-4">
+        <summary><span class="ch-num">4</span><span class="ch-text"><span class="ch-title">Batteries are coming</span><span class="ch-take" id="battery-take">Grid batteries barely registered a few years ago. Now they cover gigawatts at the evening peak.</span></span></summary>
+        <div class="ch-body">
+      <h3>Battery output over time</h3>
+      <p class="hint">Daily mean battery output on a log scale, where each step up the axis is a doubling or more. The bands show the range of daily means over a rolling year.</p>
+      <div class="chart-host" id="story-battery"></div>
+
+      <h3>Charging and discharging</h3>
+      <p>Above the line, batteries are feeding the grid; below it, they're charging.</p>
+      <div class="segmented small" id="battery-range" role="radiogroup" aria-label="Time range">
+        <button type="button" data-range="3">3 days</button>
+        <button type="button" data-range="14">2 weeks</button>
+        <button type="button" data-range="90">3 months</button>
+      </div>
+      <div class="chart-host" id="battery-chart"></div>
+      <div class="legend" id="battery-legend"></div>
+      <details class="more">
+        <summary>About the battery data</summary>
+        <p class="hint">No single public feed sees all of Great Britain's batteries yet, so the chart shows three side by side.</p>
+      <label class="field inline">
+        <span>Battery source used in records</span>
+        <select id="battery-source"></select>
+      </label>
+      <div class="table-scroll">
+        <table class="sources">
+          <thead><tr><th>Source</th><th>What it measures</th><th>Delay</th><th>Charging?</th><th>Coverage</th></tr></thead>
+          <tbody id="battery-sources"></tbody>
+        </table>
+      </div>
+      <details>
+        <summary id="units-summary">Battery units</summary>
+        <p class="hint">Elexon has no battery fuel type, so units are matched by name (battery, BESS, storage) or by National Grid's naming convention for battery units, where the unit both imports and exports. Batteries connected to local networks outside the Balancing Mechanism are not visible in any of these feeds.</p>
+        <div class="table-scroll"><table class="units" id="units"></table></div>
+      </details>
+      </details>
+
+      <h3>Where battery power comes from</h3>
+      <p class="hint">Batteries don't make electricity, they move it in time, so their output is only as clean as what charged them.
+        This treats the whole fleet as one store that empties first in, first out: energy taken in each half hour is tagged with that half hour's grid mix, and comes back out in the order it went in. It's an experiment, so it only runs when you ask.</p>
+      <button type="button" class="edit-btn" id="origin-toggle" aria-expanded="false" aria-controls="origin-body">Work it out</button>
+      <div id="origin-body" hidden>
+      <div class="facts" id="origin-facts"></div>
+      <div class="chart-host" id="origin-chart"></div>
+      <div class="legend" id="origin-legend"></div>
+      <details>
+        <summary>How the attribution works, and its limits</summary>
+        <ul class="hint" id="origin-notes"></ul>
+      </details>
+      </div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-5">Next: Could solar and batteries do it alone?</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-5">
+        <summary><span class="ch-num">5</span><span class="ch-text"><span class="ch-title">Could solar and batteries do it alone?</span><span class="ch-take">What a steady megawatt from sun and storage alone would cost, compared with gas.</span></span></summary>
+        <div class="ch-body">
+      <p>Solar is the cheapest power ever built, and batteries have followed it down. But the grid needs power at night and in December too. What would it cost to get one steady megawatt, every half hour of the year, from solar panels and batteries alone, and how does that compare with gas?</p>
+
+      <div class="field inline">
+        <span>Chart scale</span>
+        <div class="segmented small" id="solar-scale" role="radiogroup" aria-label="Chart scale">
+          <button type="button" data-solar-scale="log" role="radio" aria-checked="true">Log</button>
+          <button type="button" data-solar-scale="linear" role="radio" aria-checked="false">Linear</button>
+        </div>
+      </div>
+
+      <h3>Panels and batteries keep getting cheaper</h3>
+      <p class="hint" id="solar-kit-text">Installed cost of large solar farms and grid batteries, in 2024 pounds.</p>
+      <div class="chart-host" id="solar-kit" style="--placeholder-height: 240px"></div>
+      <div class="legend" id="solar-kit-legend"></div>
+      <p class="hint">A grid battery lasts about 15 years, slowly losing capacity, so it is bought twice over a solar farm's 30 years and needs topping up along the way. Those costs are included below.</p>
+
+      <h3>What one firm megawatt takes</h3>
+      <div class="facts" id="solar-facts"></div>
+
+      <h3>The cost of a firm megawatt</h3>
+      <p class="hint" id="solar-firm-text">Cost per MWh of power delivered around the clock, all year, in 2024 pounds.</p>
+      <div class="chart-host" id="solar-firm" style="--placeholder-height: 320px"></div>
+      <div class="legend" id="solar-firm-legend"></div>
+      <p class="hint" id="solar-wind-text"></p>
+
+      <h3>What the answer depends on</h3>
+      <ul class="notes" id="solar-notes"></ul>
+      <details>
+        <summary>How this is worked out, and sources</summary>
+        <div class="hint" id="solar-method"></div>
+      </details>
+        </div>
+      </details>
+    </section>
+
+    <section class="plain about" aria-labelledby="about-h">
+      <h2 id="about-h">About the data</h2>
+      <p>Generation by fuel comes from NESO's <a href="https://www.neso.energy/data-portal/historic-generation-mix">historic generation mix</a>,
+        half-hourly since 2009 and updated hourly. It includes wind and solar on local networks, which NESO estimates. Fossil fuels here are gas and coal; oil is too small to report separately and sits in "Other".</p>
+      <p>Battery data comes from Elexon's <a href="https://bmrs.elexon.co.uk/">Insights Solution</a>: each battery unit's Physical Notifications (its planned output, published in real time) and its B1610 metered output (published about five days later). NESO also counts battery discharge inside its "Other" category, and plans to publish batteries separately.</p>
+      <p>A spell is a run of consecutive half hours that meet the threshold. Gaps in the data of up to an hour are bridged when the half hours either side qualify; longer gaps end the spell.</p>
+      <p>Inspired by Kate Morley's <a href="https://grid.iamkate.com/">National Grid: Live</a>. Built by <a href="https://github.com/sirashton">Alex</a>, and the source code is on <a href="https://github.com/sirashton/Grid-Records">GitHub</a>.</p>
+      <p class="small">Contains BMRS data © Elexon Limited copyright and database right 2026. Contains data from the National Energy System Operator, licensed under the NESO Open Data Licence.</p>
+    </section>
+  </main>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
