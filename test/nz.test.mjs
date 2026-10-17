@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseGenerationMonth, nzMidnight, fuelColumn } from '../pipeline/sources/emi-generation.mjs';
+import { parseGenerationMonth, nzMidnight, fuelColumn, PARSE_VERSION } from '../pipeline/sources/emi-generation.mjs';
 import { monthList, isStale } from '../pipeline/build-nz.mjs';
 
 const tps = (n, v) => Array.from({ length: n }, () => v).join(',');
@@ -52,16 +52,17 @@ test('leaves days with no rows missing', () => {
 });
 
 test('maps EMI fuel codes to columns', () => {
-  assert.deepEqual(['Hydro', 'Geo', 'Wind', 'Solar', 'Gas', 'Gas&Oil', 'Coal', 'Coal/Gas', 'Wood', 'Diesel', 'Electrical energy (batteries)', '??']
-    .map(fuelColumn), ['hydro', 'geothermal', 'wind', 'solar', 'gas', 'gas', 'coal', 'coal', 'bioenergy', 'diesel', 'battery', 'other']);
+  assert.deepEqual(['Hydro', 'HYD', 'Geo', 'GEO', 'Wind', 'WIN', 'Solar', 'SOL', 'Gas', 'Gas&Oil', 'Coal', 'Coal/Gas', 'Wood', 'Diesel', 'Electrical energy (batteries)', 'ELE', '??']
+    .map(fuelColumn), ['hydro', 'hydro', 'geothermal', 'geothermal', 'wind', 'wind', 'solar', 'solar', 'gas', 'gas', 'coal', 'coal', 'bioenergy', 'diesel', 'battery', 'battery', 'other']);
 });
 
 test('lists months newest first and refreshes only recent ones', () => {
   assert.deepEqual(monthList('2025-11', Date.UTC(2026, 1, 10)), ['202602', '202601', '202512', '202511']);
   const now = Date.UTC(2026, 9, 17);
-  const old = { fetched: new Date(now - 3 * 864e5).toISOString() };
+  const old = { fetched: new Date(now - 3 * 864e5).toISOString(), version: PARSE_VERSION };
   assert.equal(isStale(old, 0, now), true);
   assert.equal(isStale(old, 10, now), false);
   assert.equal(isStale({ ...old, missing: true }, 10, now), false);
   assert.equal(isStale(null, 10, now), true);
+  assert.equal(isStale({ ...old, version: 1 }, 10, now), true);
 });

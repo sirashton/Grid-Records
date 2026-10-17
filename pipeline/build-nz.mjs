@@ -10,14 +10,14 @@
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { fetchGenerationMonth, NZ_COLUMNS } from './sources/emi-generation.mjs';
+import { fetchGenerationMonth, NZ_COLUMNS, PARSE_VERSION } from './sources/emi-generation.mjs';
 import { encodeColumns } from './encode.mjs';
 import { SLOT_MS, DAY_MS, log } from './lib.mjs';
 
 const { values: args } = parseArgs({
   options: {
     'budget-minutes': { type: 'string', default: '3' },
-    from: { type: 'string', default: '1998-01' },
+    from: { type: 'string', default: '1990-01' },
     out: { type: 'string', default: 'site/data/nz' },
     cache: { type: 'string', default: '.cache-nz' },
     concurrency: { type: 'string', default: '4' },
@@ -48,7 +48,7 @@ export function monthList(from, nowMs) {
 
 /** Whether a cached month (or a cached "no file yet") should be fetched again. */
 export function isStale(entry, index, nowMs) {
-  if (!entry) return true;
+  if (!entry || (!entry.missing && entry.version !== PARSE_VERSION)) return true;
   const age = nowMs - Date.parse(entry.fetched);
   if (index < RECENT_MONTHS) return age > DAY_MS;
   // An old month with no file (a few are missing from the archive) is checked monthly.
@@ -81,7 +81,7 @@ async function main() {
       try {
         const parsed = await fetchGenerationMonth(month);
         const entry = parsed && parsed.length
-          ? { fetched: new Date().toISOString(), ...parsed }
+          ? { fetched: new Date().toISOString(), version: PARSE_VERSION, ...parsed }
           : { fetched: new Date().toISOString(), missing: true };
         if (parsed) Object.assign(fuelCodes, parsed.fuels);
         cached.set(month, entry);

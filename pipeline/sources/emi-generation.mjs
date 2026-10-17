@@ -12,22 +12,26 @@ export const monthUrl = (ym) => `${BASE}/${ym}_Generation_MD.csv`;
 
 export const NZ_TZ = 'Pacific/Auckland';
 
+// Bump when parsing changes, so cached months are parsed again.
+export const PARSE_VERSION = 2;
+
 // Output columns, in the order they are written.
 export const NZ_COLUMNS = ['hydro', 'geothermal', 'wind', 'solar', 'bioenergy', 'gas', 'coal', 'diesel', 'battery', 'other'];
 
 /** Maps an EMI Fuel_Code to an output column. */
 export function fuelColumn(code) {
   const c = String(code ?? '').trim().toLowerCase();
-  if (c === 'hydro') return 'hydro';
+  // Since 2026 some rows use three-letter codes (HYD, GEO, WIN, SOL, ELE).
+  if (c.startsWith('hyd')) return 'hydro';
   if (c.startsWith('geo')) return 'geothermal';
-  if (c === 'wind') return 'wind';
+  if (c.startsWith('win')) return 'wind';
   if (c.startsWith('sol')) return 'solar';
   // Huntly's Rankine units burn coal or gas and are listed as Coal or Coal/Gas.
   if (c.includes('coal')) return 'coal';
   if (c.startsWith('gas')) return 'gas';
   if (c.includes('diesel') || c === 'oil') return 'diesel';
   if (c.includes('wood') || c.includes('bio')) return 'bioenergy';
-  if (c.includes('batt') || c.includes('bess') || c.includes('elec')) return 'battery';
+  if (c.includes('batt') || c.includes('bess') || c.startsWith('ele')) return 'battery';
   return 'other';
 }
 
