@@ -43,6 +43,20 @@ test('handles the 46 and 50 period days at daylight saving changes', () => {
   assert.equal(end.columns.hydro[49], 2);
 });
 
+test('reads the older files, which count trading periods by the clock on daylight saving days', () => {
+  // 5 Oct 1997: saving starts, 48 periods with 2am to 3am (TP5, TP6) empty.
+  const row = (date, vals) => `ARA,ARA2201,MRPL,aratiatia,Hydro,Hydro,${date},${vals.join(',')}`;
+  const start = parseGenerationMonth([header(48), row('1997-10-05', Array.from({ length: 48 }, (_, i) => (i === 4 || i === 5 ? '' : (i + 1) * 500)))].join('\n'));
+  assert.equal(start.length, 46);
+  assert.deepEqual(start.columns.hydro.slice(3, 6), [4, 7, 8]);
+  assert.equal(start.columns.hydro[45], 48);
+  // 15 Mar 1998: saving ends, 48 periods; the repeated hour is missing.
+  const end = parseGenerationMonth([header(48), row('1998-03-15', Array.from({ length: 48 }, (_, i) => (i + 1) * 500))].join('\n'));
+  assert.equal(end.length, 50);
+  assert.deepEqual(end.columns.hydro.slice(5, 9), [6, null, null, 7]);
+  assert.equal(end.columns.hydro[49], 48);
+});
+
 test('leaves days with no rows missing', () => {
   const m = parseGenerationMonth([header(48), `ARA,ARA2201,MRPL,aratiatia,Hydro,Hydro,2026-07-01,${tps(48, 1000)}`,
     `ARA,ARA2201,MRPL,aratiatia,Hydro,Hydro,2026-07-03,${tps(48, 1000)}`].join('\n'));
@@ -65,4 +79,19 @@ test('lists months newest first and refreshes only recent ones', () => {
   assert.equal(isStale({ ...old, missing: true }, 10, now), false);
   assert.equal(isStale(null, 10, now), true);
   assert.equal(isStale({ ...old, version: 1 }, 10, now), true);
+});
+
+test('adds up NZ years in NZ time and works out the renewable share', async () => {
+  const { yearlyEnergy, metricSeries } = await import('../site/js/nz/data.js');
+  // Two whole NZ years from New Year 2024 (UTC+13), hydro 3 GW and gas 1 GW throughout.
+  const startMs = Date.UTC(2024, 0, 1) - 13 * 3600000;
+  const length = (366 + 365) * 48 + 48;
+  const col = (v) => new Float64Array(length).fill(v);
+  const columns = { hydro: col(3000), gas: col(1000), battery: col(50) };
+  const data = { columns, length, startMs };
+  const rows = yearlyEnergy(data);
+  assert.deepEqual(rows.map((r) => r.year), [2024, 2025, 'past365']);
+  assert.ok(Math.abs(rows[0].twh.hydro - 3 * 24 * 366 / 1000) < 1e-6);
+  assert.ok(Math.abs(rows[1].renewablePct - 75) < 1e-9);
+  assert.equal(metricSeries(data, ['gas'], { unit: 'pct' })[0], 25);
 });

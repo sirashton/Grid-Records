@@ -13,7 +13,7 @@ export const monthUrl = (ym) => `${BASE}/${ym}_Generation_MD.csv`;
 export const NZ_TZ = 'Pacific/Auckland';
 
 // Bump when parsing changes, so cached months are parsed again.
-export const PARSE_VERSION = 2;
+export const PARSE_VERSION = 3;
 
 // Output columns, in the order they are written.
 export const NZ_COLUMNS = ['hydro', 'geothermal', 'wind', 'solar', 'bioenergy', 'gas', 'coal', 'diesel', 'battery', 'other'];
@@ -62,6 +62,19 @@ function isoDate(s) {
 }
 
 /**
+ * Maps a trading period to its half hour of the day. Files since 2009 count
+ * real half hours (46 or 50 on daylight saving days). The older files count
+ * 48 by the clock: on the day saving starts, TP5 and TP6 (2am to 3am, which
+ * never happens) are empty, and on the day it ends, the repeated hour has no
+ * periods of its own, so it is left missing.
+ */
+export function slotMapper(periods, tpsInData) {
+  if (periods === 46 && tpsInData > 46) return (tp) => (tp < 4 ? tp : tp < 6 ? null : tp - 2);
+  if (periods === 50 && tpsInData <= 48) return (tp) => (tp < 6 ? tp : tp + 2);
+  return (tp) => tp;
+}
+
+/**
  * Parses one month's CSV into MW per fuel on a UTC half-hourly grid running
  * from midnight NZ time on the first day to midnight after the last.
  * Days with no rows are NaN; plants missing on a day count as zero.
@@ -93,12 +106,13 @@ export function parseGenerationMonth(csv) {
     const name = fuelColumn(code);
     fuels[code] = name;
     let day = days.get(date);
-    if (!day) days.set(date, (day = {}));
-    const sums = (day[name] ??= []);
+    if (!day) days.set(date, (day = { lastTp: -1, fuels: {} }));
+    const sums = (day.fuels[name] ??= []);
     for (const [tp, i] of tpIdx) {
       const v = f[i];
       if (v === undefined || v === '') continue;
       sums[tp] = (sums[tp] ?? 0) + Number(v);
+      if (tp > day.lastTp) day.lastTp = tp;
     }
   }
   if (!days.size) return { startMs: NaN, length: 0, columns: {}, fuels };
@@ -113,11 +127,14 @@ export function parseGenerationMonth(csv) {
     const base = Math.round((nzMidnight(date) - startMs) / SLOT_MS);
     const [yy, mm, dd] = date.split('-').map(Number);
     const periods = Math.round((nzMidnight(new Date(Date.UTC(yy, mm - 1, dd + 1)).toISOString().slice(0, 10)) - nzMidnight(date)) / SLOT_MS);
+    const slotOf = slotMapper(periods, day.lastTp + 1);
     for (const c of NZ_COLUMNS) {
-      const sums = day[c] ?? [];
-      for (let tp = 0; tp < periods; tp++) {
+      const sums = day.fuels[c] ?? [];
+      for (let tp = 0; tp < Math.max(periods, day.lastTp + 1); tp++) {
+        const slot = slotOf(tp);
+        if (slot === null || slot >= periods) continue;
         // kWh in a half hour, times two, over a thousand: average MW.
-        columns[c][base + tp] = Math.round(((sums[tp] ?? 0) * 2) / 1000 * 10) / 10;
+        columns[c][base + slot] = Math.round(((sums[tp] ?? 0) * 2) / 1000 * 10) / 10;
       }
     }
   }

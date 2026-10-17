@@ -24,6 +24,7 @@
   --f-coal: #5b5754; --f-gas: #f4a259; --f-other: #cfc8ba; --f-imports: #f28fb1; --f-biomass: #93c48b;
   --f-nuclear: #b48cf2; --f-hydro: #3b7dd8; --f-wind: #3ec1d3; --f-solar: #ffc93c;
   --f-hydro-2: #7fb3ec;
+  --f-geo: #c7604a; --f-diesel: #8b6f5c; --f-battery: #7a5bd6;
   --fossil: #ef7d3c;
   --fossil-ink: #b8460f; --lowcarbon: #2fb56b;
 }
@@ -61,6 +62,10 @@ a { color: var(--primary); font-weight: 600; }
 }
 h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; line-height: 1.05; }
 .lede { font-size: 1.125rem; color: var(--ink-2); max-width: 40em; margin: 0 0 10px; }
+.region-nav { display: flex; gap: 6px; margin-bottom: 12px; font-size: 0.875rem; font-weight: 700; }
+.region-nav a, .region-nav span { border: 2px solid var(--line); padding: 2px 10px; background: var(--card); color: var(--ink); text-decoration: none; }
+.region-nav [aria-current] { background: var(--line); color: #fff; }
+.region-nav a:hover { text-decoration: underline; }
 .updated { color: var(--ink-2); font-size: 0.8125rem; font-weight: 600; margin: 0; }
 
 .card {
@@ -78,16 +83,16 @@ h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -
 .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 8px; }
 .fact { border: 3px solid var(--line); border-radius: 0; padding: 12px 14px; background: var(--card); }
 .fact .label .swatch { margin-right: 6px; }
-#facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px 32px; align-items: center; }
-#facts .headline .big { font-size: clamp(2.5rem, 7vw, 4rem); font-weight: 800; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-#facts .headline .sub { font-size: 1rem; color: var(--ink-2); margin-top: 6px; }
+#facts, #latest { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 8px 32px; align-items: center; }
+#facts .headline .big, #latest .headline .big { font-size: clamp(2.5rem, 7vw, 4rem); font-weight: 800; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+#facts .headline .sub, #latest .headline .sub { font-size: 1rem; color: var(--ink-2); margin-top: 6px; }
 .fact-list { list-style: none; margin: 0; padding: 0; }
 .fact-list .swatch { flex-shrink: 0; }
 .fact-list li { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 2px solid var(--grid); }
 .fact-list li:last-child { border-bottom: 0; }
 .fact-list .v { font-weight: 800; font-variant-numeric: tabular-nums; }
 .fact-list .sub { color: var(--ink-3); font-size: 0.875rem; }
-@media (max-width: 700px) { #facts { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 700px) { #facts, #latest { grid-template-columns: minmax(0, 1fr); } }
 .fact .big { font-size: 1.75rem; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .fact .label { font-weight: 700; font-size: 0.9375rem; }
 .fact .sub { font-size: 0.8125rem; color: var(--ink-2); }
