@@ -19,6 +19,9 @@ export const ASSUMPTIONS = {
   thermalFixedPerKw: 80,
   // The fuel that covers an average year is mostly gas; the extra in a dry year is mostly coal at Huntly.
   gas: { pricePerGj: 14, heatRate: 7.5, co2PerGj: 0.0531, vom: 5 },
+  // Gas if it has to be imported as LNG: about US$15 per million BTU landed,
+  // near Asian spot prices in 2025 plus shipping and regasification. An assumption.
+  importedGasPerGj: 25,
   coal: { pricePerGj: 7, heatRate: 10.5, co2PerGj: 0.0946, vom: 20 },
   // The capacity to replace: the 99th percentile of fossil output over the latest three years.
   peakQuantile: 0.99,
@@ -54,14 +57,15 @@ export const fuelCost = (f, carbon) => f.heatRate * (f.pricePerGj + f.co2PerGj *
 
 /**
  * Yearly cost, NZ$ million, of each way through the record's weather in a
- * given year, at a carbon price (NZ$/t) and a value for surplus renewable
- * energy (NZ$/MWh) in years that don't need it all.
+ * given year, at a carbon price (NZ$/t), a value for surplus renewable
+ * energy (NZ$/MWh) in years that don't need it all, and optionally a gas
+ * price (NZ$/GJ) in place of the assumed domestic one.
  */
-export function yearCosts(n, year, { carbon, surplusValue }, a = ASSUMPTIONS) {
+export function yearCosts(n, year, { carbon, surplusValue, gasPrice }, a = ASSUMPTIONS) {
   const t = year - 2025;
   // Keep fossil: fixed costs on the peak capacity, plus fuel for each year's
   // need, gas up to an average year and coal for the rest.
-  const gasMwh = fuelCost(a.gas, carbon);
+  const gasMwh = fuelCost({ ...a.gas, pricePerGj: gasPrice ?? a.gas.pricePerGj }, carbon);
   const coalMwh = fuelCost(a.coal, carbon);
   const fuel = n.byYear.reduce((s, r) => s + Math.min(r.fossil, n.normalFossil) * gasMwh + Math.max(0, r.fossil - n.normalFossil) * coalMwh, 0) / n.byYear.length;
   const keep = (n.peakGw * 1e6 * a.thermalFixedPerKw) / 1e6 + fuel; // GW→kW, TWh→MWh both 1e6
@@ -99,5 +103,6 @@ export const SOURCES = [
   ['Coal price, existing plant running costs', 'Concept Consulting for the Electricity Authority, thermal generation in the transition (May 2023)', 'https://www.ea.govt.nz/media/documents/Appendix_C_-_Concept_Consulting.pdf'],
   ['Dry-year shortfall of 3 to 5 TWh', 'Parliamentary Commissioner for the Environment, electricity pathways briefing (June 2023)', 'https://pce.parliament.nz/media/yhon4rio/the-economics-of-four-future-electricity-system-pathways-for-new-zealand-media-briefing-kelly.pdf'],
   ['The last 1% of renewables', 'Interim Climate Change Committee, accelerated electrification (2019)', 'https://www.climatecommission.govt.nz/public/Advice-to-govt-docs/ICCC-accelerated-electrification-summary-report.pdf'],
+  ['Plans to import LNG', 'MBIE, Government says yes to liquefied natural gas (Feb 2026)', 'https://www.mbie.govt.nz/about/news/government-says-yes-to-liquefied-natural-gas'],
   ['Huntly reserve: 150 MW, up to 600,000 t of coal, to 2035', 'Commerce Commission determination (2025)', 'https://www.comcom.govt.nz/news-and-media/news-and-events/2025/commission-issues-draft-determination-proposing-authorisation-of-gentailers-application-for-strategic-energy-reserve-huntly-firming-option/'],
 ];
