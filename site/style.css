@@ -58,14 +58,16 @@ a { color: var(--primary); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .hero-art .blades { animation: none; } }
 @media (max-width: 640px) {
   .hero-inner { flex-direction: column-reverse; align-items: flex-start; gap: 0; padding-top: 16px; }
-  .hero-art { width: 150px; height: 110px; flex-basis: auto; }
+  .hero-art { width: 150px; height: 110px; flex-basis: auto; margin-bottom: 12px; }
 }
 h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; line-height: 1.05; }
 .lede { font-size: 1.125rem; color: var(--ink-2); max-width: 40em; margin: 0 0 10px; }
-.region-nav { display: flex; gap: 6px; margin-bottom: 12px; font-size: 0.875rem; font-weight: 700; }
-.region-nav a, .region-nav span { border: 2px solid var(--line); padding: 2px 10px; background: var(--card); color: var(--ink); text-decoration: none; }
-.region-nav [aria-current] { background: var(--line); color: #fff; }
-.region-nav a:hover { text-decoration: underline; }
+.region-nav { display: inline-flex; margin-bottom: 14px; border: 3px solid var(--line); box-shadow: var(--shadow) var(--shadow) 0 0 var(--line); background: var(--card); }
+.region-nav a, .region-nav span { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 0.875rem; font-weight: 700; color: var(--ink); text-decoration: none; }
+.region-nav > * + * { border-left: 3px solid var(--line); }
+.region-nav img { display: block; width: 30px; height: 15px; outline: 1.5px solid var(--line); }
+.region-nav [aria-current] { background: var(--primary); color: var(--primary-ink); }
+.region-nav a:hover { background: var(--grid); }
 .updated { color: var(--ink-2); font-size: 0.8125rem; font-weight: 600; margin: 0; }
 
 .card {
