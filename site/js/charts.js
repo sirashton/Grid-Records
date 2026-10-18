@@ -9,8 +9,14 @@ function el(name, attrs = {}, parent) {
   return e;
 }
 
-const dateFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short', year: 'numeric' });
-const dateTimeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+let dateFmt;
+let dateTimeFmt;
+/** Sets the time zone dates are shown in: London for Britain, Auckland for New Zealand. */
+export function setTimeZone(timeZone) {
+  dateFmt = new Intl.DateTimeFormat('en-GB', { timeZone, day: 'numeric', month: 'short', year: 'numeric' });
+  dateTimeFmt = new Intl.DateTimeFormat('en-GB', { timeZone, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+setTimeZone('Europe/London');
 export const fmtDate = (ms) => dateFmt.format(ms);
 export const fmtDateTime = (ms) => dateTimeFmt.format(ms);
 
