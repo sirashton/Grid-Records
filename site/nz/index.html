@@ -30,6 +30,12 @@
   </header>
 
   <main class="wrap">
+    <section class="card answer" aria-labelledby="answer-h">
+      <h2 id="answer-h">In short</h2>
+      <p class="answer-lead" id="answer-lead">Working out the costs from the generation data.</p>
+      <ol class="answer-points" id="answer-points"></ol>
+    </section>
+
     <section class="card" aria-labelledby="latest-h">
       <h2 id="latest-h">The latest month</h2>
       <p class="hint" id="latest-hint">Average output by source over the latest 30 days of data. The Electricity Authority publishes each month a few weeks after it ends, so this is not live.</p>
@@ -158,6 +164,7 @@
         <div class="field">
           <span>Carbon price (NZ$ per tonne)</span>
           <div class="segmented small" role="radiogroup" aria-label="Carbon price">
+            <button type="button" data-carbon="0" role="radio">None</button>
             <button type="button" data-carbon="60" role="radio">60</button>
             <button type="button" data-carbon="100" role="radio">100</button>
             <button type="button" data-carbon="150" role="radio">150</button>
@@ -172,8 +179,15 @@
             <button type="button" data-surplus="40" role="radio">40</button>
           </div>
         </div>
+        <div class="field">
+          <span>Gas (NZ$ per GJ)</span>
+          <div class="segmented small" role="radiogroup" aria-label="Gas price">
+            <button type="button" data-gas="14" role="radio">Domestic, 14</button>
+            <button type="button" data-gas="25" role="radio">Imported LNG, 25</button>
+          </div>
+        </div>
       </div>
-      <p class="hint">NZ$ million a year, in 2025 dollars. Each renewable line is enough of that one source, plus batteries, to get through the driest year on record with no fossil fuel. Renewable and battery costs fall a little each year; fuel and carbon are held at the chosen price.</p>
+      <p class="hint">NZ$ million a year, in 2025 dollars. Each renewable line is enough of that one source, plus batteries, to get through the driest year on record with no fossil fuel. Renewable and battery costs fall a little each year; fuel and carbon are held at the chosen prices.</p>
       <div class="chart-host" id="firm-chart"></div>
       <div class="legend" id="firm-legend"></div>
       <p id="firm-answer"></p>

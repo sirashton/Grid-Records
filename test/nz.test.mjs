@@ -117,6 +117,11 @@ test('sizes the dry-year need from hydro shortfalls and finds when renewables ge
   // Valuing the spare 2 TWh at $20/MWh takes $40m a year off.
   const sv = yearCosts(n, 2025, { carbon: 50, surplusValue: 20 });
   assert.ok(Math.abs(lo.renewables.wind.cost - sv.renewables.wind.cost - 40) < 1e-6);
+  // Imported gas raises the cost of keeping fossil, not of renewables.
+  const lng = yearCosts(n, 2025, { carbon: 50, surplusValue: 0, gasPrice: 25 });
+  const gasTwh = n.byYear.reduce((s, r) => s + Math.min(r.fossil, n.normalFossil), 0) / n.byYear.length;
+  assert.ok(Math.abs(lng.keep - lo.keep - gasTwh * 7.5 * 11) < 1e-6);
+  assert.equal(lng.renewables.solar.cost, lo.renewables.solar.cost);
   const p = projection(n, { carbon: 500, surplusValue: 40 });
   assert.equal(p.crossover.geothermal, 2025);
 });
