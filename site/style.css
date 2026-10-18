@@ -63,9 +63,9 @@ a { color: var(--primary); font-weight: 600; }
 h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; line-height: 1.05; }
 .lede { font-size: 1.125rem; color: var(--ink-2); max-width: 40em; margin: 0 0 10px; }
 .region-nav { display: inline-flex; margin-bottom: 14px; border: 3px solid var(--line); box-shadow: var(--shadow) var(--shadow) 0 0 var(--line); background: var(--card); }
-.region-nav a, .region-nav span { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 0.875rem; font-weight: 700; color: var(--ink); text-decoration: none; }
+.region-nav a, .region-nav span { display: inline-flex; align-items: center; gap: 10px; padding: 9px 14px; font-size: 0.875rem; line-height: 1; font-weight: 700; color: var(--ink); text-decoration: none; }
 .region-nav > * + * { border-left: 3px solid var(--line); }
-.region-nav img { display: block; width: 30px; height: 15px; outline: 1.5px solid var(--line); }
+.region-nav img { display: block; flex-shrink: 0; width: 30px; height: 15px; }
 .region-nav [aria-current] { background: var(--primary); color: var(--primary-ink); }
 .region-nav a:hover { background: var(--grid); }
 .updated { color: var(--ink-2); font-size: 0.8125rem; font-weight: 600; margin: 0; }
