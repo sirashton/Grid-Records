@@ -308,3 +308,4 @@ footer { padding-bottom: 40px; }
 .firm-controls { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 8px 0 12px; }
 .firm-controls .field { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .firm-controls .field > span { font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
+#lakes-costs td:first-child { white-space: normal; }

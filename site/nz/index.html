@@ -220,13 +220,17 @@
       <div class="facts" id="lakes-facts"></div>
       <h3>The hydro lakes through 45 years of weather, with no fossil fuel</h3>
       <div class="segmented small" role="radiogroup" aria-label="New build" id="lakes-build">
-        <button type="button" data-lakes="none" role="radio">Today's grid</button>
-        <button type="button" data-lakes="wind" role="radio">With new wind</button>
-        <button type="button" data-lakes="solar" role="radio">With new solar</button>
+        <button type="button" data-lakes="none" role="radio">Today</button>
+        <button type="button" data-lakes="wind" role="radio">+ Wind</button>
+        <button type="button" data-lakes="solar" role="radio">+ Solar</button>
+        <button type="button" data-lakes="mix" role="radio">+ Both</button>
       </div>
       <p class="hint" id="lakes-hint">Energy stored in the hydro lakes each week, in TWh, if every day from 1980 to 2024 had today's demand and no coal or gas.</p>
       <div class="chart-host" id="lakes-chart"></div>
       <div class="legend" id="lakes-legend"></div>
+      <h3>What each build costs</h3>
+      <p class="hint">NZ$ million a year to build and run, in 2025 dollars, annualised at the cost model's rates. Each gets through every year from 1980 to 2024 with no fossil fuel. All of them also need the same batteries for the evening peaks, costed in chapter 5.</p>
+      <div class="table-scroll"><table id="lakes-costs"></table></div>
       <ul class="notes" id="lakes-points"></ul>
       <details>
         <summary>How the lake model works</summary>
