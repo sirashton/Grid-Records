@@ -36,10 +36,22 @@
       <ol class="answer-points" id="answer-points"></ol>
     </section>
 
-    <section class="card" aria-labelledby="latest-h">
-      <h2 id="latest-h">The latest month</h2>
-      <p class="hint" id="latest-hint">Average output by source over the latest 30 days of data. The Electricity Authority publishes each month a few weeks after it ends, so this is not live.</p>
-      <div class="facts" id="latest"></div>
+    <section class="card now-card" aria-labelledby="now-h">
+      <div class="now-head">
+        <h2 id="now-h">The latest data</h2>
+        <div class="segmented small" id="now-window" role="radiogroup" aria-label="Time frame">
+          <button type="button" data-now-window="day" role="radio" aria-checked="true">24 hours</button>
+          <button type="button" data-now-window="week" role="radio" aria-checked="false">7 days</button>
+          <button type="button" data-now-window="month" role="radio" aria-checked="false">30 days</button>
+          <button type="button" data-now-window="year" role="radio" aria-checked="false">365 days</button>
+        </div>
+      </div>
+      <div class="now-panel">
+        <div class="now-col now-left" id="now-groups"></div>
+        <div class="now-donut" id="now-donut"></div>
+        <div class="now-col now-right" id="now-right"></div>
+      </div>
+      <p class="hint now-note" id="now-note">The Electricity Authority publishes each month a few weeks after it ends, so this shows the latest data, not live output.</p>
     </section>
 
     <section class="card records-card" aria-labelledby="records-h">
