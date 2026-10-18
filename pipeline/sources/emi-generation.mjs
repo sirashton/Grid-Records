@@ -13,7 +13,7 @@ export const monthUrl = (ym) => `${BASE}/${ym}_Generation_MD.csv`;
 export const NZ_TZ = 'Pacific/Auckland';
 
 // Bump when parsing changes, so cached months are parsed again.
-export const PARSE_VERSION = 3;
+export const PARSE_VERSION = 4;
 
 // Output columns, in the order they are written.
 export const NZ_COLUMNS = ['hydro', 'geothermal', 'wind', 'solar', 'bioenergy', 'gas', 'coal', 'diesel', 'battery', 'other'];
@@ -106,12 +106,13 @@ export function parseGenerationMonth(csv) {
     const name = fuelColumn(code);
     fuels[code] = name;
     let day = days.get(date);
-    if (!day) days.set(date, (day = { lastTp: -1, fuels: {} }));
+    if (!day) days.set(date, (day = { lastTp: -1, fuels: {}, reported: new Set() }));
     const sums = (day.fuels[name] ??= []);
     for (const [tp, i] of tpIdx) {
       const v = f[i];
       if (v === undefined || v === '') continue;
       sums[tp] = (sums[tp] ?? 0) + Number(v);
+      day.reported.add(tp);
       if (tp > day.lastTp) day.lastTp = tp;
     }
   }
@@ -132,7 +133,9 @@ export function parseGenerationMonth(csv) {
       const sums = day.fuels[c] ?? [];
       for (let tp = 0; tp < Math.max(periods, day.lastTp + 1); tp++) {
         const slot = slotOf(tp);
-        if (slot === null || slot >= periods) continue;
+        // A period no plant reported is missing, not zero output: the older
+        // files leave periods around the daylight saving changes empty.
+        if (slot === null || slot >= periods || !day.reported.has(tp)) continue;
         // kWh in a half hour, times two, over a thousand: average MW.
         columns[c][base + slot] = Math.round(((sums[tp] ?? 0) * 2) / 1000 * 10) / 10;
       }

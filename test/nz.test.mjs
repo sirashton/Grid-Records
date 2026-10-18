@@ -57,6 +57,16 @@ test('reads the older files, which count trading periods by the clock on dayligh
   assert.equal(end.columns.hydro[49], 48);
 });
 
+test('leaves periods that no plant reported missing, not zero', () => {
+  const row = (fuel, vals) => `ARA,ARA2201,MRPL,aratiatia,${fuel},Hydro,2026-07-01,${vals.join(',')}`;
+  const vals = Array.from({ length: 48 }, (_, i) => (i === 10 || i === 11 ? '' : 1000));
+  const m = parseGenerationMonth([header(48), row('Hydro', vals), row('Coal', vals.map((v) => (v === '' ? '' : 0)))].join('\n'));
+  assert.equal(m.columns.hydro[10], null);
+  assert.equal(m.columns.coal[11], null);
+  assert.equal(m.columns.coal[12], 0);
+  assert.equal(m.columns.hydro[12], 2);
+});
+
 test('leaves days with no rows missing', () => {
   const m = parseGenerationMonth([header(48), `ARA,ARA2201,MRPL,aratiatia,Hydro,Hydro,2026-07-01,${tps(48, 1000)}`,
     `ARA,ARA2201,MRPL,aratiatia,Hydro,Hydro,2026-07-03,${tps(48, 1000)}`].join('\n'));
