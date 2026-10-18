@@ -327,35 +327,39 @@ function renderProgression(summaries) {
   $('progression-legend').innerHTML = series.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
 }
 
-function renderByYear(summaries) {
+// Columns for the per-year heatmap: each complete calendar year, then the past
+// 365 days in place of the unfinished one, as in the story charts.
+function yearColumns(lastSlot) {
   const y0 = new Date(data.startMs).getUTCFullYear();
-  const y1 = new Date(slotTime(data.length - 1, data.startMs)).getUTCFullYear();
-  const years = [];
-  for (let y = y0; y <= y1; y++) years.push(y);
-  const values = summaries.map((s) => {
-    const map = new Map(s.perYear);
-    return years.map((y) => map.get(y) ?? null);
-  });
+  const y1 = new Date(slotTime(lastSlot, data.startMs)).getUTCFullYear();
+  const slotsIn = (y) => (Date.UTC(y + 1, 0, 1) - Date.UTC(y, 0, 1)) / (STEP_MINUTES * 60000);
+  const cols = [];
+  for (let y = y0; y < y1; y++) cols.push({ label: String(y), title: String(y), slots: slotsIn(y), pick: (s) => new Map(s.perYear).get(y) ?? null });
+  cols.push({ label: '365d', title: 'Past 365 days', slots: 365 * 48, pick: (s) => s.pastYear });
+  return cols;
+}
+
+function renderByYear(summaries) {
+  const cols = yearColumns(data.length - 1);
+  const values = summaries.map((s) => cols.map((c) => c.pick(s)));
+  const full = (sp, ci) => !!sp && sp.end - sp.start >= cols[ci].slots;
   $('by-year-legend').innerHTML = SPELL_BANDS.map((b) => `<span><span class="swatch" style="background:${b.color}"></span>${b.label}</span>`).join('');
   heatmap($('by-year'), {
     rows: summaries.map((s) => thresholdLabel(s.threshold)),
-    cols: years.map(String),
+    cols: cols.map((c) => c.label),
     values: values.map((r) => r.map((sp) => (sp ? sp.end - sp.start : null))),
     color: (v) => bandFor(v).color,
-    // A tick where the spell covers the whole calendar year.
-    mark: (ri, ci) => {
-      const sp = values[ri][ci];
-      const y = years[ci];
-      return !!sp && sp.end - sp.start >= (Date.UTC(y + 1, 0, 1) - Date.UTC(y, 0, 1)) / (STEP_MINUTES * 60000);
-    },
+    // A tick where the spell covers the whole column.
+    mark: (ri, ci) => full(values[ri][ci], ci),
     format: formatDuration,
     title: (r, c, v) => {
-      const sp = values[summaries.findIndex((s) => thresholdLabel(s.threshold) === r)][years.indexOf(Number(c))];
+      const ci = cols.findIndex((col) => col.label === c);
+      const name = cols[ci].title;
+      const sp = values[summaries.findIndex((s) => thresholdLabel(s.threshold) === r)][ci];
       const whole = sp?.spell;
       const clipped = whole && (whole.start !== sp.start || whole.end !== sp.end);
-      const full = sp && v >= (Date.UTC(+c + 1, 0, 1) - Date.UTC(+c, 0, 1)) / (STEP_MINUTES * 60000);
-      return sp ? `<strong>${c}, ${r}</strong><div>Longest in ${c}: <b>${full ? 'the whole year ✓' : formatDuration(v)}</b></div><div>${fmtDateTime(slotTime(sp.start, data.startMs))} to ${fmtDateTime(slotTime(sp.end, data.startMs))}</div>${clipped ? `<div class="when">Part of a ${formatDuration(whole.end - whole.start)} spell from ${fmtDate(slotTime(whole.start, data.startMs))} to ${fmtDate(slotTime(whole.end, data.startMs))}</div>` : ''}`
-        : `<strong>${c}, ${r}</strong><div>No spells</div>`;
+      return sp ? `<strong>${name}, ${r}</strong><div>Longest in ${ci === cols.length - 1 ? 'the past 365 days' : name}: <b>${full(sp, ci) ? 'the whole time ✓' : formatDuration(v)}</b></div><div>${fmtDateTime(slotTime(sp.start, data.startMs))} to ${fmtDateTime(slotTime(sp.end, data.startMs))}</div>${clipped ? `<div class="when">Part of a ${formatDuration(whole.end - whole.start)} spell from ${fmtDate(slotTime(whole.start, data.startMs))} to ${fmtDate(slotTime(whole.end, data.startMs))}</div>` : ''}`
+        : `<strong>${name}, ${r}</strong><div>No spells</div>`;
     },
   });
 }
