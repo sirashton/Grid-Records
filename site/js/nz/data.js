@@ -135,3 +135,27 @@ export function highlights(data) {
   }
   return { green, lastZero, wind, solar };
 }
+
+/**
+ * GWh by fuel for each NZ calendar day of the latest n whole days before
+ * slot end, with the generation total: { date: 'YYYY-MM-DD', total, [fuel] }.
+ */
+export function dailyEnergy(data, end, n = 365) {
+  const { startMs, columns } = data;
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Pacific/Auckland', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const days = new Map();
+  let hour = -1;
+  let date = '';
+  for (let i = Math.max(0, end - (n + 2) * 48); i < end; i++) {
+    const t = startMs + i * 18e5;
+    if (Math.floor(t / 36e5) !== hour) { hour = Math.floor(t / 36e5); date = fmt.format(t); }
+    const row = days.get(date) ?? days.set(date, { date, total: 0, slots: 0 }).get(date);
+    row.slots++;
+    for (const k of GENERATION) {
+      const v = columns[k]?.[i];
+      if (v > 0) { row[k] = (row[k] ?? 0) + (v * SLOT_H) / 1000; row.total += (v * SLOT_H) / 1000; }
+    }
+  }
+  // Whole days only: 46 to 50 half hours, as daylight saving changes allow.
+  return [...days.values()].filter((d) => d.slots >= 46).slice(-n);
+}

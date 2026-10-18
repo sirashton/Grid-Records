@@ -135,3 +135,25 @@ test('sizes the dry-year need from hydro shortfalls and finds when renewables ge
   const p = projection(n, { carbon: 500, surplusValue: 40 });
   assert.equal(p.crossover.geothermal, 2025);
 });
+
+test('the lake model only burns fossil fuel when the lakes run dry, and sizes builds to avoid it', async () => {
+  const { fleetFromDays, simulate, minimumBuild, dryYearWeather } = await import('../site/js/nz/lakes.js');
+  // Two years of 100 GWh demand a day; no geothermal, wind or solar yet.
+  const days = Array.from({ length: 365 }, (_, i) => ({ date: new Date(Date.UTC(2025, 0, 1 + i)).toISOString().slice(0, 10), total: 100 }));
+  const fleet = fleetFromDays(days);
+  const n = 731;
+  // Inflow covers 90 GWh a day in year one and 110 in year two; wind blows at 50% throughout.
+  const inputs = { first: '2000-01-01', days: n, inflowScale: 1, activeGwh: 2000, inflow: Array.from({ length: n }, (_, i) => (i < 366 ? 90 : 110)), wind: new Array(n).fill(0.5), solar: new Array(n).fill(0) };
+  const lo = { hydroMinGw: 0, hydroMaxGw: 10, load: { geothermal: 0.9, wind: 0.5, solar: 0.2 } };
+  const r = simulate(inputs, fleet, {}, {}, lo);
+  // 10 GWh a day short of water: the lakes run dry, then year two refills them.
+  assert.ok(r.years.get(2000) > 0);
+  assert.equal(r.years.get(2001) ?? 0, 0);
+  // Enough wind to cover the 10 GWh a day gap: 10 / (0.5 × 24) GW, less what storage carries.
+  const gw = minimumBuild(inputs, fleet, 'wind', {}, 40, lo);
+  assert.ok(gw > 0 && gw <= 10 / 12 + 0.01);
+  assert.equal(simulate(inputs, fleet, { wind: gw }, {}, lo).short, 0);
+  const w = dryYearWeather({ ...inputs, wind: Array.from({ length: n }, (_, i) => (i < 366 ? 0.4 : 0.6)) }, 1);
+  assert.deepEqual(w.years, [2000]);
+  assert.ok(Math.abs(w.windPct + 20) < 1e-9);
+});
