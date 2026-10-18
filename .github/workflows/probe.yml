@@ -7,6 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          curl -sS "https://emidatasets.blob.core.windows.net/publicdata?restype=container&comp=list&prefix=Datasets/Environment/HydrologicalModellingDataset/" | grep -o '<Name>[^<]*</Name><Properties>[^/]*<Content-Length>[0-9]*' | sed 's/<Properties>.*<Content-Length>/ /;s/<\/\?Name>//g' | head -400
+          for pre in "Datasets/Environment/" "Datasets/Environment/_AdditionalInformation/ArchivedDatasets/20241231_HydrologicalModellingDataset/"; do
+            echo "== $pre"
+            curl -sS "https://emidatasets.blob.core.windows.net/publicdata?restype=container&comp=list&prefix=$pre&maxresults=5000" -o list.xml
+            head -c 300 list.xml; echo
+            grep -o '<Name>[^<]*</Name>' list.xml | sed 's/<\/\?Name>//g' | sed 's#/[^/]*$##' | sort | uniq -c | head -80
+          done
       - run: |
-          curl -sS "https://archive-api.open-meteo.com/v1/archive?latitude=-44&longitude=170&start_date=2001-01-01&end_date=2001-01-02&hourly=shortwave_radiation,wind_speed_100m" | head -c 600
+          curl -sS "https://emidatasets.blob.core.windows.net/publicdata?restype=container&comp=list&prefix=Datasets/Environment/_AdditionalInformation/ArchivedDatasets/20241231_HydrologicalModellingDataset/&maxresults=5000" | grep -o '<Name>[^<]*</Name>' | sed 's/<\/\?Name>//g' | grep -iv "flow_[0-9]" | head -150
