@@ -108,6 +108,16 @@ export function summarise(values, threshold, mode, opts) {
       if (!prev || end - start > prev.end - prev.start) perYear.set(y, part);
     }
   }
+  // The longest spell within the past 365 days, clipped to that window, for
+  // the bar that stands in for the unfinished calendar year.
+  const winEnd = lastValid + 1;
+  const winStart = winEnd - Math.round((365 * 24 * 60) / STEP_MINUTES);
+  let pastYear = null;
+  for (const s of spells) {
+    const start = Math.max(s.start, winStart);
+    const end = Math.min(s.end, winEnd);
+    if (end > start && (!pastYear || end - start > pastYear.end - pastYear.start)) pastYear = { start, end, spell: s };
+  }
   return {
     threshold,
     mode,
@@ -118,6 +128,7 @@ export function summarise(values, threshold, mode, opts) {
     progression,
     top: topSpells(spells, opts.top ?? 10),
     perYear: [...perYear.entries()].sort((a, b) => a[0] - b[0]),
+    pastYear,
   };
 }
 

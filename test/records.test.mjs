@@ -79,3 +79,15 @@ test('a zero threshold means none at all', () => {
   assert.equal(meets(0.1, 0.1, 'below'), false);
   assert.deepEqual(findSpells([0.2, 0, 0, 0.1], 0, 'below'), [{ start: 1, end: 3 }]);
 });
+
+test('pastYear is the longest spell in the last 365 days, clipped to them', () => {
+  const year = 365 * 48;
+  // A long spell that starts before the window, then a short one inside it.
+  const v = new Float64Array(year + 1000).fill(5);
+  for (let i = 500; i < 2000; i++) v[i] = 1;
+  for (let i = year + 500; i < year + 600; i++) v[i] = 1;
+  const s = summarise(v, 2, 'below', { startMs: Date.UTC(2024, 0, 1) });
+  const from = v.length - year;
+  assert.deepEqual([s.pastYear.start, s.pastYear.end], [from, 2000]);
+  assert.deepEqual([s.pastYear.spell.start, s.pastYear.spell.end], [500, 2000]);
+});
