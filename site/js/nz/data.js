@@ -118,24 +118,6 @@ export function yearlyHoursBelow(data, names, thresholdsMw) {
   });
 }
 
-/** Mean MW per fuel over the last n slots that have data, and the slot range used. */
-export function recentMix(data, n) {
-  let end = data.length;
-  while (end > 0 && Number.isNaN(data.columns.hydro[end - 1])) end--;
-  const start = Math.max(0, end - n);
-  const means = {};
-  for (const k of Object.keys(FUELS)) {
-    const c = data.columns[k];
-    let s = 0;
-    let m = 0;
-    for (let i = start; i < end; i++) if (c && !Number.isNaN(c[i])) { s += Math.max(0, c[i]); m++; }
-    means[k] = m ? s / m : 0;
-  }
-  const total = GENERATION.reduce((s, k) => s + means[k], 0);
-  const renewable = RENEWABLE.reduce((s, k) => s + means[k], 0);
-  return { start, end, means, total, renewablePct: total ? (renewable / total) * 100 : NaN };
-}
-
 /** The greenest and least-fossil half hours, and the last half hour with no fossil output at all. */
 export function highlights(data) {
   const total = generationTotal(data);

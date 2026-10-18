@@ -14,7 +14,7 @@ export const WATCH = [
 ];
 
 // Single half-hour peaks worth celebrating.
-const PEAKS = [
+export const PEAKS = [
   { label: 'Most wind', members: ['wind'], unit: 'gw', best: 'max' },
   { label: 'Most solar', members: ['solar'], unit: 'gw', best: 'max' },
   { label: 'Least fossil fuel', members: ['gas', 'coal'], unit: 'gw', best: 'min' },
@@ -27,13 +27,16 @@ const DAY = 48;
  * Records set within `days` (spells still running count), newest first.
  * Each: { kind: 'spell'|'peak', label, threshold?, mode?, slots?, value? (GW or %), unit?, start, end, live }.
  */
-export function recentRecords(data, { days = 180, peakDays = 365, limit = 6, batterySource = 'pn' } = {}) {
+export function recentRecords(data, {
+  days = 180, peakDays = 365, limit = 6, batterySource = 'pn',
+  // Another country's page passes its own groups, series and total.
+  watch = WATCH, peaks = PEAKS, series = metricSeries, total = generationTotal(data), greenFloor = 10000,
+} = {}) {
   const end = data.length;
   const since = end - days * DAY;
   const out = [];
-  const total = generationTotal(data);
-  for (const w of WATCH) {
-    const values = metricSeries(data, w.members, { batterySource });
+  for (const w of watch) {
+    const values = series(data, w.members, { batterySource });
     // The most demanding threshold whose record was set recently.
     const ordered = w.mode === 'below' ? [...w.gw].sort((a, b) => a - b) : [...w.gw].sort((a, b) => b - a);
     for (const t of ordered) {
@@ -44,14 +47,14 @@ export function recentRecords(data, { days = 180, peakDays = 365, limit = 6, bat
       break;
     }
   }
-  for (const p of PEAKS) {
-    const values = metricSeries(data, p.members, { unit: 'gw', batterySource: 'none' });
+  for (const p of peaks) {
+    const values = series(data, p.members, { unit: 'gw', batterySource: 'none' });
     let best = -1;
     for (let i = 0; i < end; i++) {
       let v = values[i];
       if (Number.isNaN(v)) continue;
       if (p.unit === 'pct') {
-        if (!(total[i] > 10000)) continue;
+        if (!(total[i] > greenFloor)) continue;
         v = (v * 1000 / total[i]) * 100;
         values[i] = v;
       }
