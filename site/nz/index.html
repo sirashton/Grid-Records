@@ -125,7 +125,7 @@
     <section class="plain story" aria-labelledby="story-h">
       <h2 id="story-h">The story</h2>
       <div class="facts" id="facts"></div>
-      <p class="hint">Five chapters on how close New Zealand is to a fully renewable grid, what stands in the way, and when going all the way gets cheaper.</p>
+      <p class="hint">Six chapters on how close New Zealand is to a fully renewable grid, what stands in the way, when going all the way gets cheaper, and what solar is really worth.</p>
       <details class="chapter" id="chapter-1" open>
         <summary><span class="ch-num">1</span><span class="ch-text"><span class="ch-title">Mostly renewable already</span><span class="ch-take" id="mix-take">Hydro and geothermal have carried the grid for decades. Wind and solar are now adding to them.</span></span></summary>
         <div class="ch-body">
@@ -162,6 +162,7 @@
       <h3>Battery output over time</h3>
       <p class="hint">Daily mean battery discharge into the grid, in MW. The Electricity Authority's data shows what batteries send to the grid, not what they take when charging.</p>
       <div class="chart-host" id="story-battery"></div>
+      <p>The biggest is still to come. Genesis is building a battery at Huntly Power Station: 100 MW and 200 MWh due in 2026, and another 100 MW and 200 MWh around 2029 (<a href="https://announcements.nzx.com/announcement/471153">Genesis to the NZX</a>, <a href="https://www.ess-news.com/2026/04/28/saft-to-supply-additional-batteries-as-new-zealands-major-bess-doubles-in-size/">ESS News</a>). It plugs into the coal station's existing grid connection. At full size it covers about an eighth of the fossil capacity the grid leans on at its evening peaks, so the cost model in chapter 5 counts it. It does nothing for a dry year: 400 MWh lasts two hours, and a dry year is short of water for months.</p>
         <button type="button" class="edit-btn next-ch" data-next="chapter-5">Next: When does 100% get cheaper?</button>
         </div>
       </details>
@@ -199,7 +200,7 @@
           </div>
         </div>
       </div>
-      <p class="hint">NZ$ million a year, in 2025 dollars. Each renewable line is enough of that one source, plus batteries, to get through the driest year on record with no fossil fuel. Renewable and battery costs fall a little each year; fuel and carbon are held at the chosen prices.</p>
+      <p class="hint">NZ$ million a year, in 2025 dollars. Each renewable line is enough of that one source, plus batteries, to get through every year from 1980 to 2024 with no fossil fuel, sized by the lake model in chapter 6. Renewable and battery costs fall a little each year; fuel and carbon are held at the chosen prices.</p>
       <div class="chart-host" id="firm-chart"></div>
       <div class="legend" id="firm-legend"></div>
       <p id="firm-answer"></p>
@@ -208,6 +209,28 @@
       <details>
         <summary>How this is worked out, and sources</summary>
         <div class="hint" id="firm-method"></div>
+      </details>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-6">Next: What if we put solar on hydro lakes?</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-6">
+        <summary><span class="ch-num">6</span><span class="ch-text"><span class="ch-title">What if we put solar on hydro lakes?</span><span class="ch-take" id="lakes-take">What solar is worth when the lakes run low, from 45 years of rain, wind and sun.</span></span></summary>
+        <div class="ch-body">
+      <p class="answer-lead" id="lakes-lead">Running the lake model.</p>
+      <div class="facts" id="lakes-facts"></div>
+      <h3>The hydro lakes through 45 years of weather, with no fossil fuel</h3>
+      <div class="segmented small" role="radiogroup" aria-label="New build" id="lakes-build">
+        <button type="button" data-lakes="none" role="radio">Today's grid</button>
+        <button type="button" data-lakes="wind" role="radio">With new wind</button>
+        <button type="button" data-lakes="solar" role="radio">With new solar</button>
+      </div>
+      <p class="hint" id="lakes-hint">Energy stored in the hydro lakes each week, in TWh, if every day from 1980 to 2024 had today's demand and no coal or gas.</p>
+      <div class="chart-host" id="lakes-chart"></div>
+      <div class="legend" id="lakes-legend"></div>
+      <ul class="notes" id="lakes-points"></ul>
+      <details>
+        <summary>How the lake model works</summary>
+        <div class="hint" id="lakes-method"></div>
       </details>
         </div>
       </details>

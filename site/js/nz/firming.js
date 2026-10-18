@@ -15,6 +15,9 @@ export const ASSUMPTIONS = {
     solar: { label: 'Solar', capexPerKw: 1900, omPerKw: 20, loadFactor: 0.19, life: 30, decline: 0.025 },
   },
   battery: { capexPerKw: 1700, omShare: 0.025, life: 15, decline: 0.04 }, // two-hour, per kW
+  // Huntly's battery is already being built and counts toward the peak:
+  // 100 MW from mid-2026 and another 100 MW around 2029 (Genesis).
+  committedBatteryGw: 0.2,
   // Keeping existing thermal plant open: staff, maintenance and insurance, no new build.
   thermalFixedPerKw: 80,
   // The fuel that covers an average year is mostly gas; the extra in a dry year is mostly coal at Huntly.
@@ -70,19 +73,22 @@ export function yearCosts(n, year, { carbon, surplusValue, gasPrice }, a = ASSUM
   const fuel = n.byYear.reduce((s, r) => s + Math.min(r.fossil, n.normalFossil) * gasMwh + Math.max(0, r.fossil - n.normalFossil) * coalMwh, 0) / n.byYear.length;
   const keep = (n.peakGw * 1e6 * a.thermalFixedPerKw) / 1e6 + fuel; // GW→kW, TWh→MWh both 1e6
   // 100% renewable: enough of one technology to cover the driest year on
-  // record, plus batteries in place of the fossil peak capacity.
+  // record, plus batteries in place of the fossil peak capacity. The lake
+  // model's sizes (n.sizes, GW) replace sizing on the yearly average when given.
   const b = a.battery;
   const batteryCapex = b.capexPerKw * (1 - b.decline) ** t;
-  const battery = (n.peakGw * 1e6 * (batteryCapex * (crf(a.wacc, b.life) + b.omShare))) / 1e6;
+  const battery = (Math.max(0, n.peakGw - a.committedBatteryGw) * 1e6 * (batteryCapex * (crf(a.wacc, b.life) + b.omShare))) / 1e6;
   const renewables = {};
   for (const [key, g] of Object.entries(a.tech)) {
     const capex = g.capexPerKw * (1 - g.decline) ** t;
     const perKw = capex * crf(a.wacc, g.life) + g.omPerKw;
-    const kw = (n.driest.fossil * 1e9) / (g.loadFactor * 8760); // TWh → kWh
-    const surplus = (n.driest.fossil - n.expectedFossil) * 1e6 * surplusValue;
+    const kw = n.sizes?.[key] ? n.sizes[key] * 1e6 : (n.driest.fossil * 1e9) / (g.loadFactor * 8760); // TWh → kWh
+    const spareTwh = (kw * g.loadFactor * 8760) / 1e9 - n.expectedFossil;
+    const surplus = Math.max(0, spareTwh) * 1e6 * surplusValue;
     renewables[key] = {
       gw: kw / 1e6,
       lcoe: perKw / (g.loadFactor * 8.76),
+      spareTwh,
       cost: (kw * perKw - surplus) / 1e6 + battery,
     };
   }
@@ -103,6 +109,10 @@ export const SOURCES = [
   ['Coal price, existing plant running costs', 'Concept Consulting for the Electricity Authority, thermal generation in the transition (May 2023)', 'https://www.ea.govt.nz/media/documents/Appendix_C_-_Concept_Consulting.pdf'],
   ['Dry-year shortfall of 3 to 5 TWh', 'Parliamentary Commissioner for the Environment, electricity pathways briefing (June 2023)', 'https://pce.parliament.nz/media/yhon4rio/the-economics-of-four-future-electricity-system-pathways-for-new-zealand-media-briefing-kelly.pdf'],
   ['The last 1% of renewables', 'Interim Climate Change Committee, accelerated electrification (2019)', 'https://www.climatecommission.govt.nz/public/Advice-to-govt-docs/ICCC-accelerated-electrification-summary-report.pdf'],
+  ['Lake inflows and storage, 1980 to 2024', 'Electricity Authority, Hydrological Modelling Dataset (to Dec 2024)', 'https://www.emi.ea.govt.nz/Environment/Datasets/HydrologicalModellingDataset'],
+  ['Wind and sunshine, 1980 to 2024', 'ERA5 reanalysis via the Open-Meteo historical weather API', 'https://open-meteo.com/en/docs/historical-weather-api'],
+  ['Huntly battery: 100 MW / 200 MWh in 2026, 200 MW / 400 MWh by about 2029', 'Genesis to the NZX (2026)', 'https://announcements.nzx.com/announcement/471153'],
+  ['Floating solar at Rosedale: 1 MW on one hectare', 'pv magazine (Oct 2020)', 'https://www.pv-magazine-australia.com/2020/10/07/something-to-be-buoyant-about-nzs-largest-solar-array-is-afloat/'],
   ['Plans to import LNG', 'MBIE, Government says yes to liquefied natural gas (Feb 2026)', 'https://www.mbie.govt.nz/about/news/government-says-yes-to-liquefied-natural-gas'],
   ['Huntly reserve: 150 MW, up to 600,000 t of coal, to 2035', 'Commerce Commission determination (2025)', 'https://www.comcom.govt.nz/news-and-media/news-and-events/2025/commission-issues-draft-determination-proposing-authorisation-of-gentailers-application-for-strategic-energy-reserve-huntly-firming-option/'],
 ];

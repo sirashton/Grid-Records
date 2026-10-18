@@ -4,7 +4,8 @@ import { loadData } from '../data.js';
 import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from '../records.js';
 import { lineChart, heatmap, barChart, niceTicks, fmtDate, fmtDateTime, setTimeZone } from '../charts.js';
 import { envelopes, windowEnvelopes } from '../envelope.js';
-import { FUELS, FOSSIL, RENEWABLE, metricSeries, generationTotal, yearlyEnergy, yearlyHoursBelow } from './data.js';
+import { FUELS, FOSSIL, RENEWABLE, metricSeries, generationTotal, yearlyEnergy, yearlyHoursBelow, dailyEnergy } from './data.js';
+import { LAKE, fleetFromDays, simulate, lakeSizes, minimumBuild, dryYearWeather, solarSeason } from './lakes.js';
 import { recentRecords } from '../recent.js';
 import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
 import { startAnalytics } from '../analytics.js';
@@ -45,6 +46,7 @@ const nzNum = (v) => v.toLocaleString('en-NZ');
 
 const state = { preset: 'fossil', mode: 'below', unit: 'gw', thresholds: PRESETS.fossil.gw, members: PRESETS.fossil.members, range: 'all', membersOpen: false, scale: 'linear' };
 let data;
+let lakeInputs = null; // site/nz/lakes.json, or null if it didn't load
 let end; // one past the last slot with data
 
 function readHash() {
@@ -518,6 +520,13 @@ function renderStory() {
       hours: yearlyHoursBelow(data, FOSSIL, [500, 250, 100]),
       spells: [0.1, 0.25, 0.5].map((gw) => summarise(metricSeries(data, FOSSIL).subarray(0, end), gw, 'below', { startMs: data.startMs, maxGap: 2 }).record),
     };
+    story.needs = needs(story.energy, metricSeries(data, FOSSIL), end);
+    if (lakeInputs) {
+      const fleet = fleetFromDays(dailyEnergy(data, end));
+      const sizes = lakeSizes(lakeInputs, fleet);
+      story.lakes = { fleet, sizes, half: lakeSizes(lakeInputs, fleet, { cap: lakeInputs.activeGwh / 2 }), contingent: lakeSizes(lakeInputs, fleet, { cap: lakeInputs.activeGwh + lakeInputs.contingentGwh }) };
+      story.needs.sizes = Object.fromEntries(Object.entries(sizes).map(([k, v]) => [k, v.gw]));
+    }
   }
   const at = (i) => fmtDate(slotTime(i, data.startMs));
   const spellText = (r) => (r ? formatDuration(r.end - r.start) : 'Never');
@@ -588,6 +597,7 @@ function renderStory() {
 
   renderBatteryStory();
   renderFirming();
+  renderLakes();
   renderAnswer();
 }
 
@@ -621,8 +631,18 @@ function renderAnswer() {
   $('answer-points').innerHTML = [
     `<b>Home-grown power is the cheapest new power.</b> New wind costs about ${nzd(r.wind.lcoe)} and new solar about ${nzd(r.solar.lcoe)} per MWh to build and run. Gas costs ${nzd(gasNow)} per MWh in fuel alone at today's domestic price, before paying for the power station. ${link('chapter-5', 'The costs')}`,
     `<b>The only hard part is a dry year.</b> The grid has run ${record ? formatDuration(record.end - record.start) : 'for days'} on almost no fossil fuel. But a year as dry as ${n.driest.year} would still need ${n.driest.fossil.toFixed(1)} TWh of coal and gas, and that is what the last few percent has to replace. ${link('chapter-2', 'Dry years')}`,
+    ...(story.lakes ? [lakesPoint(link)] : []),
     `<b>Imported gas would be the expensive choice.</b> New Zealand's own gas is running down, and the Government plans to import LNG. At about NZ$${A.importedGasPerGj}/GJ, gas costs ${nzd(gasImported)} per MWh in fuel and keeping fossil backup costs ${nzd(imported.rows[0].keep)}m a year, against ${nzd(now.keep)}m today. ${cross.length ? `At that price, ${list(crossText)}.` : ''} Wind, water, sun and steam are priced at home; imported gas is priced on the world market. ${link('chapter-5', 'With imported gas', A.importedGasPerGj)}`,
   ].map((x) => `<li>${x}</li>`).join('');
+}
+
+const link6 = (text) => `<a href="#chapter-6" data-open="chapter-6">${text}</a>`;
+const pctLess = (v) => `${Math.round((1 - v) * 100)}%`;
+
+// One line of the In short card: what each source is really worth in a dry year.
+function lakesPoint(link) {
+  const { sizes } = story.lakes;
+  return `<b>Solar can do it, but wind and geothermal do more per unit.</b> Replaying every day from 1980 to 2024 through the hydro lakes, the grid needs about ${sizes.wind.gw.toFixed(1)} GW of new wind, ${sizes.solar.gw.toFixed(1)} GW of solar or ${sizes.geothermal.gw.toFixed(1)} GW of geothermal to never run them dry. Each MWh of solar counts for about ${pctLess(sizes.solar.value / sizes.wind.value)} less than a MWh of wind, because the sun is weakest in winter. ${link('chapter-6', 'Solar on the lakes')}`;
 }
 
 const firmOpts = { carbon: 0, surplusValue: 0, gasPrice: A.gas.pricePerGj };
@@ -639,7 +659,6 @@ function renderFirming() {
   document.querySelectorAll('[data-carbon]').forEach((b) => b.setAttribute('aria-checked', Number(b.dataset.carbon) === firmOpts.carbon));
   document.querySelectorAll('[data-surplus]').forEach((b) => b.setAttribute('aria-checked', Number(b.dataset.surplus) === firmOpts.surplusValue));
   document.querySelectorAll('[data-gas]').forEach((b) => b.setAttribute('aria-checked', Number(b.dataset.gas) === firmOpts.gasPrice));
-  story.needs ??= needs(story.energy, metricSeries(data, FOSSIL), end);
   const n = story.needs;
   const twh = (v) => `${v.toFixed(1)} TWh`;
   $('firm-facts').innerHTML = factsHtml(twh(n.driest.fossil), `of fossil generation today's grid would need in a year as dry as ${n.driest.year}, the driest of ${n.years[0]} to ${n.years[1]}.`, [
@@ -679,17 +698,98 @@ function renderFirming() {
     : `With ${carbonText} and ${gasText}, keeping fossil backup stays cheaper for now.`;
   const g = first.renewables.geothermal;
   $('firm-notes').innerHTML = [
-    `<b>The value of spare energy.</b> Renewables sized for the driest year make about ${twh(n.driest.fossil - n.expectedFossil)} more than an average year needs. If that sells, to new electric demand, to flexible industry like the Tiwai smelter, or by keeping lakes fuller, the renewable lines fall a long way.`,
+    `<b>The value of spare energy.</b> Renewables sized for the driest years make about ${twh(first.renewables.wind.spareTwh)} (wind) to ${twh(first.renewables.solar.spareTwh)} (solar) more than an average year needs. If that sells, to new electric demand, to flexible industry like the Tiwai smelter, or by keeping lakes fuller, the renewable lines fall a long way.`,
     `<b>The gas price.</b> Imported gas at NZ$${A.importedGasPerGj}/GJ instead of NZ$${A.gas.pricePerGj} adds about ${nzd(yearCosts(n, first.year, { ...firmOpts, gasPrice: A.importedGasPerGj }).keep - yearCosts(n, first.year, { ...firmOpts, gasPrice: A.gas.pricePerGj }).keep)}m a year to keeping fossil backup. New Zealand's gas fields are running down, and an LNG import terminal would tie the price in dry years to the world market.`,
     `<b>The carbon price.</b> Each NZ$50 a tonne adds about ${nzd(yearCosts(n, first.year, { ...firmOpts, carbon: firmOpts.carbon + 50 }).keep - first.keep)}m a year to keeping fossil backup.`,
     `<b>Geothermal is limited.</b> It is the cheapest here, at about ${nzd(g.lcoe)} per MWh, but it needs ${g.gw.toFixed(2)} GW of new plant, which is near the limit of what the known fields can add.`,
-    `<b>Wind and sun in a dry winter.</b> Each source is sized on its yearly average. Dry years tend to be winters, when solar makes a third of its summer output, and 2024 was dry and still. Hydro lakes can hold some summer energy back, but solar in particular would need more than shown.`,
-    `<b>Batteries.</b> Two-hour batteries in place of ${n.peakGw.toFixed(2)} GW of fossil peak capacity cost about ${nzd(first.battery)}m a year, a large share of each renewable line. More demand response, or hydro run harder at peaks, would cut that.`,
+    story.lakes
+      ? `<b>Wind and sun in a dry winter.</b> Each source is sized by replaying every day from 1980 to 2024 through the hydro lakes. Solar needs ${story.lakes.sizes.solar.gw.toFixed(1)} GW, a little more than its yearly average suggests, because it is weakest in winter. ${link6('Solar on the lakes')}`
+      : `<b>Wind and sun in a dry winter.</b> Each source is sized on its yearly average. Dry years tend to be winters, when solar makes a third of its summer output. Hydro lakes can hold some summer energy back, but solar in particular would need more than shown.`,
+    `<b>Batteries.</b> Two-hour batteries in place of ${n.peakGw.toFixed(2)} GW of fossil peak capacity, less the ${Math.round(A.committedBatteryGw * 1000)} MW Huntly battery already being built, cost about ${nzd(first.battery)}m a year, a large share of each renewable line. More demand response, or hydro run harder at peaks, would cut that.`,
   ].map((x) => `<li>${x}</li>`).join('');
-  $('firm-method').innerHTML = `<p>Hydro output stands in for rainfall. The hydro fleet has barely changed since the late 1990s, so a year with less hydro had less water. Today's need for fossil fuel in an average year is the latest 365 days' fossil output (${twh(story.energy.at(-1).fossil)}) plus how much wetter than average those days were. Each year from ${n.years[0]} to ${n.years[1]} then adds its own shortfall of water. The driest year sets the size of the renewable build.</p>
+  $('firm-method').innerHTML = `<p>Hydro output stands in for rainfall. The hydro fleet has barely changed since the late 1990s, so a year with less hydro had less water. Today's need for fossil fuel in an average year is the latest 365 days' fossil output (${twh(story.energy.at(-1).fossil)}) plus how much wetter than average those days were. Each year from ${n.years[0]} to ${n.years[1]} then adds its own shortfall of water.</p>
+    <p>${story.lakes ? `Each renewable line is sized by the lake model in chapter 6: the least of that one source that gets through every day from 1980 to 2024 without the lakes running dry (${Object.entries(story.lakes.sizes).map(([k, v]) => `${A.tech[k].label.toLowerCase()} ${v.gw.toFixed(2)} GW`).join(', ')}).` : 'Each renewable line is sized to make the driest year\'s fossil need on its yearly average.'} The energy it makes beyond what an average year needs is the spare energy valued above.</p>
     <p>Keeping fossil backup costs NZ$${A.thermalFixedPerKw}/kW a year to keep ${n.peakGw.toFixed(2)} GW of existing plant open (an assumption; the Huntly reserve's price is not public), plus fuel and carbon for each year's need. Gas covers the fossil an average year needs (${nzd(first.keepPerMwh.gas)}/MWh at these prices; domestic gas at NZ$${A.gas.pricePerGj}/GJ, imported LNG at NZ$${A.importedGasPerGj}/GJ, which is an assumption), and coal covers the extra in a dry year (${nzd(first.keepPerMwh.coal)}/MWh).</p>
     <p>Renewables are annualised at ${A.wacc * 100}% real. ${Object.values(A.tech).map((t) => `${t.label}: NZ$${nzNum(t.capexPerKw)}/kW, ${Math.round(t.loadFactor * 100)}% load factor, ${t.life} years, falling ${(t.decline * 100).toFixed(t.decline < 0.01 ? 2 : 1)}% a year`).join('; ')}. Batteries: NZ$${nzNum(A.battery.capexPerKw)}/kW for two hours, ${A.battery.life} years, falling ${A.battery.decline * 100}% a year. The rates of decline are assumptions.</p>
     <ul>${SOURCES.map(([what, who, url]) => `<li>${what}: <a href="${url}">${who}</a></li>`).join('')}</ul>`;
+}
+
+// Chapter 6: the lake model. What each source is worth when the lakes run
+// low, and the lakes' level through 45 years of weather for each build.
+let lakesBuild = 'none';
+function renderLakes() {
+  const L = story.lakes;
+  if (!L) {
+    $('lakes-lead').textContent = 'The lake model could not be loaded. Please try again shortly.';
+    return;
+  }
+  const { sizes, half, contingent } = L;
+  const inputs = lakeInputs;
+  const gw = (v) => `${v.toFixed(1)} GW`;
+  const weather = dryYearWeather(inputs);
+  const season = solarSeason(inputs);
+  const years = `${inputs.first.slice(0, 4)} to ${new Date(Date.parse(inputs.first) + (inputs.days - 1) * 864e5).getUTCFullYear()}`;
+  const solarVsWind = sizes.solar.value / sizes.wind.value;
+  $('lakes-take').textContent = `Each MWh of solar is worth about ${pctLess(solarVsWind)} less than wind's in a dry year. The lakes are what make it work at all.`;
+  $('lakes-lead').innerHTML = `<b>Solar can carry New Zealand through its dry years, but it isn't the best at it.</b> With today's demand and no coal or gas, the grid gets through every year from ${years} with ${gw(sizes.wind.gw)} of new wind, ${gw(sizes.solar.gw)} of new solar, or ${gw(sizes.geothermal.gw)} of new geothermal. Per MWh made, solar counts for about ${pctLess(solarVsWind)} less than wind and ${pctLess(sizes.solar.value)} less than geothermal.`;
+  const pct = (v) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`;
+  $('lakes-facts').innerHTML = factsHtml(gw(sizes.solar.gw), `of new solar, or ${gw(sizes.wind.gw)} of new wind, keeps the lakes from running dry in every year from ${years} with no fossil fuel.`, [
+    ['--f-geo', 'Geothermal', `${gw(sizes.geothermal.gw)}`, `${sizes.geothermal.twh.toFixed(1)} TWh a year, steady day and night`],
+    ['--f-wind', 'Wind', `${gw(sizes.wind.gw)}`, `${sizes.wind.twh.toFixed(1)} TWh a year, ${Math.round(sizes.wind.value * 100)}% as useful as geothermal`],
+    ['--f-solar', 'Solar', `${gw(sizes.solar.gw)}`, `${sizes.solar.twh.toFixed(1)} TWh a year, ${Math.round(sizes.solar.value * 100)}% as useful as geothermal`],
+    ['--f-wind', 'Wind in the driest years', pct(weather.windPct), `${weather.years.join(', ')}, against the average`],
+    ['--f-solar', 'Sunshine in the driest years', pct(weather.solarPct), 'the same years'],
+  ]);
+
+  const mixWind = minimumBuild(inputs, { ...L.fleet, solarGw: L.fleet.solarGw + sizes.solar.gw / 2 }, 'wind');
+  const area = sizes.solar.gw * 10; // km², at Rosedale's 1 MW a hectare
+  $('lakes-points').innerHTML = [
+    `<b>Dry years are calm, not sunny.</b> In the five driest years since ${inputs.first.slice(0, 4)}, ${weather.years.slice(0, -1).join(', ')} and ${weather.years.at(-1)}, the lakes got ${Math.abs(weather.inflowPct).toFixed(0)}% less water, the wind blew ${Math.abs(weather.windPct).toFixed(0)}% less and the sun shone ${Math.abs(weather.solarPct) < 2 ? 'about as usual' : `${Math.abs(weather.solarPct).toFixed(0)}% ${weather.solarPct < 0 ? 'less' : 'more'}`}. The westerlies that fill the southern lakes also turn the wind farms. That is solar's one real dry-year strength: it doesn't fail when the rain does.`,
+    `<b>But solar is weakest when it's needed.</b> It makes ${Math.round(season[5] * 100)}% of its average in June and ${Math.round(season[11] * 100)}% in December, while demand peaks in winter as the lakes draw down. The lakes make up for it by holding water back while the sun shines, and with today's ${(inputs.activeGwh / 1000).toFixed(1)} TWh of storage that works well. With half as much storage, solar would need ${gw(half.solar.gw)} and wind ${gw(half.wind.gw)}. The lakes are what make solar work.`,
+    `<b>The emergency water helps solar most.</b> Counting the lakes' ${(inputs.contingentGwh / 1000).toFixed(1)} TWh of contingent storage, mostly low levels in Pūkaki and Tekapo kept for emergencies, wind would need ${gw(contingent.wind.gw)} and solar ${gw(contingent.solar.gw)}. Then each MWh of solar is worth ${Math.abs(1 - contingent.solar.value / contingent.wind.value) < 0.03 ? 'about the same as' : `${pctLess(contingent.solar.value / contingent.wind.value)} less than`} a MWh of wind.`,
+    `<b>Mixing them is no shortcut.</b> Half the solar (${gw(sizes.solar.gw / 2)}) still needs ${mixWind === null ? 'more than half the wind' : `${gw(mixWind)} of wind`} to get through, ${mixWind !== null && mixWind <= sizes.wind.gw * 0.55 ? 'which is just half the wind' : `against half the wind's ${gw(sizes.wind.gw / 2)}`}. In a dry year sun and wind don't fill each other's gaps, so a mix costs what its parts do, and the cheaper source per MWh is the one to build.`,
+    `<b>On a hydro lake, solar shares the wiring.</b> Panels floating on or beside a hydro lake can send power through the station's existing grid connection: the turbines back off while the sun shines and run harder after dark, so no new transmission line is needed up to the station's size. Huntly's new battery uses the same trick at a coal station. New Zealand's first floating array, 1 MW at Watercare's Rosedale wastewater ponds in Auckland, covers one hectare. At that density ${gw(sizes.solar.gw)} would cover about ${Math.round(area / 5) * 5} km², under a quarter of Lake Pūkaki. The Mackenzie Basin's landscape is fiercely protected, so it would be a hard consent.`,
+  ].map((x) => `<li>${x}</li>`).join('');
+
+  $('lakes-method').innerHTML = `<p>For every day from ${years}, the model takes that day's inflow to the hydro lakes and that day's wind and sunshine, and sets them against today's grid: the latest 365 days of demand (${L.fleet.demandTwh.toFixed(1)} TWh), geothermal, wood and biogas, and the wind and solar already built. Wind, solar and geothermal go first. The lakes cover the rest, down to ${LAKE.hydroMinGw} GW of hydro that river flows force through the turbines and up to ${LAKE.hydroMaxGw} GW, and spill once full. Water is only drawn when it's needed, which is the best an operator could do, so a day the lakes run dry is a day fossil fuel was unavoidable. Batteries move energy within the day and are costed separately in chapter 5.</p>
+    <p>Inflows are the Electricity Authority's Hydrological Modelling Dataset: each lake and river inflow, times the megawatts a cubic metre a second makes in every station below it, summed over the Waikato, Tongariro, Waitaki, Clutha, Manapōuri, Waikaremoana and smaller schemes. They are scaled by ${inputs.inflowScale} so that inflow less hydro output matches the change in national lake storage month by month (R² ${inputs.balanceR2}). Storage is the lakes' ${(inputs.activeGwh / 1000).toFixed(2)} TWh of active storage at the end of 2024; contingent storage is left alone unless stated.</p>
+    <p>Wind and sunshine are ERA5 reanalysis from Open-Meteo at seven wind-farm areas and six solar areas around the country, made into capacity factors of ${Math.round(LAKE.load.wind * 100)}% and ${Math.round(LAKE.load.solar * 100)}% on average, the cost model's figures. ERA5's daily wind tracks the actual wind fleet's output closely (correlation 0.82 to 0.90 from 2018 to 2025). Today's demand is held fixed, so this doesn't allow for growth from electric cars and industry.</p>`;
+
+  const draw = () => {
+    document.querySelectorAll('[data-lakes]').forEach((b) => b.setAttribute('aria-checked', b.dataset.lakes === lakesBuild));
+    const add = lakesBuild === 'none' ? {} : { [lakesBuild]: sizes[lakesBuild].gw };
+    const run = simulate(inputs, L.fleet, add, { track: true });
+    const first = Date.parse(inputs.first);
+    const weekly = (get) => {
+      const pts = [];
+      for (let i = 0; i < inputs.days; i += 7) {
+        let v = Infinity;
+        for (let k = i; k < Math.min(inputs.days, i + 7); k++) v = Math.min(v, get(k));
+        pts.push([first + i * 864e5, v / 1000]);
+      }
+      return pts;
+    };
+    const name = { none: "Today's grid, no fossil fuel", wind: `With ${gw(sizes.wind.gw)} of new wind`, solar: `With ${gw(sizes.solar.gw)} of new solar` }[lakesBuild];
+    const color = { none: css('--fossil'), wind: css('--f-wind'), solar: css('--f-solar') }[lakesBuild];
+    const series = [
+      { name: 'Actual lake storage, with fossil fuel', color: css('--f-other'), width: 1.2, opacity: 0.8, points: weekly((k) => inputs.storage[k]) },
+      { name, color, width: 2, points: weekly((k) => run.level[k]) },
+    ];
+    lineChart($('lakes-chart'), {
+      series,
+      yMin: 0,
+      yFormat: (v) => `${v.toFixed(2)} TWh`,
+      yTickFormat: (v) => `${v}`,
+      tooltip: (t, vals) => `<strong>${fmtDate(t)}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${v.value.toFixed(2)} TWh</b></div>`).join('')}`,
+    });
+    const shortYears = [...run.years.keys()];
+    $('lakes-legend').innerHTML = `${series.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('')}<span>${shortYears.length ? `Lakes run dry in ${shortYears.length} of ${Math.round(inputs.days / 365.25)} years, short ${(run.short / 1000 / (inputs.days / 365.25)).toFixed(1)} TWh a year on average and ${(run.worst.gwh / 1000).toFixed(1)} TWh in ${run.worst.year}` : 'The lakes never run dry'}</span>`;
+  };
+  if (!renderLakes.wired) {
+    renderLakes.wired = true;
+    document.querySelectorAll('[data-lakes]').forEach((b) => b.addEventListener('click', () => { lakesBuild = b.dataset.lakes; draw(); }));
+  }
+  draw();
 }
 
 function renderBatteryStory() {
@@ -726,8 +826,10 @@ async function main() {
     document.querySelectorAll('[data-now-window]').forEach((x) => x.setAttribute('aria-checked', x === b));
     if (data) renderNow(true);
   }));
+  const lakes = fetch('lakes.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
   try {
     data = await loadData('../data/nz');
+    lakeInputs = await lakes;
   } catch (err) {
     $('updated').textContent = 'The data could not be loaded. Please try again shortly.';
     console.error(err);
