@@ -16,7 +16,10 @@ export const CANONICAL_COLUMNS = [
   'coal', 'lignite', 'gas', 'oil', 'nuclear', 'hydro', 'pumped_storage', 'pumped_storage_charge',
   'wind', 'wind_onshore', 'wind_offshore', 'solar', 'solar_utility', 'solar_rooftop', 'geothermal',
   'biomass', 'battery', 'battery_charge', 'imports', 'exports', 'other', 'demand',
+  // Not MW: the day-ahead price in EUR/MWh, which can be negative.
+  'price',
 ];
+const UNSIGNED = /^price$/;
 // Columns that take power off the grid, and so are zero or below.
 const NEGATIVE = /(_charge|_chg|^exports)$/;
 
@@ -45,6 +48,7 @@ export function checkDataset({ region, timeZone, stepMinutes, startMs, length, c
       if (Number.isNaN(v)) continue;
       if (!Number.isFinite(v)) fail(`column ${name} has a non-finite value at slot ${i}`);
       present++;
+      if (UNSIGNED.test(name)) continue;
       if (NEGATIVE.test(name) ? v > 0.5 : v < -0.5) wrongSign++;
     }
     if (!present) warnings.push(`column ${name} has no data`);
