@@ -17,7 +17,7 @@ import { parseArgs } from 'node:util';
 import { fetchNesoGenMix } from './sources/neso-genmix.mjs';
 import { fetchBatteryUnits } from './sources/elexon-bmunits.mjs';
 import { BATTERY_SOURCES, daysToFetch, mergeStores } from './sources/elexon-battery.mjs';
-import { encodeColumns } from './encode.mjs';
+import { writeDataset } from './core/dataset.mjs';
 import { fetchJson, dayStart, isoDay, DAY_MS, SLOT_MS, log } from './lib.mjs';
 
 const { values: args } = parseArgs({
@@ -172,28 +172,16 @@ async function main() {
     }
   }
 
-  const { names, missing, gz } = encodeColumns(columns, length);
-  await writeFile(`${OUT}/series.bin.gz`, gz);
-  const lastValid = (name) => {
-    const col = columns[name];
-    for (let i = length - 1; i >= 0; i--) if (!Number.isNaN(col[i])) return i;
-    return null;
-  };
-  const meta = {
-    generated: new Date().toISOString(),
-    startMs,
+  const { meta, bytes } = await writeDataset(OUT, {
+    region: 'gb',
+    timeZone: 'Europe/London',
     stepMinutes: 30,
+    startMs,
     length,
-    columns: names,
-    missing,
-    lastSlot: Object.fromEntries(names.map((n) => [n, lastValid(n)])),
-    battery: {
-      coverage,
-      units: batteries,
-    },
-  };
-  await writeFile(`${OUT}/meta.json`, JSON.stringify(meta));
-  log(`wrote ${OUT}/series.bin.gz (${(gz.length / 1e6).toFixed(2)} MB, ${names.length} columns x ${length} slots)`,
+    columns,
+    extra: { battery: { coverage, units: batteries } },
+  }, { log });
+  log(`wrote ${OUT}/series.bin.gz (${(bytes / 1e6).toFixed(2)} MB, ${meta.columns.length} columns x ${length} slots)`,
     `in ${((Date.now() - started) / 1000).toFixed(0)} s`);
 }
 

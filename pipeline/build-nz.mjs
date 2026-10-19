@@ -11,8 +11,11 @@ import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { fetchGenerationMonth, NZ_COLUMNS, PARSE_VERSION } from './sources/emi-generation.mjs';
-import { encodeColumns } from './encode.mjs';
-import { SLOT_MS, DAY_MS, log } from './lib.mjs';
+import { writeDataset } from './core/dataset.mjs';
+import { runQueue, stitch, monthList, isStale as isStaleEntry } from './core/chunks.mjs';
+import { log } from './lib.mjs';
+
+export { monthList };
 
 const { values: args } = parseArgs({
   options: {
@@ -30,30 +33,8 @@ const MONTHS = `${args.cache}/months`;
 // Months this recent are refetched once a day; older ones are kept for good.
 const RECENT_MONTHS = 4;
 
-const ym = (y, m) => `${y}${String(m + 1).padStart(2, '0')}`;
-
-/** Every month from `from` (YYYY-MM) to the current one, newest first. */
-export function monthList(from, nowMs) {
-  const [fy, fm] = from.split('-').map(Number);
-  const now = new Date(nowMs);
-  const out = [];
-  let y = now.getUTCFullYear();
-  let m = now.getUTCMonth();
-  while (y > fy || (y === fy && m >= fm - 1)) {
-    out.push(ym(y, m));
-    if (--m < 0) { m = 11; y--; }
-  }
-  return out;
-}
-
 /** Whether a cached month (or a cached "no file yet") should be fetched again. */
-export function isStale(entry, index, nowMs) {
-  if (!entry || (!entry.missing && entry.version !== PARSE_VERSION)) return true;
-  const age = nowMs - Date.parse(entry.fetched);
-  if (index < RECENT_MONTHS) return age > DAY_MS;
-  // An old month with no file (a few are missing from the archive) is checked monthly.
-  return entry.missing ? age > 30 * DAY_MS : false;
-}
+export const isStale = (entry, index, nowMs) => isStaleEntry(entry, index, nowMs, { version: PARSE_VERSION, recent: RECENT_MONTHS });
 
 async function readMonth(month) {
   const file = `${MONTHS}/${month}.json`;
@@ -71,29 +52,17 @@ async function main() {
   }
   log(`NZ: ${cached.size} months in cache`);
 
-  const queue = months.map((m, i) => [m, i]).filter(([m, i]) => isStale(cached.get(m), i, now));
+  const queue = months.map((m, i) => [m, i]).filter(([m, i]) => isStale(cached.get(m), i, now)).map(([m]) => m);
   const fuelCodes = {};
-  let fetched = 0;
-  let next = 0;
-  const worker = async () => {
-    while (next < queue.length && Date.now() < deadline) {
-      const [month] = queue[next++];
-      try {
-        const parsed = await fetchGenerationMonth(month);
-        const entry = parsed && parsed.length
-          ? { fetched: new Date().toISOString(), version: PARSE_VERSION, ...parsed }
-          : { fetched: new Date().toISOString(), missing: true };
-        if (parsed) Object.assign(fuelCodes, parsed.fuels);
-        cached.set(month, entry);
-        await writeFile(`${MONTHS}/${month}.json`, JSON.stringify(entry));
-        fetched++;
-      } catch (err) {
-        log(`NZ: ${month} failed: ${err.message}`);
-      }
-    }
-  };
-  await Promise.all(Array.from({ length: Math.max(1, Number(args.concurrency)) }, worker));
-  const left = queue.length - fetched;
+  const { done: fetched, left } = await runQueue(queue, async (month) => {
+    const parsed = await fetchGenerationMonth(month);
+    const entry = parsed && parsed.length
+      ? { fetched: new Date().toISOString(), version: PARSE_VERSION, ...parsed }
+      : { fetched: new Date().toISOString(), missing: true };
+    if (parsed) Object.assign(fuelCodes, parsed.fuels);
+    cached.set(month, entry);
+    await writeFile(`${MONTHS}/${month}.json`, JSON.stringify(entry));
+  }, { concurrency: Number(args.concurrency), deadline, log: (m) => log(`NZ: ${m}`) });
   log(`NZ: fetched ${fetched} months, ${left} still to fetch`);
   if (Object.keys(fuelCodes).length) log('NZ: fuel codes', JSON.stringify(fuelCodes));
 
@@ -102,32 +71,18 @@ async function main() {
     log('NZ: no months yet, nothing written');
     return;
   }
-  const startMs = present[0][1].startMs;
-  const last = present.at(-1)[1];
-  const length = Math.round((last.startMs - startMs) / SLOT_MS) + last.length;
-  const columns = Object.fromEntries(NZ_COLUMNS.map((c) => [c, new Float64Array(length).fill(NaN)]));
-  for (const [, e] of present) {
-    const base = Math.round((e.startMs - startMs) / SLOT_MS);
-    for (const c of NZ_COLUMNS) {
-      const src = e.columns[c] ?? [];
-      for (let i = 0; i < e.length; i++) if (src[i] != null) columns[c][base + i] = src[i];
-    }
-  }
-  const { names, missing, gz } = encodeColumns(columns, length);
-  await writeFile(`${args.out}/series.bin.gz`, gz);
+  const { startMs, length, columns } = stitch(present.map(([, e]) => e), { stepMinutes: 30, columns: NZ_COLUMNS });
   const missingMonths = months.filter((m) => cached.get(m)?.missing && m >= present[0][0]).sort();
-  const meta = {
-    generated: new Date().toISOString(),
+  const { meta, bytes } = await writeDataset(args.out, {
     region: 'nz',
-    startMs,
+    timeZone: 'Pacific/Auckland',
     stepMinutes: 30,
+    startMs,
     length,
-    columns: names,
-    missing,
-    months: { first: present[0][0], last: present.at(-1)[0], count: present.length, missing: missingMonths, toFetch: left },
-  };
-  await writeFile(`${args.out}/meta.json`, JSON.stringify(meta));
-  log(`NZ: wrote ${args.out}/series.bin.gz (${(gz.length / 1e6).toFixed(2)} MB, ${names.length} columns x ${length} slots,`,
+    columns,
+    extra: { months: { first: present[0][0], last: present.at(-1)[0], count: present.length, missing: missingMonths, toFetch: left } },
+  }, { log });
+  log(`NZ: wrote ${args.out}/series.bin.gz (${(bytes / 1e6).toFixed(2)} MB, ${meta.columns.length} columns x ${length} slots,`,
     `${present[0][0]} to ${present.at(-1)[0]}, ${missingMonths.length} months missing) in ${((Date.now() - started) / 1000).toFixed(0)} s`);
 }
 
