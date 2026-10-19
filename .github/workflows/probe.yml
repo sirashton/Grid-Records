@@ -1,0 +1,13 @@
+name: probe-au
+on: { push: { branches: [probe-au] } }
+permissions: { contents: write }
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -x probe.sh
+        working-directory: ${{ github.workspace }}
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
