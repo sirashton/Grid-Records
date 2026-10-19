@@ -1,4 +1,4 @@
-# Country framework: how to add a country to Grid Records
+# Country framework: how to add a country to Gridstreak
 
 Every country page is three pieces: a **pipeline adapter** that turns the country's source into one common dataset format, a **country config** that names its fuels and presets, and a **page** that mounts the shared records tool plus whatever story is unique to that country. Records, series, yearly figures and the records UI are shared code; nothing in them is written for one country.
 
