@@ -49,15 +49,32 @@ a { color: var(--primary); font-weight: 600; }
 .hero-inner { display: flex; align-items: center; gap: 24px; padding-top: 32px; padding-bottom: 16px; }
 .hero-text { flex: 1 1 auto; min-width: 0; }
 .hero-art { flex: 0 0 220px; width: 220px; height: 160px; }
-.hero-art .sun circle { fill: var(--sunny); stroke: var(--line); stroke-width: 3; }
-.hero-art .rays { stroke: #f5b82e; stroke-width: 3.5; stroke-linecap: round; fill: none; }
-.hero-art .hill { fill: #a8dba0; }
-.hero-art .ridge { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; }
-.hero-art .mast, .hero-art .hub { fill: #fff; stroke: var(--line); stroke-width: 2.5; }
-.hero-art .blades { fill: #fff; stroke: var(--line); stroke-width: 2.5; stroke-linejoin: round; animation: spin 9s linear infinite; }
-.hero-art .blades.slow { animation-duration: 11s; animation-direction: normal; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .hero-art .blades { animation: none; } }
+/* Header mark (js/core/hero-mark.js): the fuel mix as stacked rows that
+   build once, then the record line hops to the newest row. */
+.hero-art .shadow, .hero-art .pole { fill: var(--line); }
+.hero-art .paper { fill: var(--card); }
+.hero-art .frame, .hero-art .outline { fill: none; stroke: var(--line); stroke-width: 3; }
+.hero-art .seg { stroke: var(--line); stroke-width: 2; }
+.hero-art .coal { fill: var(--f-coal); }
+.hero-art .gas { fill: var(--f-gas); }
+.hero-art .wind { fill: var(--f-wind); }
+.hero-art .solar { fill: var(--lowcarbon); }
+.hero-art .nuclear { fill: var(--f-solar); }
+.hero-art .battery { fill: var(--f-nuclear); }
+.hero-art .marker line { stroke: var(--line); stroke-width: 3; stroke-dasharray: 6 5; stroke-linecap: round; }
+.hero-art .row { transform-box: fill-box; transform-origin: left center; transform: scaleX(0); animation: mark-row .7s cubic-bezier(.2,.75,.2,1) forwards; }
+.hero-art .r0 { animation-delay: .1s; }
+.hero-art .r1 { animation-delay: .45s; }
+.hero-art .r2 { animation-delay: .8s; }
+.hero-art .r3 { animation-delay: 1.3s; animation-duration: 1.4s; }
+.hero-art .marker { animation: mark-hop .45s cubic-bezier(.3,.9,.3,1.15) 2.75s forwards; }
+@keyframes mark-row { to { transform: scaleX(1); } }
+@keyframes mark-hop { to { transform: translateX(-19.2px); } }
+@media (prefers-reduced-motion: reduce) {
+  .hero-art .row, .hero-art .marker { animation: none; }
+  .hero-art .row { transform: none; }
+  .hero-art .marker { transform: translateX(-19.2px); }
+}
 @media (max-width: 640px) {
   .hero-inner { flex-direction: column-reverse; align-items: flex-start; gap: 0; padding-top: 16px; }
   .hero-art { width: 150px; height: 110px; flex-basis: auto; margin-bottom: 12px; }
