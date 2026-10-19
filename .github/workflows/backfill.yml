@@ -41,3 +41,27 @@ jobs:
         with:
           path: .cache
           key: backfill-${{ github.run_id }}
+  # Australia's history, a month per download of a few hundred MB, into the
+  # cache the deploy reads. It shares the deploy's group so the two never
+  # save over each other's cache; once the history is in, it takes a minute.
+  australia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-au
+          key: au-${{ github.run_id }}
+          restore-keys: au-
+      - run: node pipeline/build-au.mjs --budget-minutes 40 --concurrency 4 --out .backfill-out/au
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-au
+          key: au-${{ github.run_id }}

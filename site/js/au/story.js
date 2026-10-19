@@ -277,6 +277,11 @@ export function renderStory({ data, end, country, area, areaName, cache, factsHt
   return { area, f };
 }
 
+/** Redraws the charts in open chapters, as chapters open or the window resizes. */
+export function drawStoryCharts(story, data) {
+  if (story) drawCharts(story.f, data);
+}
+
 function homeBatteriesHtml(now, before) {
   const h = HOME_BATTERIES;
   const q = AEMO_Q2_2026;
