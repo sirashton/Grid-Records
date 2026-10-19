@@ -210,3 +210,45 @@ export function tweenFigures(from, to, draw, { batKeys = [], done = () => {} } =
   };
   requestAnimationFrame(step);
 }
+
+// The panel's time frames. A country whose data is live (its config's `live`)
+// opens on Live, the latest slot on its own; one whose data arrives late ends
+// every frame at the latest data, and offers 30 days instead.
+export function nowWindows(country) {
+  const at = country.live ? 'Past' : 'Latest';
+  const frame = (minutes, label, sub) => ({ minutes, label, span: `${at} ${label}`, sub });
+  return country.live
+    ? { live: { ...frame(0, 'Live', ''), span: 'Past 24 hours' }, day: frame(1440, '24 hours', '24h average'), week: frame(1440 * 7, '7 days', '7d average'), year: frame(1440 * 365, '365 days', '365d average') }
+    : { day: frame(1440, '24 hours', '24h average'), week: frame(1440 * 7, '7 days', '7d average'), month: frame(1440 * 30, '30 days', '30d average'), year: frame(1440 * 365, '365 days', '365d average') };
+}
+
+/** Slots in a time frame at a step of stepMinutes; Live is one slot. */
+export const windowSlots = (win, stepMinutes) => (win.minutes ? Math.round(win.minutes / stepMinutes) : 1);
+
+/**
+ * Draws the time frame buttons into #now-window and calls onChange(key) when
+ * one is picked. Returns the frames and the one the panel opens on.
+ */
+export function setupNowWindows(country, onChange) {
+  const windows = nowWindows(country);
+  const first = Object.keys(windows)[0];
+  const host = document.getElementById('now-window');
+  host.innerHTML = Object.entries(windows).map(([k, w]) => `<button type="button" data-now-window="${k}" role="radio" aria-checked="${k === first}">${w.label}</button>`).join('');
+  host.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-now-window]');
+    if (!b) return;
+    host.querySelectorAll('[data-now-window]').forEach((x) => x.setAttribute('aria-checked', x === b));
+    onChange(b.dataset.nowWindow);
+  });
+  return { windows, first };
+}
+
+/** How long ago a time was, roughly: "20 minutes ago", "3 hours ago". */
+export function agoText(ms, nowMs = Date.now()) {
+  const min = Math.round((nowMs - ms) / 60000);
+  if (min < 2) return 'just now';
+  if (min < 120) return `${min} minutes ago`;
+  const h = Math.round(min / 60);
+  if (h < 48) return `${h} hours ago`;
+  return `${Math.round(h / 24)} days ago`;
+}

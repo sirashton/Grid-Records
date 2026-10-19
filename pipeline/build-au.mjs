@@ -10,18 +10,25 @@
 // are half-hourly, so the files are half-hourly too: six times smaller, and
 // spells are counted in half hours like the GB and NZ pages.
 //
-// Usage: node pipeline/build-au.mjs [--budget-minutes N] [--from YYYY-MM] [--concurrency N]
+// The weeks since the last published month come from AEMO's rolling reports
+// (aemo-recent.mjs), up to the latest half hour, so the page is live. That
+// runs first, within --recent-minutes, then the months use what is left.
+//
+// Usage: node pipeline/build-au.mjs [--budget-minutes N] [--recent-minutes N] [--from YYYY-MM] [--concurrency N]
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { fetchMonth, fetchRegistryTables, AU_COLUMNS, AU_FUELS, REGIONS, PARSE_VERSION } from './sources/aemo-mms.mjs';
+import { fetchMonth, fetchRegistryTables, buildRegistry, AU_COLUMNS, AU_FUELS, REGIONS, PARSE_VERSION } from './sources/aemo-mms.mjs';
+import { fetchListings, fetchFile, plan, halfHours, RECENT_VERSION, MAX_DAYS } from './sources/aemo-recent.mjs';
 import { writeDataset } from './core/dataset.mjs';
 import { runQueue, stitch, monthList, isStale as isStaleEntry } from './core/chunks.mjs';
-import { log } from './lib.mjs';
+import { loadState, saveState, recentFrom, prune, extend } from './core/recent.mjs';
+import { log, DAY_MS, SLOT_MS } from './lib.mjs';
 
 const { values: args } = parseArgs({
   options: {
     'budget-minutes': { type: 'string', default: '3' },
+    'recent-minutes': { type: 'string', default: '2' },
     // Months before 2015 are only in whole-market zips of about 2 GB each.
     from: { type: 'string', default: '2015-01' },
     out: { type: 'string', default: 'site/data/au' },
@@ -83,6 +90,57 @@ export function outputColumns(cols) {
   return Object.fromEntries(Object.entries(OUTPUT).map(([from, to]) => [to, NEGATED.has(from) ? cols[from].map((v) => (v ? -v : v)) : cols[from]]));
 }
 
+/** DUID -> fuel and region, from the newest month's registration tables, refreshed weekly. */
+async function currentUnits(months) {
+  const file = `${args.cache}/units.json`;
+  const saved = existsSync(file) ? JSON.parse(await readFile(file, 'utf8')) : null;
+  if (saved && Date.now() - Date.parse(saved.fetched) < 7 * DAY_MS) return saved.units;
+  for (const m of months.slice(0, 4)) {
+    const tables = await fetchRegistryTables(m).catch((err) => log(`AU: registry ${m} failed: ${err.message}`));
+    if (!tables) continue;
+    const units = buildRegistry(tables);
+    await writeFile(file, JSON.stringify({ fetched: new Date().toISOString(), month: m, units }));
+    log(`AU: ${Object.keys(units).length} units from ${m}'s registration tables`);
+    return units;
+  }
+  return saved?.units ?? null;
+}
+
+/** Fetches what is new in the rolling reports and returns the half hours since archiveEndMs. */
+async function updateRecent(archiveEndMs, now, months) {
+  const file = `${args.cache}/recent.json`;
+  const state = await loadState(file, RECENT_VERSION);
+  const fromMs = recentFrom(archiveEndMs, now, MAX_DAYS);
+  prune(state, fromMs - 8 * DAY_MS);
+  const units = await currentUnits(months);
+  if (!units) {
+    log('AU recent: no unit registry, skipped');
+    return null;
+  }
+  const listings = await fetchListings({ log });
+  // Newest first, so a short budget still brings the page up to date.
+  const want = plan(listings, state, fromMs).sort((a, b) => b.t - a.t);
+  const until = Math.min(Date.now() + Number(args['recent-minutes']) * 60000, deadline);
+  // AEMO's web server refuses a runner (HTTP 403) after a burst of requests,
+  // so go gently, and stop at the first refusal; the next run carries on.
+  let refused = false;
+  const fetchOne = async (f) => {
+    try {
+      await fetchFile(state, f, units);
+    } catch (err) {
+      if (/\b403\b/.test(err.message)) refused = true;
+      throw err;
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  };
+  const { done, left } = await runQueue(want, fetchOne, { concurrency: 3, deadline: until, stop: () => refused, log });
+  if (refused) log('AU recent: NEMWEB refused a request, so the rest waits for the next run');
+  await saveState(file, state);
+  const piece = halfHours(state, fromMs);
+  log(`AU recent: fetched ${done} files, ${left} left, ${piece?.length ?? 0} half hours from ${new Date(fromMs).toISOString()}`);
+  return piece;
+}
+
 async function readMonth(month) {
   const file = `${MONTHS}/${month}.json`;
   return existsSync(file) ? JSON.parse(await readFile(file, 'utf8')) : null;
@@ -97,6 +155,15 @@ async function main() {
     if (f.endsWith('.json')) cached.set(f.slice(0, 6), await readMonth(f.slice(0, 6)));
   }
   log(`AU: ${cached.size} months in cache`);
+
+  const archived = [...cached.values()].filter((e) => e && !e.missing && e.length);
+  const archiveEnd = archived.length ? Math.max(...archived.map((e) => e.startMs + e.length * SLOT_MS)) : 0;
+  let recent = null;
+  try {
+    recent = await updateRecent(archiveEnd, now, months);
+  } catch (err) {
+    log(`AU recent: failed: ${err.message}`);
+  }
 
   const queue = months.map((m, i) => [m, i]).filter(([m, i]) => isStale(cached.get(m), i, now)).map(([m]) => m);
   // The newest month's registration tables, for units older months don't give a fuel for.
@@ -127,7 +194,8 @@ async function main() {
   const regionCols = {};
   let grid;
   for (const r of REGIONS) {
-    grid = stitch(present.map(([, e]) => ({ startMs: e.startMs, length: e.length, columns: e.regions[r] })), { stepMinutes: 30, columns: AU_COLUMNS });
+    const archive = stitch(present.map(([, e]) => ({ startMs: e.startMs, length: e.length, columns: e.regions[r] })), { stepMinutes: 30, columns: AU_COLUMNS });
+    grid = extend(archive, recent && { startMs: recent.startMs, length: recent.length, columns: recent.regions[r] }, { stepMinutes: 30, columns: AU_COLUMNS });
     regionCols[r] = grid.columns;
   }
   const { startMs, length } = grid;
@@ -141,7 +209,7 @@ async function main() {
       startMs,
       length,
       columns: outputColumns(cols),
-      extra: { area, months: { first: present[0][0], last: present.at(-1)[0], count: present.length, missing: missingMonths, toFetch: left } },
+      extra: { area, months: { first: present[0][0], last: present.at(-1)[0], count: present.length, missing: missingMonths, toFetch: left }, recent: recent ? { source: 'NEMWEB current reports', fromMs: recent.startMs } : null },
     }, { log });
     log(`AU: wrote ${args.out}/${area} (${(bytes / 1e6).toFixed(2)} MB)`);
   }

@@ -59,7 +59,7 @@
         <div class="now-donut" id="now-donut"></div>
         <div class="now-col now-right" id="now-right"></div>
       </div>
-      <p class="hint now-note" id="now-note">AEMO publishes each month's full unit data a few weeks after it ends, so this shows the latest data, not live output.</p>
+      <p class="hint now-note" id="now-note">Live is the latest half hour from AEMO's 5-minute reports, usually under an hour old. Rooftop solar can lag the rest by a half hour.</p>
     </section>
 
     <section class="card records-card" id="records" aria-labelledby="records-h"></section>
@@ -73,7 +73,7 @@
 
     <section class="plain about" aria-labelledby="about-h">
       <h2 id="about-h">About the data</h2>
-      <p>Generation comes from AEMO's <a href="https://nemweb.com.au/Data_Archive/Wholesale_Electricity/MMSDM/">MMS Data Model archive</a>: the five-minute output of every scheduled and semi-scheduled unit in the National Electricity Market (Queensland, New South Wales and the ACT, Victoria, South Australia and Tasmania), averaged here to half hours. Each unit's fuel comes from AEMO's registration tables. Small non-scheduled plant, such as some older wind farms and landfill gas engines, is not in the unit data, so totals read a few percent lower than AEMO's own.</p>
+      <p>Generation comes from AEMO's <a href="https://nemweb.com.au/Data_Archive/Wholesale_Electricity/MMSDM/">MMS Data Model archive</a>: the five-minute output of every scheduled and semi-scheduled unit in the National Electricity Market (Queensland, New South Wales and the ACT, Victoria, South Australia and Tasmania), averaged here to half hours. The weeks since AEMO's latest monthly archive come from its rolling <a href="https://nemweb.com.au/Reports/Current/">NEMWEB reports</a> (unit output, dispatch prices and demand, and rooftop solar), and are replaced by the archive once it is published. Each unit's fuel comes from AEMO's registration tables. Small non-scheduled plant, such as some older wind farms and landfill gas engines, is not in the unit data, so totals read a few percent lower than AEMO's own.</p>
       <p>Rooftop solar is AEMO's half-hourly estimate of household and business panels (ROOFTOP_PV_ACTUAL), counted as generation. Prices are each region's half-hourly spot price, and the whole-NEM price is weighted by each region's demand. Western Australia and the Northern Territory are separate grids and not included yet.</p>
       <p>Renewables here are wind, solar farms, rooftop solar, hydro and bioenergy. Fossil fuels are black coal, brown coal, gas, and diesel and oil. Grid batteries are shown on their own, charging and discharging, and are not counted in total generation; pumped hydro's generation is counted as hydro. Home batteries are not in AEMO's data.</p>
       <p>A spell is a run of consecutive half hours that meet the threshold. Gaps in the data of up to an hour are bridged when the half hours either side qualify; longer gaps end the spell. Times and years are in NEM time (AEST, UTC+10, no daylight saving).</p>

@@ -63,6 +63,7 @@ export const slotOf = (t) => Math.floor((t - 1) / SLOT_MS) * SLOT_MS;
 /**
  * Streams the D rows of a zipped MMS CSV as objects keyed by column name.
  * Uses the system unzip, since the files are hundreds of MB unpacked.
+ * NEMWEB's daily archives are zips of zips; those are unpacked a level first.
  */
 export async function* zipRows(url) {
   const dir = await mkdtemp(join(tmpdir(), 'mms-'));
@@ -71,16 +72,27 @@ export async function* zipRows(url) {
     // curl rather than fetch: Node's fetch has crashed part way through these
     // large downloads (an undici assertion), taking the whole run with it.
     await run('curl', ['-sSfL', '--retry', '4', '--retry-delay', '2', '--max-time', '600', '-A', UA['user-agent'], '-o', file, url]);
-    const unzip = spawn('unzip', ['-p', file], { stdio: ['ignore', 'pipe', 'inherit'] });
-    yield* csvRows(unzip.stdout);
-    await new Promise((resolve, reject) => {
-      const done = (code) => (code === 0 ? resolve() : reject(new Error(`unzip exited ${code}`)));
-      if (unzip.exitCode != null) done(unzip.exitCode);
-      else unzip.on('close', done);
-    });
+    const inner = (await output('unzip', ['-Z1', file])).split('\n').filter((n) => /\.zip$/i.test(n)).sort();
+    if (!inner.length) {
+      yield* unzipRows(file);
+      return;
+    }
+    const sub = join(dir, 'inner');
+    await run('unzip', ['-qq', '-o', file, '-d', sub]);
+    for (const n of inner) yield* unzipRows(join(sub, n));
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+async function* unzipRows(file) {
+  const unzip = spawn('unzip', ['-p', file], { stdio: ['ignore', 'pipe', 'inherit'] });
+  yield* csvRows(unzip.stdout);
+  await new Promise((resolve, reject) => {
+    const done = (code) => (code === 0 ? resolve() : reject(new Error(`unzip exited ${code}`)));
+    if (unzip.exitCode != null) done(unzip.exitCode);
+    else unzip.on('close', done);
+  });
 }
 
 /** Yields D rows of MMS CSV text (a stream or a string) as objects. */
@@ -98,6 +110,18 @@ export async function* csvRows(input) {
       cols = line.trim().split(',');
     }
   }
+}
+
+function output(cmd, argv) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(cmd, argv, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    let err = '';
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { err += d; });
+    p.on('error', reject);
+    p.on('close', (code) => (code === 0 ? resolve(out) : reject(new Error(`${cmd} exited ${code}: ${err.trim()}`))));
+  });
 }
 
 function run(cmd, argv) {

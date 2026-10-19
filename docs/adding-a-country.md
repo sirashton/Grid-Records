@@ -59,7 +59,7 @@ export default {
   locale: 'en-AU',
   timeZone: 'Australia/Brisbane',   // years, days and chart dates use this
   dataPath: '../data/au',           // relative to the page
-  live: true,                       // false if the data lags weeks (NZ): says "at the latest data" not "live"
+  live: true,                       // true when the pipeline keeps the data within hours (section 5); false if it lags weeks (NZ)
   endColumn: 'coal',                // the column whose last value marks the end of the data
   smallInMw: false,                 // true shows thresholds under 1 GW in MW (small grids)
   logScale: { min: 0.05, ticks: [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50] },  // measure-over-time log axis
@@ -89,7 +89,7 @@ export default {
 - `site/js/core/records-tool.js`: `const records = createRecordsTool({ host, country })` renders the whole Records card (controls, table, record progression, longest spell per year, the measure over time) into an empty `<section class="card records-card" id="records" aria-labelledby="records-h"></section>`, before the data loads; then `records.setData(data, { end })`, and `records.update()` on resize. Pages don't copy its markup or code. Optional `series`, `seriesKey` and `hash` hooks let a page add its own setting (GB's battery source).
 - `site/js/core/live-records.js`: `liveRecords(data, country)` (running spells that are records, close to one, or long streaks), `freshness`, `thresholdText`. Used by the Live records page.
 - `site/js/envelope.js`: `envelopeLayers` for envelope charts in stories.
-- `site/js/now-panel.js` (Right now panel), `site/js/recent.js` (recent records), `site/js/envelope.js`, `site/js/charts.js` (call `setTimeZone(country.timeZone)`).
+- `site/js/now-panel.js` (Right now panel): `setupNowWindows(country, onChange)` draws the time frame buttons (Live, 24 hours, 7 days, 365 days when `live`; 24 hours, 7 days, 30 days, 365 days otherwise) and `windowSlots(win, step)` turns one into slots; `agoText(ms)` says how old the data is for the line under the title, `site/js/recent.js` (recent records), `site/js/envelope.js`, `site/js/charts.js` (call `setTimeZone(country.timeZone)`).
 
 ## 4. The page
 
@@ -101,6 +101,19 @@ export default {
 4. Add the flag to `site/flags/`, the country to `site/js/countries/index.js` (its page, data path and flag), and the country to the switch on every page, before the Live records button (`site/live/` included). `test/live-records.test.mjs` checks every page's switch against the list.
 
 The Live records page (`site/live/`, `site/js/core/live-records.js`) reads `site/js/countries/index.js`, so a listed country is checked there with no other change: every preset and threshold in its config, for spells still running that are records or close to one. It uses the config's `live` flag and the data's end to say whether the country is live or how far behind its latest data is.
+
+## 5. Live data
+
+Every country should be as live as its sources allow. The deploy workflow already rebuilds every country every 30 minutes, so live is a matter of the adapter fetching recent data, not of the workflow.
+
+- **Find the freshest free feed** when you pick the source. Many publishers have a complete archive that arrives late plus a rolling feed of the last days or hours (AEMO's NEMWEB Current reports, for example). Note its lag in the country config comment.
+- **Archive plus recent feed:** fetch the archive as usual, then fill the gap from its end to now from the feed with `pipeline/core/recent.mjs`: `loadState` / `saveState` keep what was fetched in the Actions cache (so each run only fetches new files), `recentFrom(archiveEnd, now, maxDays)` says where to start, `prune` drops what is no longer needed, and `extend(archive, recentPiece, { stepMinutes, columns })` lays the recent slots after the archive's end (the archive always wins where both exist, so a newly published month replaces the feed's figures). Give the recent part its own small budget and fetch newest first, so a run that is short of time still brings the page up to date. Prefer a feed's daily or weekly files over hundreds of small ones, pause between requests, and stop at the first refusal (`runQueue`'s `stop` option): AEMO turned the runner away with HTTP 403 after about 1,200 quick requests. `pipeline/build-au.mjs` with `pipeline/sources/aemo-recent.mjs` is the worked example.
+- **One source that is already near live** (Energy-Charts for Germany): refetch the current period each run (`build-de.mjs` refreshes the current year every 25 minutes).
+- **Leave the last slot off until it is complete:** a half hour with only some of its readings reads low.
+- **Set `live: true`** in the config when the data is normally within a few hours. The Right now panel then opens on Live and the Records card says "Current spell" and "past 365 days". With `live: false` it says "At the latest data".
+- **Say how fresh it is:** the line under the title gives the latest data's time and `agoText`, and the note under the panel says what Live means for that source ("usually under an hour old", "about three hours behind").
+
+Status 2026-10-19: GB live (NESO, under an hour), Australia live (AEMO 5-minute reports, under an hour), Germany live (Energy-Charts, about three hours), New Zealand not live (EMI monthly files arrive weeks late; the daily 5-minute dispatch file is about three days late, and Transpower's real-time feed needs a subscription).
 
 ## What stays country-specific
 

@@ -2,12 +2,12 @@
 import { formatDuration, slotTime } from '../records.js';
 import { fmtDate, fmtDateTime, setTimeZone } from '../charts.js';
 import de from '../countries/de.js';
-import { loadData, dataEnd, slotsIn, stepOf } from '../core/dataset.js';
+import { loadData, dataEnd, stepOf } from '../core/dataset.js';
 import { createRecordsTool } from '../core/records-tool.js';
 import { FUELS, FOSSIL, RENEWABLE, COAL, metricSeries, generationTotal } from './data.js';
 import { renderStory as drawStory, storyFigures } from './story.js';
 import { recentRecords } from '../recent.js';
-import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
+import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, setupNowWindows, windowSlots, agoText, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
 import { startAnalytics } from '../analytics.js';
 
 setTimeZone(de.timeZone);
@@ -54,9 +54,8 @@ function redrawAll() {
   records.update();
 }
 
-// The latest data panel, the same as the GB page's Right now panel. Energy-
-// Charts updates through the day, a few hours behind, so each time frame ends
-// at the latest half hour of data.
+// The Right now panel, as on the GB page. Energy-Charts updates through the
+// day, about three hours behind, so Live is the latest quarter hour it has.
 const fuel = (k) => ({ label: FUELS[k].label, cols: [k], color: FUELS[k].color });
 const WIND_FUELS = ['wind_onshore', 'wind_offshore'];
 const NOW_GROUPS = [
@@ -64,13 +63,8 @@ const NOW_GROUPS = [
   { label: 'Fossil fuels', color: '--fossil', fuels: ['lignite', 'coal', 'gas', 'oil'].map(fuel) },
   { label: 'Other', color: '--f-other', fuels: ['nuclear', 'pumped_storage', 'other'].map(fuel) },
 ];
-const NOW_WINDOWS = {
-  day: { days: 1, span: 'Latest 24 hours', sub: '24h average' },
-  week: { days: 7, span: 'Latest 7 days', sub: '7d average' },
-  month: { days: 30, span: 'Latest 30 days', sub: '30d average' },
-  year: { days: 365, span: 'Latest 365 days', sub: '365d average' },
-};
-let nowWindow = 'day';
+let NOW_WINDOWS;
+let nowWindow;
 const INFO = {
   Renewables: 'Solar, onshore and offshore wind, hydro and biomass.',
   Solar: 'Solar farms and rooftop panels, as far as they feed the grid. What homes use from their own panels is not counted.',
@@ -157,7 +151,7 @@ function drawFigures(figs) {
 function renderNow(animate = false) {
   const i = end - 1;
   const win = NOW_WINDOWS[nowWindow];
-  const slots = slotsIn(data, win.days * 1440);
+  const slots = windowSlots(win, step());
   const figs = groupFigures(NOW_GROUPS, data.columns, i, slots);
   // Exports and pumping are stored as negative MW; the panel shows their size.
   const w = (col) => windowFigures((k) => Math.abs(data.columns[col][k]), i, slots);
@@ -189,13 +183,12 @@ async function main() {
   startAnalytics();
   records = createRecordsTool({ host: $('records'), country: de });
   setupControls();
-  renderNowPlaceholder();
-  setupNowHover(() => nowFigures);
-  document.querySelectorAll('[data-now-window]').forEach((b) => b.addEventListener('click', () => {
-    nowWindow = b.dataset.nowWindow;
-    document.querySelectorAll('[data-now-window]').forEach((x) => x.setAttribute('aria-checked', x === b));
+  ({ windows: NOW_WINDOWS, first: nowWindow } = setupNowWindows(de, (key) => {
+    nowWindow = key;
     if (data) renderNow(true);
   }));
+  renderNowPlaceholder();
+  setupNowHover(() => nowFigures);
   const capacity = fetch(`${de.dataPath}/installed.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   try {
     data = await loadData(de.dataPath);
@@ -206,7 +199,8 @@ async function main() {
     return;
   }
   end = dataEnd(data, de);
-  $('updated').textContent = `Data from ${fmtDate(data.startMs)} to ${fmtDateTime(slotTime(end - 1, data.startMs, step()))}, German time. Energy-Charts updates through the day, a few hours behind.`;
+  const latest = slotTime(end, data.startMs, step());
+  $('updated').textContent = `Data from ${fmtDate(data.startMs)} to ${fmtDateTime(latest)} German time, ${agoText(latest)}. Energy-Charts runs about three hours behind; this page checks it every 30 minutes.`;
   renderNow();
   renderStory();
   records.setData(data, { end });
