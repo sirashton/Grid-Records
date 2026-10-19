@@ -88,7 +88,7 @@ export default {
 
 ## 4. The page
 
-`site/<cc>/index.html` + `site/js/<cc>/app.js`. Copy `site/nz/index.html` and the top of `site/js/nz/app.js` (setup, Right now panel, `main`) for the shell (header, country switch, Right now panel, records section, story chapters). Then:
+`site/<cc>/index.html` + `site/js/<cc>/app.js`. Copy `site/nz/index.html` and the top of `site/js/nz/app.js` (setup, Right now panel, `main`) for the shell (header, country switch, Right now panel, records section, story chapters). The header mark and favicon are shared: keep the empty `<svg class="hero-art">` and the `js/core/hero-mark.js` script tag, and `js/core/hero-mark.js` fills it on every page. Then:
 
 1. `setTimeZone(country.timeZone)`; `const records = createRecordsTool({ host: $('records'), country })` after `startAnalytics()`.
 2. `const data = await loadData(country.dataPath)`; `records.setData(data, { end: dataEnd(data, country) })`.
