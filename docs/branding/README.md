@@ -1,8 +1,8 @@
 # Branding: the name and the mark
 
-Chosen on 2026-10-19:
+As of 2026-10-19:
 
-- **Name: The Long Run.** It names what the site measures (how long a grid runs on little or no fossil fuel) and the direction of travel, and it still holds after the last coal and gas plants close. "Last Burn" was the close runner-up and is kept in mind for an endgame section.
+- **Name: still open.** The site stays "Grid Records" for now. The shortlist is The Long Run and Last Burn, and Alex wants a name that is easy to find on Google.
 - **Mark: 3f-a, "Mix rows" in teal.** Four years of the fuel mix as 100% stacked rows, fossil on the left. The rows build once, then a dashed "lowest fossil share" line hops to the newest row. It lives in `site/js/core/hero-mark.js` (markup) and `site/style.css` (styles), and the favicon is `site/favicon.svg`.
 
 The pages in this folder are the full set of options considered. Open them in a browser:
