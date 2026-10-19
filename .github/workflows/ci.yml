@@ -61,7 +61,7 @@ jobs:
         with:
           path: .cache-au
           key: au-${{ github.run_id }}
-      - run: ls -la site/data/au/nem && node -e "const m=require('./site/data/au/nem/meta.json'); console.log(m.length, m.columns, m.months)"
+      - run: ls -la site/data/au/nem && node -e "const m=require('./site/data/au/nem/meta.json'); console.log(m.length, m.columns, m.months, m.recent, 'data to', new Date(m.startMs + (Math.max(...Object.values(m.lastSlot)) + 1) * 1800000).toISOString())"
       - run: ls -la site/data site/data/nz && node -e "const m=require('./site/data/nz/meta.json'); console.log(m.length, m.columns, m.months)"
       - run: ls -la site/data && node -e "const m=require('./site/data/meta.json'); console.log(m.length, m.columns, m.battery.coverage, m.battery.units.length)"
       # Snapshot the built site, data included, on a throwaway branch for previews.

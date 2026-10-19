@@ -5,19 +5,20 @@ import { DAY_MS } from '../lib.mjs';
 
 /**
  * Runs fn over items with a few workers, in order, until the deadline.
- * Failures are logged and skipped. Returns how many finished and how many are left.
+ * Failures are logged and skipped; stop() returning true ends the run early
+ * (a source refusing requests). Returns how many finished and how many are left.
  */
-export async function runQueue(items, fn, { concurrency = 4, deadline = Infinity, log = console.log } = {}) {
+export async function runQueue(items, fn, { concurrency = 4, deadline = Infinity, stop = () => false, log = console.log } = {}) {
   let next = 0;
   let done = 0;
   const worker = async () => {
-    while (next < items.length && Date.now() < deadline) {
+    while (next < items.length && Date.now() < deadline && !stop()) {
       const item = items[next++];
       try {
         await fn(item);
         done++;
       } catch (err) {
-        log(`${item}: failed: ${err.message}`);
+        log(`${item?.name ?? item}: failed: ${err.message}`);
       }
     }
   };

@@ -7,7 +7,7 @@ import { createRecordsTool } from '../core/records-tool.js';
 import { FUELS, FOSSIL, RENEWABLE, metricSeries, generationTotal, yearlyEnergy, yearlyHoursBelow, dailyEnergy } from './data.js';
 import { LAKE, fleetFromDays, simulate, lakeSizes, minimumBuild, dryYearWeather, solarSeason } from './lakes.js';
 import { recentRecords } from '../recent.js';
-import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
+import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, setupNowWindows, windowSlots, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
 import { startAnalytics } from '../analytics.js';
 import { ASSUMPTIONS as A, needs, projection, yearCosts, fuelCost, crf, SOURCES } from './firming.js';
 
@@ -76,13 +76,8 @@ const NOW_GROUPS = [
   { label: 'Renewables', color: '--lowcarbon', fuels: ['hydro', 'geothermal', 'wind', 'solar', 'bioenergy'].map(fuel) },
   { label: 'Fossil fuels', color: '--fossil', fuels: ['gas', 'coal', 'diesel'].map(fuel) },
 ];
-const NOW_WINDOWS = {
-  day: { slots: 48, span: 'Latest 24 hours', sub: '24h average' },
-  week: { slots: 48 * 7, span: 'Latest 7 days', sub: '7d average' },
-  month: { slots: 48 * 30, span: 'Latest 30 days', sub: '30d average' },
-  year: { slots: 48 * 365, span: 'Latest 365 days', sub: '365d average' },
-};
-let nowWindow = 'day';
+let NOW_WINDOWS;
+let nowWindow;
 const INFO = {
   Renewables: 'Hydro, geothermal, wind, solar, and wood and biogas.',
   Hydro: 'Hydro stations, mostly on the Waikato, Waitaki and Clutha rivers and at Manapōuri.',
@@ -158,8 +153,9 @@ function drawFigures(figs) {
 function renderNow(animate = false) {
   const i = end - 1;
   const win = NOW_WINDOWS[nowWindow];
-  const figs = groupFigures(NOW_GROUPS, data.columns, i, win.slots);
-  const dis = windowFigures((k) => data.columns.battery[k], i, win.slots);
+  const slots = windowSlots(win, 30);
+  const figs = groupFigures(NOW_GROUPS, data.columns, i, slots);
+  const dis = windowFigures((k) => data.columns.battery[k], i, slots);
   figs.bat = { dis: dis.value, disSeries: dis.series };
   nowFigures = hoverFigures(figs, win.sub, win.span);
   nowRecords ??= recentRecords({ ...data, length: end }, { watch: NOW_WATCH, peaks: NOW_PEAKS, series: metricSeries, total: generationTotal(data), greenFloor: 2000, limit: NOW_RECORD_ROWS });
@@ -530,13 +526,12 @@ async function main() {
   startAnalytics();
   records = createRecordsTool({ host: $('records'), country: nz });
   setupControls();
-  renderNowPlaceholder();
-  setupNowHover(() => nowFigures);
-  document.querySelectorAll('[data-now-window]').forEach((b) => b.addEventListener('click', () => {
-    nowWindow = b.dataset.nowWindow;
-    document.querySelectorAll('[data-now-window]').forEach((x) => x.setAttribute('aria-checked', x === b));
+  ({ windows: NOW_WINDOWS, first: nowWindow } = setupNowWindows(nz, (key) => {
+    nowWindow = key;
     if (data) renderNow(true);
   }));
+  renderNowPlaceholder();
+  setupNowHover(() => nowFigures);
   const lakes = fetch('lakes.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
   try {
     data = await loadData(nz.dataPath);
