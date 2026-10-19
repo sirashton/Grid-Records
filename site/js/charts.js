@@ -119,7 +119,8 @@ export function lineChart(host, opts) {
     const t = el('text', { x: m.left - 8, y: y(v) + 4, 'text-anchor': 'end', class: 'tick' }, grid);
     t.textContent = (opts.yTickFormat ?? opts.yFormat)(v);
   }
-  for (const { t, label } of timeTicks(xMin, xMax)) {
+  // opts.xTicks ([{ t, label }]) replaces the time axis, for x values that aren't times.
+  for (const { t, label } of opts.xTicks ?? timeTicks(xMin, xMax)) {
     const tx = el('text', { x: x(t), y: height - 8, 'text-anchor': 'middle', class: 'tick' }, grid);
     tx.textContent = label;
   }

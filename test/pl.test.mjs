@@ -58,3 +58,45 @@ test('merges generation and prices, ending at the last generation slot', () => {
   assert.equal(m.columns.coal[1], 6);
   assert.ok(Number.isNaN(m.columns.solar[0]));
 });
+
+test('works out the story figures: coal floor, prices by hour and price bands', async () => {
+  const { storyFigures } = await import('../site/js/pl/story.js');
+  const cols = [...PL_COLUMNS, 'price'];
+  // Two years and a month of quarter hours, from New Year 2024 in Polish time.
+  const startMs = Date.UTC(2023, 11, 31, 23);
+  const length = 96 * (366 + 365 + 30);
+  const columns = Object.fromEntries(cols.map((c) => [c, new Float64Array(length)]));
+  for (let i = 0; i < length; i++) {
+    // Local winter hour; the summer hour is one later, which the figures follow.
+    const t = new Date(startMs + i * 900000);
+    const hour = Number(new Intl.DateTimeFormat('en', { timeZone: 'Europe/Warsaw', hour: 'numeric', hourCycle: 'h23' }).format(t));
+    const sunny = hour >= 11 && hour < 15;
+    columns.solar[i] = sunny ? 10000 : 0;
+    columns.coal[i] = sunny ? 4000 : 12000;
+    columns.lignite[i] = 2000;
+    columns.exports[i] = sunny ? -2000 : 0;
+    columns.price[i] = sunny ? -10 : hour >= 18 && hour <= 20 ? 200 : 100;
+  }
+  const data = { startMs, length, stepMinutes: 15, columns };
+  const f = storyFigures(data, length);
+  assert.deepEqual(f.rows.map((r) => r.year), [2024, 2025, 'past365']);
+  const [y24] = f.rows;
+  assert.equal(y24.coalMin, 6);
+  assert.equal(y24.coalMax, 14);
+  // Four sunny hours a day under 7 GW, all with the sun up.
+  assert.equal(y24.coalLow, 366 * 4);
+  assert.equal(y24.coalLowSunShare, 1);
+  assert.equal(y24.midday, -10);
+  assert.equal(y24.evening, 200);
+  assert.equal(y24.byHour[19], 200);
+  assert.equal(y24.solarCapture, -10);
+  assert.equal(y24.negHours, 366 * 4);
+  const [below0] = f.bands;
+  assert.equal(below0.coal, 6);
+  assert.equal(below0.exports, 2);
+  assert.equal(below0.solar, 10);
+  assert.equal(f.monthly[0].month, '2024-01');
+  // Coal is 6 of 16 GW in sunny hours and all 14 GW otherwise.
+  assert.ok(Math.abs(f.monthly[0].coalPct - ((6 * 4 + 14 * 20) / (16 * 4 + 14 * 20)) * 100) < 1e-9);
+  assert.equal(f.coalLowSpell.record.end - f.coalLowSpell.record.start, 16);
+});
