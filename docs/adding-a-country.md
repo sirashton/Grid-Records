@@ -83,6 +83,7 @@ export default {
 - `site/js/core/calendar.js`: `yearStart`, `localYear`, `localDate` in any time zone.
 - `site/js/records.js`: the record engine. `summarise(values, threshold, mode, { startMs, stepMinutes, timeZone, maxGapMinutes })`, `formatDuration(slots, stepMinutes)`. Spells, record progression, per-year bests (local calendar years) and the past 365 days.
 - `site/js/core/records-tool.js`: `const records = createRecordsTool({ host, country })` renders the whole Records card (controls, table, record progression, longest spell per year, the measure over time) into an empty `<section class="card records-card" id="records" aria-labelledby="records-h"></section>`, before the data loads; then `records.setData(data, { end })`, and `records.update()` on resize. Pages don't copy its markup or code. Optional `series`, `seriesKey` and `hash` hooks let a page add its own setting (GB's battery source).
+- `site/js/core/live-records.js`: `liveRecords(data, country)` (running spells that are records, close to one, or long streaks), `freshness`, `thresholdText`. Used by the Live records page.
 - `site/js/envelope.js`: `envelopeLayers` for envelope charts in stories.
 - `site/js/now-panel.js` (Right now panel), `site/js/recent.js` (recent records), `site/js/envelope.js`, `site/js/charts.js` (call `setTimeZone(country.timeZone)`).
 
@@ -93,7 +94,9 @@ export default {
 1. `setTimeZone(country.timeZone)`; `const records = createRecordsTool({ host: $('records'), country })` after `startAnalytics()`.
 2. `const data = await loadData(country.dataPath)`; `records.setData(data, { end: dataEnd(data, country) })`.
 3. The story: country-specific chapters in `site/js/<cc>/`, answer first (Alex's pyramid style). This is the part that should differ per country.
-4. Add the flag to `site/flags/` and the country to the switch on every page.
+4. Add the flag to `site/flags/`, the country to `site/js/countries/index.js` (its page, data path and flag), and the country to the switch on every page, before the Live records button (`site/live/` included). `test/live-records.test.mjs` checks every page's switch against the list.
+
+The Live records page (`site/live/`, `site/js/core/live-records.js`) reads `site/js/countries/index.js`, so a listed country is checked there with no other change: every preset and threshold in its config, for spells still running that are records or close to one. It uses the config's `live` flag and the data's end to say whether the country is live or how far behind its latest data is.
 
 ## What stays country-specific
 
