@@ -1,0 +1,19 @@
+name: Probe DE
+on:
+  push:
+    branches: [probe-de]
+permissions:
+  contents: write
+jobs:
+  probe:
+    if: "!contains(github.event.head_commit.message, 'Probe results')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node probe/probe.mjs | tee probe/log.txt
+      - run: |
+          mkdir -p probe/out && cp out/* probe/out/ || true
+          git add probe
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Probe results" && git push -q origin HEAD:probe-de
