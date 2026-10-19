@@ -7,13 +7,10 @@
 // columns, D rows hold data. Times are NEM time (UTC+10, no daylight saving)
 // and mark the end of each interval.
 import { spawn } from 'node:child_process';
-import { createWriteStream } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-import { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
 import { fetchText, SLOT_MS } from '../lib.mjs';
 
 const HOST = 'https://nemweb.com.au';
@@ -71,23 +68,15 @@ export async function* zipRows(url) {
   const dir = await mkdtemp(join(tmpdir(), 'mms-'));
   try {
     const file = join(dir, 'f.zip');
-    let res;
-    for (let attempt = 0; ; attempt++) {
-      try {
-        res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(600000) });
-        if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-        await pipeline(Readable.fromWeb(res.body), createWriteStream(file));
-        break;
-      } catch (err) {
-        if (attempt >= 3) throw err;
-        await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
-      }
-    }
+    // curl rather than fetch: Node's fetch has crashed part way through these
+    // large downloads (an undici assertion), taking the whole run with it.
+    await run('curl', ['-sSfL', '--retry', '4', '--retry-delay', '2', '--max-time', '600', '-A', UA['user-agent'], '-o', file, url]);
     const unzip = spawn('unzip', ['-p', file], { stdio: ['ignore', 'pipe', 'inherit'] });
     yield* csvRows(unzip.stdout);
     await new Promise((resolve, reject) => {
-      if (unzip.exitCode != null) resolve();
-      else unzip.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`unzip exited ${code}`))));
+      const done = (code) => (code === 0 ? resolve() : reject(new Error(`unzip exited ${code}`)));
+      if (unzip.exitCode != null) done(unzip.exitCode);
+      else unzip.on('close', done);
     });
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -109,6 +98,16 @@ export async function* csvRows(input) {
       cols = line.trim().split(',');
     }
   }
+}
+
+function run(cmd, argv) {
+  return new Promise((resolve, reject) => {
+    const p = spawn(cmd, argv, { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr.on('data', (d) => { err += d; });
+    p.on('error', reject);
+    p.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} exited ${code}: ${err.trim()}`))));
+  });
 }
 
 async function collect(url) {
