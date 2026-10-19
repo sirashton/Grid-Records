@@ -54,73 +54,8 @@
       <p class="hint now-note" id="now-note">The Electricity Authority publishes each month a few weeks after it ends, so this shows the latest data, not live output.</p>
     </section>
 
-    <section class="card records-card" aria-labelledby="records-h">
-      <h2 id="records-h">Records</h2>
-      <p class="hint">How long the grid can now run below or above any level, for any fuel or group.</p>
-      <form class="controls" id="controls" onsubmit="return false">
-        <label class="field">
-          <span>Measure</span>
-          <select id="preset"></select>
-        </label>
-        <div class="field">
-          <span>Record type</span>
-          <div class="segmented" role="radiogroup" aria-label="Record type">
-            <button type="button" data-mode="below" role="radio">Below</button>
-            <button type="button" data-mode="above" role="radio">Above</button>
-          </div>
-        </div>
-        <div class="field">
-          <span>Units</span>
-          <div class="segmented" role="radiogroup" aria-label="Units">
-            <button type="button" data-unit="gw" role="radio">GW</button>
-            <button type="button" data-unit="pct" role="radio">% of generation</button>
-          </div>
-        </div>
-        <label class="field grow">
-          <span>Thresholds</span>
-          <input id="thresholds" inputmode="decimal" autocomplete="off">
-        </label>
-        <div class="field" id="members-field">
-          <span>Sources</span>
-          <button type="button" class="edit-btn" id="members-toggle" aria-expanded="false" aria-controls="members"></button>
-        </div>
-        <fieldset class="field members" id="members" hidden>
-          <legend>Sources in the group</legend>
-        </fieldset>
-      </form>
-      <p class="question" id="question"></p>
-      <div class="table-scroll">
-        <table class="records" id="records-table"></table>
-      </div>
-
-      <h3>How the records have grown</h3>
-      <p class="hint">Each step is a new longest spell.</p>
-      <div class="segmented small" id="prog-scale" role="radiogroup" aria-label="Y axis scale">
-        <button type="button" data-prog-scale="linear" role="radio" aria-checked="false">Linear</button>
-        <button type="button" data-prog-scale="log" role="radio" aria-checked="true">Log</button>
-      </div>
-      <div class="chart-host" id="progression"></div>
-      <div class="legend" id="progression-legend"></div>
-
-      <h3>Longest spell in each year</h3>
-      <p class="hint">✓ marks a spell that lasted the whole year.</p>
-      <div class="chart-host" id="by-year"></div>
-      <div class="legend" id="by-year-legend"></div>
-
-      <h3>The measure over time</h3>
-      <div class="segmented small" id="range" role="radiogroup" aria-label="Time range">
-        <button type="button" data-range="7">Week</button>
-        <button type="button" data-range="30">Month</button>
-        <button type="button" data-range="365">Year</button>
-        <button type="button" data-range="all">All time</button>
-      </div>
-      <div class="segmented small" id="scale" role="radiogroup" aria-label="Y axis scale">
-        <button type="button" data-scale="linear" role="radio">Linear</button>
-        <button type="button" data-scale="log" role="radio">Log</button>
-      </div>
-      <div class="chart-host" id="timeline"></div>
-      <p class="hint" id="timeline-note"></p>
-    </section>
+    <!-- The Records card, drawn by site/js/core/records-tool.js. -->
+    <section class="card records-card" id="records" aria-labelledby="records-h"></section>
 
     <section class="plain story" aria-labelledby="story-h">
       <h2 id="story-h">The story</h2>

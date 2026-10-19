@@ -1,11 +1,16 @@
-// Record-duration engine. Shared by the browser and the Node tests.
+// Record-duration engine, shared by every country page and the Node tests.
 //
-// A series is a Float64Array of values at a fixed step (half-hourly), with NaN
-// marking missing slots. A "spell" is a run of consecutive slots where the
+// A series is a Float64Array of values at a fixed step (each country's own:
+// 5, 15, 30 or 60 minutes), with NaN marking missing slots. A "spell" is a run of consecutive slots where the
 // value is below (or above) a threshold. Missing slots end a spell, unless a
 // gap allowance lets short gaps be bridged when the slots either side qualify.
 
+import { yearStart, localYear } from './core/calendar.js';
+
+// The default step, for callers that don't pass one.
 export const STEP_MINUTES = 30;
+// Gaps up to an hour are bridged, whatever the step.
+export const MAX_GAP_MINUTES = 60;
 
 /**
  * Whether a value meets a threshold. Below means strictly below, except that a
@@ -78,14 +83,19 @@ export function topSpells(spells, n) {
 
 /**
  * Summarises a threshold: all-time record, record progression, the current
- * spell (if the series ends inside one) and the longest spell per year.
+ * spell (if the series ends inside one) and the longest spell per local
+ * calendar year.
  * @param {ArrayLike<number>} values
  * @param {number} threshold
  * @param {'below'|'above'} mode
- * @param {{maxGap?: number, startMs: number, top?: number}} opts
+ * @param {{startMs: number, stepMinutes?: number, timeZone?: string, maxGapMinutes?: number, maxGap?: number, top?: number}} opts
+ *   maxGap is in slots and overrides maxGapMinutes.
  */
 export function summarise(values, threshold, mode, opts) {
-  const spells = findSpells(values, threshold, mode, opts);
+  const step = opts.stepMinutes ?? STEP_MINUTES;
+  const tz = opts.timeZone ?? 'UTC';
+  const maxGap = opts.maxGap ?? Math.floor((opts.maxGapMinutes ?? MAX_GAP_MINUTES) / step);
+  const spells = findSpells(values, threshold, mode, { maxGap });
   const progression = recordProgression(spells);
   const record = progression.at(-1) ?? null;
   let lastValid = values.length - 1;
@@ -94,15 +104,28 @@ export function summarise(values, threshold, mode, opts) {
   const current = last && last.end === lastValid + 1 ? last : null;
   const totalSlots = spells.reduce((n, s) => n + spellLength(s), 0);
   const perYear = new Map();
+  // First slot of each local year the data touches, worked out once.
+  const slotsPerMs = 1 / (step * 60000);
+  const lastSlot = Math.max(values.length, 1) - 1;
+  const firstYear = localYear(opts.startMs, tz);
+  const bounds = [];
+  for (let y = firstYear; y <= localYear(slotTime(lastSlot, opts.startMs, step), tz) + 1; y++) {
+    bounds.push(Math.ceil((yearStart(y, tz) - opts.startMs) * slotsPerMs));
+  }
+  const yearIndex = (slot) => {
+    let k = 0;
+    while (k + 1 < bounds.length && bounds[k + 1] <= slot) k++;
+    return k;
+  };
   // A spell that crosses New Year counts in each year it touches, clipped to
   // that year, so no year can show more than a year. `spell` keeps the whole run.
-  const slotsPerMs = 1 / (STEP_MINUTES * 60000);
   for (const s of spells) {
-    const y0 = new Date(slotTime(s.start, opts.startMs)).getUTCFullYear();
-    const y1 = new Date(slotTime(s.end - 1, opts.startMs)).getUTCFullYear();
-    for (let y = y0; y <= y1; y++) {
-      const start = Math.max(s.start, Math.ceil((Date.UTC(y, 0, 1) - opts.startMs) * slotsPerMs));
-      const end = Math.min(s.end, Math.ceil((Date.UTC(y + 1, 0, 1) - opts.startMs) * slotsPerMs));
+    const k0 = yearIndex(s.start);
+    const k1 = yearIndex(s.end - 1);
+    for (let k = k0; k <= k1; k++) {
+      const y = firstYear + k;
+      const start = Math.max(s.start, bounds[k]);
+      const end = Math.min(s.end, bounds[k + 1]);
       const part = { start, end, spell: s };
       const prev = perYear.get(y);
       if (!prev || end - start > prev.end - prev.start) perYear.set(y, part);
@@ -111,7 +134,7 @@ export function summarise(values, threshold, mode, opts) {
   // The longest spell within the past 365 days, clipped to that window, for
   // the bar that stands in for the unfinished calendar year.
   const winEnd = lastValid + 1;
-  const winStart = winEnd - Math.round((365 * 24 * 60) / STEP_MINUTES);
+  const winStart = winEnd - Math.round((365 * 24 * 60) / step);
   let pastYear = null;
   for (const s of spells) {
     const start = Math.max(s.start, winStart);
@@ -121,6 +144,7 @@ export function summarise(values, threshold, mode, opts) {
   return {
     threshold,
     mode,
+    stepMinutes: step,
     count: spells.length,
     totalSlots,
     record,
@@ -132,11 +156,11 @@ export function summarise(values, threshold, mode, opts) {
   };
 }
 
-export const slotTime = (index, startMs) => startMs + index * STEP_MINUTES * 60000;
+export const slotTime = (index, startMs, stepMinutes = STEP_MINUTES) => startMs + index * stepMinutes * 60000;
 
-/** "3 days 4 hours", "5 hours 30 minutes", "30 minutes". */
-export function formatDuration(slots) {
-  let minutes = slots * STEP_MINUTES;
+/** "3 days 4 hours", "5 hours 30 minutes", "30 minutes", for a number of slots. */
+export function formatDuration(slots, stepMinutes = STEP_MINUTES) {
+  let minutes = Math.round(slots * stepMinutes);
   const days = Math.floor(minutes / 1440);
   minutes -= days * 1440;
   const hours = Math.floor(minutes / 60);
