@@ -71,7 +71,7 @@ export function storyFigures(data, end) {
   const rows = byYear(d, () => ({
     fossilMin: Infinity, fossilMax: -Infinity, fossilMaxAt: -1, fossilHigh: 0, hydroMin: Infinity, hydroLow: 0, renewMin: Infinity,
     windMax: 0, solarMax: 0, windSolarMax: 0, demandMax: 0, heldMax: 0, heldMaxAt: -1, heldHigh: 0,
-    windMade: 0, windHeld: 0, solarMade: 0, solarHeld: 0, roof: 0, lowByHour: new Float64Array(24),
+    windMade: 0, windHeld: 0, solarMade: 0, solarHeld: 0, roof: 0, lowByHour: new Float64Array(24), hydroHour: new Float64Array(24), hydroHourN: new Float64Array(24),
     byHour: Array.from({ length: 24 }, () => ({ wind: 0, solar: 0, roof: 0, n: 0 })),
   }), (r, i) => {
     const f = fossil[i];
@@ -80,6 +80,8 @@ export function storyFigures(data, end) {
     if (f > r.fossilMax) { r.fossilMax = f; r.fossilMaxAt = i; }
     if (f >= FOSSIL_HIGH) r.fossilHigh += slotH;
     if (hydro[i] < r.hydroMin) r.hydroMin = hydro[i];
+    r.hydroHour[hour[i]] += hydro[i];
+    r.hydroHourN[hour[i]]++;
     if (hydro[i] < HYDRO_LOW) {
       r.hydroLow += slotH;
       r.lowByHour[hour[i]] += slotH;
@@ -112,6 +114,7 @@ export function storyFigures(data, end) {
     hydroMin: r.hydroMin,
     hydroLow: r.hydroLow,
     hydroLowByHour: [...r.lowByHour],
+    hydroByHour: [...r.hydroHour].map((v, k) => (r.hydroHourN[k] ? v / r.hydroHourN[k] : NaN)),
     renewMin: r.renewMin,
     windMax: r.windMax,
     solarMax: r.solarMax,
@@ -162,12 +165,24 @@ const pct = (v) => `${v.toFixed(1)}%`;
 const title = (y) => (y === 'past365' ? 'Latest 365 days' : String(y));
 const named = (y) => (y === 'past365' ? 'the latest 365 days' : String(y));
 const legend = (items) => items.map(([name, color]) => `<span><span class="swatch" style="background:${color}"></span>${name}</span>`).join('');
+const src = (url, text) => `<a href="${url}">${text}</a>`;
 const link = (ch, text) => `<a href="#chapter-${ch}" data-open="chapter-${ch}">${text}</a>`;
 const monthName = (m) => new Date(`${m}-15T12:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 const hourX = (hr) => hr * 3600000;
 const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21].map((hr) => ({ t: hourX(hr), label: `${String(hr).padStart(2, '0')}:00` }));
 const hourTip = (fmt) => (t, vals) => `<strong>${String(Math.round(t / 3600000)).padStart(2, '0')}:00</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? fmt(v.value) : '—'}</b></div>`).join('')}`;
+// From other ONS datasets, not the generation data: natural inflow to the
+// reservoirs as a share of the long-term average (ENA), stored energy as a
+// share of the maximum (EAR), and turbinable water spilled (energia vertida
+// turbinável), for the whole interconnected system.
+export const HYDROLOGY = {
+  2021: { inflowPct: 72, storeStart: 25, storeMin: 24, spillTwh: 11.6, spillMidday: 1.3 },
+  2025: { inflowPct: 78, storeStart: 53, storeMin: 44, spillTwh: 21.0, spillMidday: 4.6 },
+};
+const ONS_DATA = 'https://dados.ons.org.br/';
+// Average hydro output over local hours [a, b).
+const hydroAt = (r, a, b) => r.hydroByHour.slice(a, b).reduce((p, q) => p + q, 0) / (b - a);
 // Share of a year's low-hydro hours that fell in daylight, 08:00 to 16:00.
 const daytime = (r) => r.hydroLowByHour.slice(8, 16).reduce((a, b) => a + b, 0) / r.hydroLow;
 
@@ -213,7 +228,7 @@ export function renderStory(data, end, figs) {
   $('answer-points').innerHTML = [
     `<b>From ${pct(row(2022).heldPct)} to ${pct(last.heldPct)} in three years.</b> In ${named(latest.year)} ${twh(heldTwh(latest))} was held back, more than Brazil's gas plants made in ${last.year} (${twh(gasYear.twh.gas)}). ${link(1, 'Chapters 1')} and ${link(2, '2')}`,
     `<b>Thrown away in the late morning.</b> Wind held back averages ${gw(windPeak.v)} at ${hh(windPeak.hr)} against ${gw(windNight)} at night, while rooftop solar, which ONS cannot switch off, averages ${gw(roofPeak.v)} at ${hh(roofPeak.hr)}. ${link(3, 'Chapter 3')}`,
-    `<b>The rivers now make room for the sun.</b> In 2021 most hours with hydro under ${HYDRO_LOW} GW came at night, in a drought; in ${last.year} ${Math.round(daytime(last) * 100)}% came between 08:00 and 16:00, as the dams held water back for the evening. ${link(4, 'Chapter 4')}`,
+    `<b>The rivers now make room for the sun.</b> In 2021 most hours with hydro under ${HYDRO_LOW} GW came at night, in a drought; in ${last.year} ${Math.round(daytime(last) * 100)}% came between 08:00 and 16:00, as hydro made way for the sun, in a year almost as dry. ${link(4, 'Chapter 4')}`,
   ].map((x) => `<li>${x}</li>`).join('');
 
   // Headline facts.
@@ -299,8 +314,11 @@ export function renderStory(data, end, figs) {
 
   // Chapter 4: when hydro is low.
   const r01 = row(2001);
+  const r25 = row(2025);
+  const hyd21 = HYDROLOGY[2021];
+  const hyd25 = rows.some((r) => r.year === 2025) ? HYDROLOGY[2025] : null;
   $('take-4').textContent = `Hours with hydro under ${HYDRO_LOW} GW used to mean drought nights; in ${last.year} ${Math.round(daytime(last) * 100)}% of them came in daylight.`;
-  $('body-4').innerHTML = `Brazil's grid has always feared drought. In 2001 hydro ran under ${HYDRO_LOW} GW for ${hrs(r01.hydroLow)} and the government imposed rationing. In 2021, the worst drought in about 90 years, hydro fell to its lowest hour ever, ${gw(y21.hydroMin)}, and ONS ran nearly every thermal plant: fossil fuels made ${twh(en(2021).fossil)}, the most ever, and ran at ${FOSSIL_HIGH} GW or more for ${hrs(y21.fossilHigh)}${drought ? `, including ${n0(((drought.end - drought.start) * step) / 60)} in a row from ${when(drought.start)}` : ''}. Most of 2021's low-hydro hours were at night, when the dams had nothing left. ${last.year} had ${hrs(last.hydroLow)} with hydro under ${HYDRO_LOW} GW, but ${Math.round(daytime(last) * 100)}% fell between 08:00 and 16:00, against ${Math.round(daytime(y21) * 100)}% in 2021. Hydro made ${twh(en(last.year).twh.hydro)} in ${last.year}, against ${twh(en(2021).twh.hydro)} in 2021: the rivers were not drier, the dams were stepping aside for the sun and saving water for the evening. Fossil fuels never reached ${FOSSIL_HIGH} GW in ${last.year}.`;
+  $('body-4').innerHTML = `Brazil's grid has always feared drought. In 2001 hydro ran under ${HYDRO_LOW} GW for ${hrs(r01.hydroLow)} and the government imposed rationing. In 2021, the worst drought in about 90 years, hydro fell to its lowest hour ever, ${gw(y21.hydroMin)}, and ONS ran nearly every thermal plant: fossil fuels made ${twh(en(2021).fossil)}, the most ever, and ran at ${FOSSIL_HIGH} GW or more for ${hrs(y21.fossilHigh)}${drought ? `, including ${n0(((drought.end - drought.start) * step) / 60)} in a row from ${when(drought.start)}` : ''}. Most of 2021's low-hydro hours were at night. ${last.year} had ${hrs(last.hydroLow)} with hydro under ${HYDRO_LOW} GW, but ${Math.round(daytime(last) * 100)}% fell between 08:00 and 16:00, against ${Math.round(daytime(y21) * 100)}% in 2021. ${hyd25 ? `Yet 2025 was nearly as dry: the rivers brought ${hyd25.inflowPct}% of their long-term average, against ${hyd21.inflowPct}% in 2021. The difference was the water already stored. The reservoirs started 2025 ${hyd25.storeStart}% full, against ${hyd21.storeStart}% in 2021, and never fell below ${hyd25.storeMin}%, against ${hyd21.storeMin}% (${src(ONS_DATA, 'ONS')}). With that cushion, and wind and solar covering the day, fossil fuels never reached ${FOSSIL_HIGH} GW in 2025. ` : ''}Hydro now works around the sun: from 10:00 to 14:00 it averaged ${gw(hydroAt(r25, 10, 14))} in 2025, against ${gw(hydroAt(y21, 10, 14))} in 2021, and from 18:00 to 22:00 it rose from ${gw(hydroAt(y21, 18, 22))} to ${gw(hydroAt(r25, 18, 22))}.${hyd25 ? ` Not all the midday water is saved for the evening. Water that could have gone through the turbines but was spilled averaged ${gw(hyd25.spillMidday)} at midday in 2025, against ${gw(hyd21.spillMidday)} in 2021, ${twh(hyd25.spillTwh)} over the year. Almost three quarters of it was at four northern plants: Tucuruí, and the run-of-river plants Belo Monte, Santo Antônio and Jirau, which have little storage and must spill what the grid won't take.` : ''}`;
   $('chart-h-4').textContent = `When hydro runs under ${HYDRO_LOW} GW`;
   $('chart-hint-4').textContent = `Hours with hydro under ${HYDRO_LOW} GW, by hour of day, Brasília time.`;
   const lowYears = [2001, 2021, last.year].filter((y, k, a) => rows.some((r) => r.year === y) && a.indexOf(y) === k);
