@@ -54,6 +54,19 @@ jobs:
         with:
           path: .cache-nz
           key: nz-${{ github.run_id }}
+      # Germany, likewise.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-de
+          key: de-${{ github.run_id }}
+          restore-keys: de-
+      - run: node pipeline/build-de.mjs --budget-minutes 3
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-de
+          key: de-${{ github.run_id }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
