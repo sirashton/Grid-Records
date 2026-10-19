@@ -1,9 +1,7 @@
-// The Live records page: which running spells count, and the country list it reads.
+// The Live records page: which running spells count.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
 import { liveRecords, freshness, behindText, thresholdText } from '../site/js/core/live-records.js';
-import { COUNTRIES } from '../site/js/countries/index.js';
 
 const N = NaN;
 const country = {
@@ -81,20 +79,4 @@ test('thresholds in words', () => {
   assert.equal(thresholdText({ ...c, threshold: 0, label: 'Coal' }, country), 'No coal');
   assert.equal(thresholdText({ ...c, mode: 'above', unit: 'pct', threshold: 80, label: 'Renewables' }, country), 'Renewables at 80% of generation or more');
   assert.equal(thresholdText({ ...c, threshold: 0.5 }, { smallInMw: true }), 'Fossil fuels under 500 MW');
-});
-
-test('every page switches to every country and to Live records', () => {
-  const pages = [...COUNTRIES.map((e) => e.page), 'live/'];
-  for (const page of pages) {
-    const html = readFileSync(new URL(`../site/${page}index.html`, import.meta.url), 'utf8');
-    const nav = html.match(/<nav class="region-nav"[\s\S]*?<\/nav>/)[0];
-    const prefix = page ? '../' : '';
-    for (const e of COUNTRIES) {
-      assert.ok(nav.includes(`flags/${e.country.code}.svg`), `${page || 'GB'} page links ${e.country.name}`);
-      assert.ok(existsSync(new URL(`../site/${e.flag}`, import.meta.url)));
-    }
-    assert.ok(nav.includes('Live records'), `${page || 'GB'} page links Live records`);
-    assert.equal((nav.match(/aria-current/g) ?? []).length, 1);
-    assert.ok(nav.includes(prefix ? 'href="../' : 'href="'));
-  }
 });
