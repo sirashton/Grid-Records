@@ -20,6 +20,7 @@ test('maps ONS plant types and fuels to columns', () => {
   assert.equal(fuelColumn('TÉRMICA', 'Multi-Combustível Diesel/Óleo', 'TIPO I'), 'oil');
   assert.equal(fuelColumn('TÉRMICA', 'Biomassa', 'TIPO I'), 'biomass');
   assert.equal(fuelColumn('TÉRMICA', 'Resíduos Industriais', 'TIPO I'), 'other');
+  assert.equal(fuelColumn('BOMBEAMENTO', 'Hidráulica', 'TIPO I'), '');
   assert.equal(fuelColumn('???', 'x', ''), null);
 });
 
@@ -57,15 +58,21 @@ test('sums plants into hourly fuels; hours with no rows are missing', async () =
     + row('00:00:00', 'TIPO I', 'HIDROELÉTRICA', 'Hidráulica', '100.5')
     + row('00:00:00', 'TIPO I', 'HIDROELÉTRICA', 'Hidráulica', '0E-8')
     + row('00:00:00', 'Conjunto de Usinas', 'EOLIELÉTRICA', 'Eólica', '40')
-    + row('02:00:00', 'Pequenas Usinas (MMGD)', 'FOTOVOLTAICA', 'Fotovoltaica', '7');
+    + row('02:00:00', 'Pequenas Usinas (MMGD)', 'FOTOVOLTAICA', 'Fotovoltaica', '7')
+    + row('02:00:00', 'TIPO I', 'HIDROELÉTRICA', 'Hidráulica', '130')
+    + row('01:00:00', 'TIPO I', 'HIDROELÉTRICA', 'Hidráulica', '140')
+    + row('03:00:00', 'TIPO I', 'TÉRMICA', 'Gás', '3');
   const p = await parseGeneration(chunks(csv, 50), 2026, 9);
   assert.equal(p.startMs, Date.UTC(2026, 8, 1, 3));
   assert.equal(p.columns.hydro[0], 100.5);
   assert.equal(p.columns.wind[0], 40);
   // A fuel no plant reported in a present hour is zero.
   assert.equal(p.columns.coal[0], 0);
-  assert.equal(p.columns.hydro[1], null);
+  assert.equal(p.columns.hydro[1], 140);
+  assert.equal(p.columns.hydro[4], null);
   assert.equal(p.columns.solar_rooftop[2], 7);
+  // An hour where the plants read far less than usual is missing.
+  assert.equal(p.columns.hydro[3], null);
   assert.deepEqual(p.unknown, []);
 });
 

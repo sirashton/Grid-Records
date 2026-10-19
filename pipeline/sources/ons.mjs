@@ -21,7 +21,7 @@ export const BR_TZ = 'America/Sao_Paulo';
 export const HOUR_MS = 3600000;
 
 // Bump when parsing changes, so cached files are parsed again.
-export const PARSE_VERSION = 1;
+export const PARSE_VERSION = 3;
 
 export const GEN_COLUMNS = ['hydro', 'nuclear', 'coal', 'gas', 'oil', 'other', 'biomass', 'wind', 'solar_utility', 'solar_rooftop'];
 export const CURTAIL_COLUMNS = ['wind_curtailed', 'solar_curtailed'];
@@ -36,11 +36,13 @@ export const DATASETS = {
 
 /**
  * Maps one plant row to an output column, from its plant type, fuel and
- * operating mode, or null for a combination it doesn't know.
+ * operating mode: '' for rows to skip, null for a combination it doesn't know.
  */
 export function fuelColumn(type, fuel, mode) {
   const t = String(type ?? '').toUpperCase();
   const f = String(fuel ?? '').toLowerCase();
+  // Pumping at the small Pedreira and Traição stations, listed as zero throughout.
+  if (t.startsWith('BOMB')) return '';
   if (t.startsWith('HIDRO')) return 'hydro';
   if (t.startsWith('NUCLEAR')) return 'nuclear';
   if (t.startsWith('EOL')) return 'wind';
@@ -183,10 +185,22 @@ export async function parseGeneration(chunks, year, month) {
     const i = acc.slot(f[ix.din_instante]);
     if (i < 0) return;
     const col = fuelColumn(f[ix.nom_tipousina], f[ix.nom_tipocombustivel], f[ix.cod_modalidadeoperacao]);
-    if (!col) unknown[`${f[ix.nom_tipousina]}/${f[ix.nom_tipocombustivel]}`] = true;
+    if (col == null) unknown[`${f[ix.nom_tipousina]}/${f[ix.nom_tipocombustivel]}`] = true;
     acc.add(i, col, num(f[ix.val_geracao]));
   });
-  return { ...acc.piece(), unknown: Object.keys(unknown) };
+  const piece = acc.piece();
+  // One day a year in 2013 to 2015 every plant but one reads zero: that is
+  // missing data, not a blackout. An hour under a quarter of the file's
+  // median total is treated as missing.
+  const total = (i) => GEN_COLUMNS.reduce((s, c) => s + (piece.columns[c][i] ?? 0), 0);
+  const totals = [];
+  for (let i = 0; i < piece.length; i++) if (piece.columns.hydro[i] != null) totals.push(total(i));
+  totals.sort((a, b) => a - b);
+  const floor = (totals[Math.floor(totals.length / 2)] ?? 0) / 4;
+  for (let i = 0; i < piece.length; i++) {
+    if (piece.columns.hydro[i] != null && total(i) < floor) for (const c of GEN_COLUMNS) piece.columns[c][i] = null;
+  }
+  return { ...piece, unknown: Object.keys(unknown) };
 }
 
 /** Parses one yearly energy balance file into hourly whole-system load. */
