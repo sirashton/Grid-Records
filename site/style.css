@@ -335,3 +335,42 @@ footer { padding-bottom: 40px; }
 .firm-controls .field > span { font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
 #lakes-costs td:first-child { white-space: normal; }
 .region-switch { display: flex; flex-wrap: wrap; margin: 4px 0 10px; }
+
+/* Live records: the switch button, and the page. */
+.region-nav .live-dot { width: 10px; height: 10px; border-radius: 50%; background: #e0393e; border: 2px solid var(--line); flex-shrink: 0; animation: live-pulse 2s ease-in-out infinite; }
+.region-nav [aria-current] .live-dot { border-color: var(--primary-ink); }
+@keyframes live-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .region-nav .live-dot { animation: none; } }
+/* Two columns on a phone; the Live records button takes a row of its own. */
+@media (max-width: 640px) {
+  .region-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; background: var(--line); width: 100%; box-sizing: border-box; }
+  .region-nav > * + * { border-left: 0; }
+  .region-nav a, .region-nav span { background: var(--card); padding: 10px 12px; }
+  .region-nav [aria-current] { background: var(--primary); }
+  .region-nav .live-link { grid-column: 1 / -1; justify-content: center; }
+  /* An odd country out fills its row rather than leaving a gap. */
+  .region-nav > :nth-last-child(2):nth-child(odd) { grid-column: 1 / -1; }
+}
+.live-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.live-head h2 { display: flex; align-items: center; gap: 12px; margin: 0; }
+.live-head h2 img { border: 2px solid var(--line); }
+.live-badge { font-size: 0.8125rem; font-weight: 800; padding: 4px 10px; border: 3px solid var(--line); background: var(--grid); white-space: nowrap; }
+.live-badge[data-state="live"] { background: var(--lowcarbon); color: #fff; }
+.live-badge[data-state="latest"] { background: var(--sunny); }
+.live-badge[data-state="error"] { background: var(--cell-empty); color: var(--ink-3); }
+.live-when { margin: 8px 0 4px; }
+.live-country h3 { font-size: 1rem; margin: 18px 0 6px; }
+.live-list { list-style: none; margin: 0; padding: 0; }
+.live-item { padding: 10px 0 10px 14px; border-bottom: 2px solid var(--grid); border-left: 5px solid var(--grid); margin-bottom: 6px; }
+.live-item:last-child { border-bottom: 0; }
+.live-item[data-status="record"] { border-left-color: var(--lowcarbon); }
+.live-item[data-status="close"] { border-left-color: var(--accent-orange); }
+.live-item[data-status="streak"] { border-left-color: var(--primary); }
+.live-item .v { font-variant-numeric: tabular-nums; }
+.live-sub { color: var(--ink-2); font-size: 0.875rem; margin-top: 2px; }
+.live-sub a { white-space: nowrap; }
+.live-bar { display: block; height: 10px; max-width: 320px; margin: 6px 0 4px; border: 2px solid var(--line); background: var(--cell-empty); }
+.live-bar > span { display: block; height: 100%; background: var(--accent-orange); }
+.live-none { margin: 14px 0 4px; font-weight: 600; }
+.live-streaks { margin-top: 14px; }
+.live-streaks summary { cursor: pointer; font-weight: 700; }

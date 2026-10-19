@@ -17,7 +17,9 @@ test('links are relative to the page and the current country is marked', () => {
     { country: { name: 'Australia (NEM)' }, page: 'au/', flag: 'flags/au.svg', nav: 'Australia' },
   ];
   assert.equal(navHtml(list, ''),
-    '<nav class="region-nav" aria-label="Country"><span aria-current="page"><img src="flags/gb.svg" alt="" width="30" height="15">Great Britain</span><a href="au/"><img src="flags/au.svg" alt="" width="30" height="15">Australia</a></nav>');
+    '<nav class="region-nav" aria-label="Country"><span aria-current="page"><img src="flags/gb.svg" alt="" width="30" height="15">Great Britain</span><a href="au/"><img src="flags/au.svg" alt="" width="30" height="15">Australia</a><a class="live-link" href="live/"><i class="live-dot" aria-hidden="true"></i>Live records</a></nav>');
   assert.equal(navHtml(list, 'au/'),
-    '<nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><span aria-current="page"><img src="../flags/au.svg" alt="" width="30" height="15">Australia</span></nav>');
+    '<nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><span aria-current="page"><img src="../flags/au.svg" alt="" width="30" height="15">Australia</span><a class="live-link" href="../live/"><i class="live-dot" aria-hidden="true"></i>Live records</a></nav>');
+  // The Live records page marks its own button.
+  assert.match(navHtml(list, 'live/'), /<a href="\.\.\/au\/">.*<span class="live-link" aria-current="page">/);
 });

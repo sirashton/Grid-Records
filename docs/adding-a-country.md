@@ -87,17 +87,20 @@ export default {
 - `site/js/core/calendar.js`: `yearStart`, `localYear`, `localDate` in any time zone.
 - `site/js/records.js`: the record engine. `summarise(values, threshold, mode, { startMs, stepMinutes, timeZone, maxGapMinutes })`, `formatDuration(slots, stepMinutes)`. Spells, record progression, per-year bests (local calendar years) and the past 365 days.
 - `site/js/core/records-tool.js`: `const records = createRecordsTool({ host, country })` renders the whole Records card (controls, table, record progression, longest spell per year, the measure over time) into an empty `<section class="card records-card" id="records" aria-labelledby="records-h"></section>`, before the data loads; then `records.setData(data, { end })`, and `records.update()` on resize. Pages don't copy its markup or code. Optional `series`, `seriesKey` and `hash` hooks let a page add its own setting (GB's battery source).
+- `site/js/core/live-records.js`: `liveRecords(data, country)` (running spells that are records, close to one, or long streaks), `freshness`, `thresholdText`. Used by the Live records page.
 - `site/js/envelope.js`: `envelopeLayers` for envelope charts in stories.
 - `site/js/now-panel.js` (Right now panel): `setupNowWindows(country, onChange)` draws the time frame buttons (Live, 24 hours, 7 days, 365 days when `live`; 24 hours, 7 days, 30 days, 365 days otherwise) and `windowSlots(win, step)` turns one into slots; `agoText(ms)` says how old the data is for the line under the title, `site/js/recent.js` (recent records), `site/js/envelope.js`, `site/js/charts.js` (call `setTimeZone(country.timeZone)`).
 
 ## 4. The page
 
-`site/<cc>/index.html` + `site/js/<cc>/app.js`. Copy `site/nz/index.html` and the top of `site/js/nz/app.js` (setup, Right now panel, `main`) for the shell (header, country switch, Right now panel, records section, story chapters). The header mark and favicon are shared: keep the empty `<svg class="hero-art">` and the `js/core/hero-mark.js` script tag, and `js/core/hero-mark.js` fills it on every page. Then:
+`site/<cc>/index.html` + `site/js/<cc>/app.js`. Copy `site/nz/index.html` and the top of `site/js/nz/app.js` (setup, Right now panel, `main`) for the shell (header, country switch, Right now panel, records section, story chapters). Then:
 
 1. `setTimeZone(country.timeZone)`; `const records = createRecordsTool({ host: $('records'), country })` after `startAnalytics()`.
 2. `const data = await loadData(country.dataPath)`; `records.setData(data, { end: dataEnd(data, country) })`.
 3. The story: country-specific chapters in `site/js/<cc>/`, answer first (Alex's pyramid style). This is the part that should differ per country.
 4. Add the flag to `site/flags/` and one entry to `site/js/countries/index.js` (its page, data path, flag, and `nav` if the switch label should differ from the config's name), then run `npm run nav`. That stamps the country switch onto every page, this one included, so never edit a page's `<nav class="region-nav">` by hand: `pipeline/nav.mjs` rewrites it from the list, `test/nav.test.mjs` fails while any page is out of date, and the deploy stamps it again before building. The switch stays plain HTML, so it shows with no layout shift and without scripts.
+
+The Live records page (`site/live/`, `site/js/core/live-records.js`) reads `site/js/countries/index.js`, so a listed country is checked there with no other change: every preset and threshold in its config, for spells still running that are records or close to one. It uses the config's `live` flag and the data's end to say whether the country is live or how far behind its latest data is. `navHtml` ends every switch with the Live records button.
 
 ## 5. Live data
 
