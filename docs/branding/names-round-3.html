@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Name ideas, round three</title>
+<meta name="description" content="Fourteen candidate site names that all rate High for findability, each checked by web search, with lockups, tab mocks and language notes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #fffaf0; --card: #ffffff; --ink: #1f1d1a; --ink-2: #4f4c47; --ink-3: #716e68; --line: #2f2d2a; --grid: #ece7dc;
+  --primary: #3a86e0; --sky: #d9efff; --shadow: 4px;
+  --f-coal: #5b5754; --f-gas: #f4a259; --teal: #3ec1d3; --green: #2fb56b; --yellow: #ffc93c; --lilac: #b48cf2;
+  --mock-line: #2f2d2a; --mock-card: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; --bg: #1b1916; --card: #262320; --ink: #f1ece2; --ink-2: #c9c2b4; --ink-3: #9d968a; --line: #e9e2d3; --grid: #35312c; }
+}
+:root[data-theme="dark"] { color-scheme: dark; --bg: #1b1916; --card: #262320; --ink: #f1ece2; --ink-2: #c9c2b4; --ink-3: #9d968a; --line: #e9e2d3; --grid: #35312c; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 Figtree, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px 48px; }
+.page-title { font-size: clamp(2rem, 5vw, 2.75rem); font-weight: 800; letter-spacing: -0.02em; margin: 36px 0 6px; line-height: 1.05; }
+.intro { color: var(--ink-2); margin: 0 0 8px; max-width: 48em; }
+.group { font-size: 1.125rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin: 40px 0 10px; padding-bottom: 6px; border-bottom: 3px solid var(--line); }
+.groupnote { color: var(--ink-2); margin: 0 0 18px; max-width: 60em; }
+.name { position: relative; background: var(--card); border: 3px solid var(--line); box-shadow: var(--shadow) var(--shadow) 0 0 var(--line); margin: 0 0 24px; padding: 18px 20px; }
+.name.fav-card { border-color: var(--primary); box-shadow: var(--shadow) var(--shadow) 0 0 var(--primary); }
+.badge { display: inline-block; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; background: var(--primary); padding: 4px 8px; margin: 12px 0 0; }
+.top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 28px; align-items: center; }
+.lockup { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.mark { flex: 0 0 76px; width: 76px; height: 76px; }
+.word { min-width: 0; }
+.wm { font-size: clamp(1.6rem, 3.4vw, 2.1rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
+.tag { font-size: 0.9375rem; color: var(--ink-2); margin-top: 4px; }
+.why { margin: 12px 0 0; color: var(--ink-2); font-size: 0.9375rem; max-width: 64em; }
+.tabs { display: flex; align-items: flex-end; gap: 2px; background: #dfe3e8; padding: 8px 10px 0; border-radius: 10px 10px 0 0; max-width: 100%; min-width: 0; }
+.tab { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 0.8125rem; font-weight: 600; color: #4a4f55; border-radius: 8px 8px 0 0; white-space: nowrap; }
+.tab.active { background: #fff; color: #1f1d1a; }
+.fav { width: 16px; height: 16px; display: block; }
+.tabdot { width: 12px; height: 12px; border-radius: 50%; background: #b7bcc3; }
+.tabplus { padding: 6px 10px 8px; color: #6b7076; font-weight: 700; }
+@media (max-width: 760px) { .top { grid-template-columns: minmax(0, 1fr); } .name { padding: 16px; } .tabs { align-self: start; } }
+
+/* the mark (3f-a Teal, end state) */
+.mark .shadow { fill: var(--mock-line); } .mark .paper { fill: var(--mock-card); } .mark .frame { fill: none; stroke: var(--mock-line); stroke-width: 3; }
+.mark .seg { stroke: var(--mock-line); stroke-width: 2; } .mark .row { fill: none; stroke: var(--mock-line); stroke-width: 3; }
+.mark .coal { fill: var(--f-coal); } .mark .gas { fill: var(--f-gas); } .mark .wind { fill: var(--teal); } .mark .sol { fill: var(--green); } .mark .nuc { fill: var(--yellow); } .mark .bat { fill: var(--lilac); }
+.mark .marker line { stroke: var(--mock-line); stroke-width: 3; stroke-dasharray: 6 5; stroke-linecap: round; } .mark .pole { fill: var(--mock-line); }
+
+.verdict { background: var(--card); border: 3px solid var(--line); box-shadow: var(--shadow) var(--shadow) 0 0 var(--line); padding: 18px 20px; margin-top: 8px; }
+.verdict h2 { margin: 0 0 10px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; }
+.verdict ol { margin: 0; padding-left: 1.25em; color: var(--ink-2); }
+.verdict li { margin: 0 0 8px; } .verdict li strong { color: var(--ink); }
+.verdict p { margin: 10px 0 0; color: var(--ink-2); }
+
+.meta { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 12px 0 0; }
+.rate { display: inline-block; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; padding: 4px 8px; }
+.rate.high { background: var(--green); } .rate.medium { background: #d9931f; } .rate.low { background: #c94f3f; }
+.check { font-size: 0.9375rem; color: var(--ink-2); margin: 0; }
+.check strong { color: var(--ink); }
+.lang { font-size: 0.875rem; color: var(--ink-3); margin: 6px 0 0; }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 0 8px; }
+.mini { display: flex; align-items: center; gap: 12px; background: var(--card); border: 3px solid var(--line); box-shadow: var(--shadow) var(--shadow) 0 0 var(--line); padding: 12px 14px; min-width: 0; }
+.mini .mark { flex: 0 0 48px; width: 48px; height: 48px; }
+.mini .wm { font-size: 1.25rem; }
+.mini .tag { font-size: 0.75rem; margin-top: 2px; }
+.mini .rate { font-size: 0.6875rem; padding: 3px 6px; margin-top: 6px; }
+@media (max-width: 760px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mini { padding: 10px 12px; } }
+@media (max-width: 420px) { .strip { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1 class="page-title">Name ideas, round three</h1>
+  <p class="intro">Fourteen new names, every one rated High: a web search for the exact string found no established owner. About thirty candidates were checked and the ones that turned out Medium or Low (Gridrun, Quietgrid, Gridfirm, Cleanspell, Fossilfall, Firmhold and others) were dropped. Each card has the lockup, the tab mock, a sentence on fit, the search check, and a note on what the word means in German, Polish or Māori. Domain availability was not checked; nothing in the searches suggested an obvious .com in use for any of them.</p>
+  <h2 class="group">Still in the running</h2>
+  <div class="strip"><div class="mini"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Longspell</div><div class="tag">The longest spells without coal and gas.</div><span class="rate high">High</span></div></div><div class="mini"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Gridspell</div><div class="tag">How long each grid can run without fossil fuel.</div><span class="rate high">High</span></div></div><div class="mini"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Unfired</div><div class="tag">The hours when nothing on the grid is burning.</div><span class="rate medium">Medium</span></div></div><div class="mini"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Last Burn</div><div class="tag">Counting down the last coal and gas on the grid.</div><span class="rate medium">Medium</span></div></div></div>
+<h2 class="group">Duration and records</h2><p class="groupnote">How long the grid keeps going, and the records it sets.</p>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Gridstreak</div><div class="tag">The longest streaks without coal and gas, and the one running now.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Gridstreak</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">The most literal of the set: the grid, and a streak that is still counting. Easy to say and spell, obviously about electricity, and it carries the live feel of the records. Weakness: "streak" is a little sporty, and it is the least poetic name here.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Results are a Grid-Stick kit for microscopes and an old arcade game, Grid Seeker. The exact string is free.</p>
+      <p class="lang">Languages: Not a word in German, Polish or Māori (Māori has no s or d, so none of the names on this page can be Māori words).</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Gridlast</div><div class="tag">How long the grid lasts without fossil fuel.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Gridlast</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">Grid plus the question the site answers: how long does it last? Short and plain. Weakness: a German reader sees "Last" as load (Netzlast is grid load), which is apt but shifts the meaning.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Only data-grid API documentation ("last row", "last cell"). Free.</p>
+      <p class="lang">Languages: German: Last means load or burden, so Gridlast reads as "grid load", which is harmless and even fitting. Nothing in Polish.</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Burnlow</div><div class="tag">Running the grid on the lowest burn of coal and gas yet.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Burnlow</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">Low burn is exactly what the records measure, turned into a word that sounds like a Scottish village (a burn is a stream). Pleasant to say, memorable, and it travels. Weakness: without the tagline it could be read as a fire-safety setting.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Results are Ordnance Survey name books and places like Burnwell and Brownlow. Free.</p>
+      <p class="lang">Languages: Not a word in German or Polish; in Scots a burn is a stream, so it sounds like a place name rather than anything unfortunate.</p>
+    </div><h2 class="group">Reliability and calm</h2><p class="groupnote">A grid that holds steady with nothing burning.</p>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Stillgrid</div><div class="tag">A grid that runs steady and quiet without coal and gas.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Stillgrid</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">Still as in calm and as in continuing: the grid still running, with the turbines still. A reliability name without the word reliable. Weakness: "still" can also read as stuck, and it is the most abstract of the set.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Results are unrelated grid companies (Plexigrid, Withthegrid) and dictionary pages. Free.</p>
+      <p class="lang">Languages: German: still means quiet or silent, which is a bonus. Nothing in Polish.</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Clearburn</div><div class="tag">Clear of coal and gas: how long the grid stays that way.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Clearburn</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">Reads like Clearwater: a run of hours clear of burning, said in one calm word. Weakness: it can be misread as a clean kind of burning, and it shares the Scottish stream-name sound with Burnlow.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Only Ordnance Survey name-book pages and a village called Clearbrook. Free.</p>
+      <p class="lang">Languages: Not a word in German or Polish.</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Noburn</div><div class="tag">The hours when the grid burns nothing, and the records they set.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Noburn</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">The bluntest name on the page: no burn. Two syllables, impossible to misspell, and it works whatever the fuel. Weakness: it sounds like a sunscreen or a stove brand before it sounds like a grid.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Results are places called Naburn and Newburn and a surname. Free.</p>
+      <p class="lang">Languages: Not a word in German or Polish; Naburn is a village near York, which is the nearest thing to a clash.</p>
+    </div><h2 class="group">The end of coal and gas</h2><p class="groupnote">Words for a fleet that has stopped burning.</p>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Emberless</div><div class="tag">Nothing left burning on the grid, and how long it stays that way.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Emberless</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">The best-sounding name of the round: a real-looking word nobody uses, soft but exact, meaning no embers, nothing burning. Travels to coal and gas alike. Weakness: it says the end state, not the records or the grid, so it leans on the tagline.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Only dictionary and crossword pages for "ember". The exact word is free.</p>
+      <p class="lang">Languages: Not a word in German or Polish. Note that Ember, the energy think tank, publishes grid data on this same transition, so Emberless could be read as a nod to them. Ember.js shares the root but not the word.</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Unfuelled</div><div class="tag">The grid running unfuelled: no coal, no gas, counted every half hour.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Unfuelled</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">A real English word used freshly for a grid with nothing fed into it. Quiet, confident, and the British spelling keeps it ownable. Weakness: Americans will search "unfueled", and it needs the tagline on first meeting.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Dictionary entries and aviation documents using "non-fueled". Free.</p>
+      <p class="lang">Languages: Not a word in German or Polish.</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Unstoked</div><div class="tag">Fires unstoked: how long the grid runs with nobody feeding the boilers.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Unstoked</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">Stoking is what you do to a coal or gas fire, so unstoked is the grid when nobody is doing it. Vivid, industrial, and it travels. Weakness: "stoked" means excited to a younger reader, which makes this sound like a mood.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Results are a video game and a film called Stoked. The exact word is free.</p>
+      <p class="lang">Languages: Not a word in German or Polish.</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Fuelfall</div><div class="tag">The fall of coal and gas, measured every half hour.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Fuelfall</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">Built like nightfall and rainfall: the slow fall of fuel burning on the grid, in one easy word, and it works in every country because it does not name the fuel. Weakness: it could be heard as fuel prices falling.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Results are fuel-price and aircraft fuel-tank news. Free.</p>
+      <p class="lang">Languages: German: Fall means case or fall, which is harmless. Nothing in Polish.</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Lastfossil</div><div class="tag">Counting down the last fossil fuel on the grid.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Lastfossil</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">Last Burn with the fuel named generically, so it works in Britain, Germany, Poland and Australia without changing. Weakness: three syllables heavier than Last Burn, and "fossil" pulls toward dinosaurs.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Results are geology formations and a palaeontology article. Free.</p>
+      <p class="lang">Languages: Not a word in German or Polish (German uses fossil as an adjective, so it reads naturally there).</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Dimburn</div><div class="tag">Coal and gas burning dimmer every year, and the records as they fade.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Dimburn</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">The burn dimming rather than ending: honest about where most grids are, and it sounds like a place. Weakness: dim also means slow-witted, and to a Polish ear dym (smoke) is close.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Only Scottish place-name records and a Fife fire incident. Free.</p>
+      <p class="lang">Languages: Polish: dym means smoke, pronounced almost the same, so Dimburn sounds like "smoke-burn" there. Not a word in German.</p>
+    </div><h2 class="group">Zero</h2><p class="groupnote">Names for the number the whole thing is heading to.</p>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Zeroburn</div><div class="tag">Hours with zero coal and gas, and how many of them in a row.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Zeroburn</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">The endpoint in one word: zero burn. Easy to say, obviously a measure, and it is the headline the site will one day write. Weakness: zero-anything is crowded territory in energy branding, and it sounds a little like a diet product.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Results are crypto "burn" tokens and a Yu-Gi-Oh card. The exact word is free.</p>
+      <p class="lang">Languages: Not a word in German or Polish.</p>
+    </div>
+    <div class="name">
+      <div class="top">
+        <div class="lockup"><svg class="mark" viewBox="42 12 140 140" aria-hidden="true">
+  <rect class="shadow" x="50" y="20" width="128" height="128"/><rect class="paper" x="46" y="16" width="128" height="128"/>
+  <g><rect class="seg coal" x="50.0" y="26" width="26.4" height="22"/><rect class="seg gas" x="76.4" y="26" width="50.4" height="22"/><rect class="seg wind" x="126.8" y="26" width="21.6" height="22"/><rect class="seg sol" x="148.4" y="26" width="14.4" height="22"/><rect class="seg nuc" x="162.8" y="26" width="7.2" height="22"/><rect class="row" x="50" y="26" width="120" height="22"/></g>
+  <g><rect class="seg coal" x="50.0" y="56" width="12.0" height="22"/><rect class="seg gas" x="62.0" y="56" width="48.0" height="22"/><rect class="seg wind" x="110.0" y="56" width="21.6" height="22"/><rect class="seg sol" x="131.6" y="56" width="26.4" height="22"/><rect class="seg nuc" x="158.0" y="56" width="9.6" height="22"/><rect class="seg bat" x="167.6" y="56" width="2.4" height="22"/><rect class="row" x="50" y="56" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="86" width="45.6" height="22"/><rect class="seg wind" x="95.6" y="86" width="20.4" height="22"/><rect class="seg sol" x="116.0" y="86" width="33.6" height="22"/><rect class="seg nuc" x="149.6" y="86" width="13.2" height="22"/><rect class="seg bat" x="162.8" y="86" width="7.2" height="22"/><rect class="row" x="50" y="86" width="120" height="22"/></g>
+  <g><rect class="seg gas" x="50.0" y="116" width="26.4" height="22"/><rect class="seg wind" x="76.4" y="116" width="19.2" height="22"/><rect class="seg sol" x="95.6" y="116" width="48.0" height="22"/><rect class="seg nuc" x="143.6" y="116" width="15.6" height="22"/><rect class="seg bat" x="159.2" y="116" width="10.8" height="22"/><rect class="row" x="50" y="116" width="120" height="22"/></g>
+  <g class="marker"><line x1="76.4" y1="22" x2="76.4" y2="140"/><rect class="pole" x="70.4" y="18" width="12" height="8"/></g>
+  <rect class="frame" x="46" y="16" width="128" height="128"/>
+</svg><div class="word"><div class="wm">Nilburn</div><div class="tag">Nil coal, nil gas: the hours the grid burns nothing.</div></div></div>
+        <div class="tabs"><div class="tab active"><svg class="fav" viewBox="0 0 16 16" aria-hidden="true"><rect x="0.5" y="0.5" width="15" height="15" fill="#fff" stroke="#2f2d2a"/><rect x="1.5" y="2" width="8" height="3.5" fill="#f4a259"/><rect x="9.5" y="2" width="5" height="3.5" fill="#3ec1d3"/><rect x="1.5" y="6.25" width="5" height="3.5" fill="#f4a259"/><rect x="6.5" y="6.25" width="5.5" height="3.5" fill="#3ec1d3"/><rect x="12" y="6.25" width="2.5" height="3.5" fill="#2fb56b"/><rect x="1.5" y="10.5" width="2.5" height="3.5" fill="#f4a259"/><rect x="4" y="10.5" width="4" height="3.5" fill="#3ec1d3"/><rect x="8" y="10.5" width="4" height="3.5" fill="#2fb56b"/><rect x="12" y="10.5" width="2.5" height="3.5" fill="#b48cf2"/></svg>Nilburn</div><div class="tab"><span class="tabdot"></span>New tab</div><div class="tabplus">+</div></div>
+      </div>
+      <p class="why">The British version of Zeroburn: nil, as in a score. Shorter, drier, and it sounds like a village. Weakness: nil reads as a scoreline first, and the word is less obvious to non-British readers.</p>
+      <div class="meta"><span class="rate high">Findability: High</span></div>
+      <p class="check"><strong>Search check.</strong> No owner. Results are Lilburn in Northumberland and dictionary pages for nil. Free.</p>
+      <p class="lang">Languages: Not a word in German or Polish (both use nil only as a loan word).</p>
+    </div>
+  <h2 class="group">Verdict</h2>
+  <div class="verdict">
+    <h2>Top three across all rounds</h2>
+    <ol>
+      <li><strong>Longspell.</strong> Still first. Built on the site's own unit, clean in search, one word that looks like a name in the tab, and it travels because a spell is a spell whatever the fuel. It has the editorial feel Alex liked in The Long Run without the search problem.</li>
+      <li><strong>Emberless.</strong> The best new word of this round: soft, exact, unique, and it describes the end state the whole site is counting toward. Works for coal and gas alike. Needs the tagline on first meeting, then it sticks.</li>
+      <li><strong>Gridstreak.</strong> The safest High: it says grid and it says record run, nobody can misspell it, and nothing owns it. Less poetic than the other two, which is the trade.</li>
+    </ol>
+    <p>If findability can bend to Medium, Last Burn remains the strongest story name; Unfuelled and Stillgrid are the quiet alternatives if Emberless feels too soft.</p>
+  </div>
+</main>
+</body>
+</html>
