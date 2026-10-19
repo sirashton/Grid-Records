@@ -32,14 +32,20 @@ test('averages quarter hours into half hours and groups types into columns', () 
   assert.deepEqual(Object.keys(m.columns), DE_COLUMNS);
 });
 
-test('leaves a half hour missing if a listed type has a gap, or a quarter hour is absent', () => {
-  const m = parsePublicPower(response(5, { Solar: [1, 2, null, 4, 5], 'Wind onshore': () => 10 }));
+test('leaves a half hour missing if most types are blank, or a quarter hour is absent', () => {
+  const m = parsePublicPower(response(5, { Solar: [1, 2, null, 4, 5], 'Wind onshore': [10, 10, null, 10, 10], Nuclear: [8, 8, 8, 8, null] }));
   assert.equal(m.length, 3);
   assert.equal(m.columns.solar[0], 1.5);
   assert.equal(m.columns.solar[1], null);
   assert.equal(m.columns.wind_on[1], null);
   // The last half hour has only one quarter hour.
   assert.equal(m.columns.solar[2], null);
+});
+
+test('counts one blank type as zero, as with nuclear after April 2023', () => {
+  const m = parsePublicPower(response(2, { Solar: () => 100, 'Wind onshore': () => 50, Nuclear: [null, null] }));
+  assert.deepEqual(m.columns.nuclear, [0]);
+  assert.deepEqual(m.columns.solar, [100]);
 });
 
 test('merges years onto one grid, filling the half hour at New Year from the next year', () => {

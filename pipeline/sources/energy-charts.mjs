@@ -12,7 +12,7 @@ export const yearUrl = (year) => `${API}/public_power?country=de&start=${year}-0
 export const INSTALLED_URL = `${API}/installed_power?country=de&time_step=yearly&installation_decommission=false`;
 
 // Bump when parsing changes, so cached years are parsed again.
-export const PARSE_VERSION = 1;
+export const PARSE_VERSION = 2;
 
 // Output columns, in the order they are written, and the Energy-Charts types
 // that make each one up. Charging and net exports are stored as positive MW.
@@ -39,7 +39,7 @@ export const DE_COLUMNS = [...Object.keys(DE_SOURCES).filter((k) => k !== 'trade
 /**
  * Parses one Energy-Charts public_power response into half-hourly MW on a UTC
  * grid. Each half hour is the mean of its two quarter hours, and is missing
- * if any quarter hour of any type in it is missing.
+ * if either quarter hour is absent or mostly blank.
  * @returns {{startMs: number, length: number, columns: Record<string, (number|null)[]>, types: string[]}}
  */
 export function parsePublicPower(json) {
@@ -51,21 +51,17 @@ export function parsePublicPower(json) {
   const sums = Object.fromEntries(Object.keys(DE_SOURCES).map((c) => [c, new Float64Array(length)]));
   const counts = new Int8Array(length);
   const bad = new Uint8Array(length);
+  const listed = [...new Set(Object.values(DE_SOURCES).flat())].filter((n) => types.has(n));
   for (let k = 0; k < ts.length; k++) {
     const slot = Math.floor((ts[k] * 1000 - startMs) / SLOT_MS);
     counts[slot]++;
+    // A quarter hour where most types are blank is missing. A single blank
+    // type counts as zero: Energy-Charts kept listing nuclear after the last
+    // reactors closed in April 2023, with no values.
+    const blank = listed.filter((n) => types.get(n)[k] == null).length;
+    if (blank * 2 > listed.length) bad[slot] = 1;
     for (const [col, names] of Object.entries(DE_SOURCES)) {
-      let present = false;
-      for (const n of names) {
-        const v = types.get(n)?.[k];
-        if (v == null) continue;
-        present = true;
-        sums[col][slot] += v;
-      }
-      // A type Energy-Charts doesn't list at all that year (coal-derived gas
-      // before 2016, nuclear after April 2023) counts as zero, but a listed
-      // type with a gap is missing.
-      if (!present && names.some((n) => types.has(n))) bad[slot] = 1;
+      for (const n of names) sums[col][slot] += types.get(n)?.[k] ?? 0;
     }
   }
   const round = (v) => Math.round(v * 10) / 10;
