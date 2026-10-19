@@ -15,6 +15,13 @@ import { FOSSIL, LOW_CARBON, GENERATION, metricSeries, byYear } from './data.js'
 export const NUC_LOW = 30;
 export const EXPORT_HIGH = 15;
 export const DIP_DAY = 3;
+// Gas below this is the floor that runs whatever happens; batteries are sized
+// against the gas above it.
+export const GAS_FLOOR = 0.5;
+// Battery fleets (GW, GWh) the story tests against each day's gas.
+export const BATTERIES = [[3, 10], [5, 20], [8, 40], [12, 80]];
+// A day with more gas than this above the floor, in GWh, counts as a heavy gas day.
+export const HEAVY_GAS_DAY = 50;
 // Local hours compared for the noon dip: night 02:00-05:00, noon 12:00-15:00.
 const NIGHT = [2, 4];
 const NOON = [12, 14];
@@ -75,6 +82,8 @@ export function storyFigures(data, end) {
     priceSum: 0, priceN: 0, byHour: new Float64Array(24), byHourN: new Float64Array(24),
     spring: new Float64Array(24), springN: new Float64Array(24),
     day: null, dips: [],
+    gasMonth: new Float64Array(12), gasExporting: 0, gasExporting10: 0, gasImporting: 0, gasMin: Infinity, gasLow: 0,
+    gasHour: new Float64Array(24), gasHourN: new Float64Array(24),
   }), (r, i) => {
     const nu = nuclear[i];
     if (Number.isNaN(nu)) return;
@@ -82,13 +91,29 @@ export function storyFigures(data, end) {
     // The noon dip, one day at a time.
     if (r.day?.n !== day[i]) {
       if (r.day) r.dips.push(r.day);
-      r.day = { n: day[i], night: 0, nightN: 0, noon: 0, noonN: 0 };
+      r.day = { n: day[i], month: month[i], night: 0, nightN: 0, noon: 0, noonN: 0, gasAbove: 0, gasPeak: 0, nucMax: 0, net: 0, netN: 0, solar: 0 };
     }
     if (h >= NIGHT[0] && h <= NIGHT[1]) { r.day.night += nu; r.day.nightN++; }
     if (h >= NOON[0] && h <= NOON[1]) { r.day.noon += nu; r.day.noonN++; }
     r.nucTwh += (nu * slotH) / 1000;
     r.solTwh += (solar[i] * slotH) / 1000;
-    r.gasTwh += ((data.columns.gas[i] || 0) * slotH) / 1e6;
+    const g = (data.columns.gas[i] || 0) / 1000;
+    const net = (imports[i] || 0) + (exports[i] || 0);
+    r.gasTwh += (g * slotH) / 1000;
+    r.gasMonth[month[i] - 1] += (g * slotH) / 1000;
+    if (net < 0) r.gasExporting += (g * slotH) / 1000;
+    if (net < -10000) r.gasExporting10 += (g * slotH) / 1000;
+    if (net > 0) r.gasImporting += (g * slotH) / 1000;
+    if (g < r.gasMin) r.gasMin = g;
+    r.day.gasAbove += Math.max(0, g - GAS_FLOOR) * slotH;
+    if (g > r.day.gasPeak) r.day.gasPeak = g;
+    if (nu > r.day.nucMax) r.day.nucMax = nu;
+    r.day.net += net / 1000;
+    r.day.netN++;
+    r.day.solar += solar[i] * slotH;
+    if (g < GAS_FLOOR) r.gasLow += slotH;
+    r.gasHour[h] += g;
+    r.gasHourN[h]++;
     r.fosTwh += (fossil[i] * slotH) / 1000;
     if (nu < r.nucMin) { r.nucMin = nu; r.nucMinAt = i; }
     if (nu < NUC_LOW) r.nucLow += slotH;
@@ -143,6 +168,25 @@ export function storyFigures(data, end) {
       // Night minus noon, so a positive number means the reactors dip at noon.
       dip: mean(full.reduce((a, b) => a + b, 0), full.length),
       dipDays: full.filter((x) => x > DIP_DAY).length,
+      gasMonth: [...r.gasMonth],
+      gasExportingShare: r.gasExporting / r.gasTwh,
+      gasExporting10Share: r.gasExporting10 / r.gasTwh,
+      gasImporting: r.gasImporting,
+      gasMin: r.gasMin,
+      gasWinterShare: (r.gasMonth[10] + r.gasMonth[11] + r.gasMonth[0] + r.gasMonth[1] + r.gasMonth[2]) / r.gasTwh,
+      // Days whose gas above the floor a battery fleet could have covered, if it was full.
+      days: dips.length,
+      gasHour: [...r.gasHour].map((v, k) => mean(v, r.gasHourN[k])),
+      gasLow: r.gasLow,
+      // Each day's gas above the floor (GWh) and its month, smallest first.
+      gasDays: dips.map((x) => ({ gwh: x.gasAbove, month: x.month, peak: x.gasPeak })).sort((a, b) => a.gwh - b.gwh),
+      // The days with the most gas: whether France was short of power on them.
+      heavy: (() => {
+        const h = dips.filter((x) => x.gasAbove > HEAVY_GAS_DAY && x.netN);
+        return { days: h.length, exportGw: -mean(h.reduce((a, x) => a + x.net / x.netN, 0), h.length), nucPeak: mean(h.reduce((a, x) => a + x.nucMax, 0), h.length), solarGwh: mean(h.reduce((a, x) => a + x.solar, 0), h.length) };
+      })(),
+      nucMax: Math.max(...dips.map((x) => x.nucMax)),
+      batteries: BATTERIES.map(([bgw, gwh]) => ({ gw: bgw, gwh, days: dips.filter((x) => x.gasAbove <= gwh && x.gasPeak - GAS_FLOOR <= bgw).length })),
     };
   });
 
@@ -183,13 +227,42 @@ const SOURCES = {
   bilan2022: 'https://assets.rte-france.com/prod/public/2023-02/Communique-presse-bilan-electrique-2022_0.pdf',
   corrosion: 'https://www.edf.fr/en/the-edf-group/dedicated-sections/journalists/all-press-releases/update-on-the-stress-corrosion-phenomenon-and-adjustment-of-2022-french-nuclear-output-estimate',
   modulation: 'https://www.edf.fr/sites/groupe/files/epresspack/12701/PR-The-EDF-group-shares-the-key-findings-of-its-report-on-the-modulation-of-its-fleet.pdf',
-  h12026: 'https://assets.rte-france.com/prod/public/2026-07/2026-07-16-bilan-semestre1-synthese.pdf',
-  kpler: 'https://www.kpler.com/blog/nuclear-modulation-insights-volumes-and-units-behaviours',
-  flamanville: 'https://www.enerdata.net/publications/daily-energy-news/165-gw-flamanville-reactor-achieves-full-output-first-time-france.html',
+  c13: 'https://www.cre.fr/fileadmin/Documents/Deliberations/import/221027_2022-270_AT_C13.pdf',
+  c16: 'https://events.femto-st.fr/Journees-Cogeneration/sites/femto-st.fr.Journees-Cogeneration/files/content/pdf_2023/3_-_sophie_redoutey_edf_oa.pdf',
+  aleasoft: 'https://aleasoft.com/european-market-prices-2025-second-lowest-since-2021-pv-records',
+  bp2025: 'https://assets.rte-france.com/prod/public/2025-12/2025-12-16-bilan-previsionnel-principaux-resultats-2025.pdf',
+  batteries: 'https://www.connaissancedesenergies.org/afp/le-plus-grand-site-de-stockage-delectricite-par-batteries-en-france-inaugure-pres-de-reims-261001',
+  modo: 'https://modoenergy.com/research/france-battery-buildout-bess-construction-energy-storage-november-2025',
+  capacity: 'https://www.cre.fr/fileadmin/Documents/Deliberations/2026/260127_2026-24_Avis_regles_mecanisme_capacite.pdf',
+  epr2: 'https://www.edf.fr/sites/groupe/files/epresspack/12290/PR-EDF_EPR2-Programme-12.2025.pdf',
+  cordemais: 'https://www.edf.fr/sites/groupe/files/2026-02/Fiche%20presse%20Cordemais%202026.pdf',
+  saintAvold: 'https://www.connaissancedesenergies.org/afp/la-centrale-charbon-de-saint-avold-le-ministre-de-lindustrie-salue-la-future-conversion-au-gaz-250414',
+  celtic: 'https://cms.eirgrid.ie/sites/default/files/publications/Celtic-Interconnector-Newsletter-June-2026.pdf',
+  celticMw: 'https://en.wikipedia.org/wiki/Celtic_Interconnector',
+  biscay: 'https://www.ree.es/en/activities/unique-projects/submarine-interconnection-with-france',
+  ppe3: 'https://www.seban-associes.avocat.fr/?p=127963',
 };
 
-export function renderStory(data, end, figs) {
-  const { rows, nucLowSpell, exportSpell, fossil2Spell, fossilHalfSpell, solarMax } = figs;
+// Rough fuel and carbon cost of a combined-cycle gas plant in 2025: gas at
+// €36.33/MWh and carbon at €76.85/t (AleaSoft's 2025 averages), 55%
+// efficiency and 0.37 t of CO2 per MWh of power. An estimate, not a market figure.
+export const CCGT_COST = 36.33 / 0.55 + 0.37 * 76.85;
+
+// What is coming, dated and sourced, with the record each item should move.
+export const COMING = [
+  ['1 Nov 2026', 'France\'s new capacity mechanism starts, approved to 2036. RTE pays plants to be available from November to March.', 'capacity', 'The gas floor: paying plants to stay open works against it falling.'],
+  ['31 Mar 2027', 'Cordemais, the last EDF coal plant (2 × 600 MW), stops.', 'cordemais', 'Coal goes to zero, so coal no longer breaks the spells with fossil under 0.5 GW and 1 GW.'],
+  ['2027 (target)', 'Saint-Avold (618 MW) converts from coal to gas, under a law passed in April 2025.', 'saintAvold', 'Coal to zero, but 0.6 GW more gas: watch the gas peak on cold days.'],
+  ['By about 2028 (inferred)', 'The last C13 cogeneration contracts end. They run 12 years and were signed from 2013 until C16 replaced the tariff in 2016; new gas cogeneration support ended in 2021.', 'c16', 'The winter gas floor, and November to March gas.'],
+  ['2028', 'Celtic Interconnector to Ireland (700 MW) and the Bay of Biscay link to Spain (2 × 1,000 MW) start.', 'biscay', 'Biggest net export; hours exporting 15 GW or more. More room abroad can mean more evening gas, not less.'],
+  ['2030', 'PPE3 targets: 48 GW of solar and 31 GW of onshore wind. Batteries reach about 5 GW, from just over 1.5 GW at the end of 2025.', 'ppe3', 'Solar peak; days with a noon nuclear dip; hours with gas under 0.5 GW from April to October.'],
+  ['From 2030', 'RTE\'s fast case needs 2 to 4 GW of extra peak capacity, and keeps about 12.5 GW of the existing gas fleet to 2035.', 'bp2025', 'Gas does not reach zero in RTE\'s outlook; the winter total stays.'],
+  ['2035', 'PPE3: 15 GW of offshore wind, the first large winter source beyond nuclear and hydro.', 'ppe3', 'November to March gas, and calm-spell records for wind.'],
+  ['2038', 'The first of six EPR2 reactors, at Penly.', 'epr2', 'Nuclear peaks; more surplus at noon rather than less gas.'],
+];
+
+export function renderStory(data, end, figs, installed = null) {
+  const { rows, fossilHalfSpell } = figs;
   const full = rows.filter((r) => r.year !== 'past365');
   if (!full.length) return;
   const first = full[0];
@@ -197,140 +270,153 @@ export function renderStory(data, end, figs) {
   const latest = rows.at(-1);
   const row = (y) => rows.find((r) => r.year === y) ?? first;
   const crisis = full.reduce((a, r) => (r.nucTwh < a.nucTwh ? r : a), first);
-  const before = row(2019);
+  const leastGas = full.reduce((a, r) => (r.gasTwh < a.gasTwh ? r : a), first);
   const step = stepOf(data);
   const at = (i) => slotTime(i, data.startMs, step);
-  const spellH = (s) => ((s.end - s.start) * step) / 60;
-  const lowest = crisis.nucMinAt >= 0 ? at(crisis.nucMinAt) : null;
-  const atTime = (ms) => new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: fr.timeZone });
+  const spellH = (sp) => ((sp.end - sp.start) * step) / 60;
+  const capYear = installed ? Math.max(...installed.years) : null;
+  const nucCap = installed ? installed.types.Nuclear?.[installed.years.indexOf(capYear)] : NaN;
+  const heavy = last.heavy;
+  const pc = (v) => `${Math.round(v * 100)}%`;
+  const bat = (k) => last.batteries[k];
+  const winterAbove = last.gasDays.filter((x) => x.month >= 11 || x.month <= 2).reduce((a, x) => a + x.gwh, 0) / 1000;
+  const summerAbove = last.gasDays.filter((x) => x.month >= 4 && x.month <= 9).reduce((a, x) => a + x.gwh, 0) / 1000;
+  const totalAbove = last.gasDays.reduce((a, x) => a + x.gwh, 0) / 1000;
+  const median = last.gasDays[Math.floor(last.gasDays.length / 2)];
+  const worst = last.gasDays.at(-1);
 
   // Header and in short.
-  $('lede').textContent = `In ${crisis.year} France could not keep its reactors running. In ${last.year} it turned them down at lunchtime on ${last.dipDays} days, because the sun had taken their place.`;
-  $('answer-lead').textContent = `France turns its reactors down on sunny days because it has run out of other things to do with the power. It now makes more low-carbon electricity than it can use: fossil plants sit under 1 GW for about ${n0(Math.round(last.fosU1 / 100) * 100)} hours a year, net exports are the highest in the country's history, and the neighbours are full of solar at midday too. What is left is to cut nuclear, which EDF did for 33 TWh in 2025, more than double the 15 TWh of 2019.`;
+  $('lede').textContent = `France burnt ${twh(last.gasTwh)} of gas in ${last.year}${leastGas === last ? ', the least in the data,' : ''} and ${pc(last.gasExportingShare)} of it while the country was exporting power.`;
+  $('answer-lead').textContent = `France still burns gas for two reasons, and almost never because it is short of power. Most of it runs on winter evenings when the neighbours pay more than its fuel and carbon cost, while French reactors have room to spare; the rest is about 2.3 GW of cogeneration paid under contract to run from November to March. Nothing now planned takes gas to zero: RTE keeps about 12.5 GW of gas plant to 2035, so the records to watch are the gas floor and the spells with fossil under 0.5 GW.`;
   $('answer-points').innerHTML = [
-    `<b>The reactors now dip at noon.</b> In ${first.year} nuclear ran ${gw(-first.dip)} higher at midday than at night; in ${last.year} it ran ${gw(last.dip)} lower, and in April to June of the latest 365 days the dip averaged ${gw(latest.springDip)}. Days with a noon dip over ${DIP_DAY} GW went from ${first.dipDays || 'none'} in ${first.year} to ${last.dipDays} in ${last.year}. ${link(2, 'Chapter 2')}`,
-    `<b>Exports are already at the limit.</b> Hours with net exports of ${EXPORT_HIGH} GW or more went from ${n0(first.expHigh)} in ${first.year} to ${n0(last.expHigh)} in ${last.year}, and gross exports from ${twh(first.expTwh)} to ${twh(last.expTwh)}. ${link(3, 'Chapter 3')}`,
-    `<b>There is almost no fossil fuel left to cut.</b> Fossil plants ran under 1 GW for ${hrs(last.fosU1)} in ${last.year}, against ${hrs(crisis.fosU1)} in ${crisis.year}, and made ${twh(last.fosTwh)}, against ${twh(first.fosTwh)} in ${first.year}. ${link(1, 'Chapters 1')} and ${link(4, '4')}`,
+    `<b>Gas runs for the neighbours.</b> In ${last.year}, ${pc(last.gasExportingShare)} of France's gas was burnt while it was a net exporter and ${pc(last.gasExporting10Share)} while it was exporting more than 10 GW; only ${twh(last.gasImporting)} while importing. The evening price pays for it: ${eur(last.byHour[20])} a megawatt hour at ${hh(20)} against ${eur(last.byHour[13])} at ${hh(13)}. ${link(1, 'Chapters 1')} and ${link(2, '2')}`,
+    `<b>The floor is a contract.</b> Gas never fell below ${gw(last.gasMin)} in ${last.year}, and ${pc(last.gasWinterShare)} of it was burnt from November to March, the months a 2.3 GW cogeneration tariff pays plants to run. ${link(3, 'Chapter 3')}`,
+    `<b>Batteries can end the summer gas, not the winter gas.</b> ${bat(0).gw} GW and ${bat(0).gwh} GWh of batteries would have covered all gas above ${GAS_FLOOR} GW on ${bat(0).days} days of ${last.year}; ${bat(3).gw} GW and ${bat(3).gwh} GWh on ${bat(3).days}. The days left are deep winter, and the plans to 2030 don't reach them. ${link(4, 'Chapters 4')} and ${link(5, '5')}`,
   ].map((x) => `<li>${x}</li>`).join('');
 
   // Headline facts.
   const facts = [
-    ['--f-nuclear', 'Lowest nuclear output', gw(crisis.nucMin), lowest ? `on ${fmtDate(lowest)}, with 12 reactors shut for checks that summer` : ''],
-    ['--f-imports', `Hours exporting ${EXPORT_HIGH} GW or more`, n0(last.expHigh), `in ${last.year}, against ${n0(first.expHigh)} in ${first.year}`],
-    ['--fossil', 'Hours with fossil under 1 GW', n0(last.fosU1), `in ${last.year}, against ${n0(crisis.fosU1)} in ${crisis.year}`],
-    ['--f-solar', `Price at ${hh(13)} and ${hh(20)}`, `${eur(last.byHour[13])} vs ${eur(last.byHour[20])}`, `per MWh on average in ${last.year}; in ${before.year} ${eur(before.byHour[13])} and ${eur(before.byHour[20])}`],
+    ['--f-gas', `Gas burnt in ${last.year}`, twh(last.gasTwh), `against ${twh(crisis.gasTwh)} in ${crisis.year} and ${twh(first.gasTwh)} in ${first.year}`],
+    ['--f-gas', `Lowest gas output in ${last.year}`, gw(last.gasMin), `the plants never all stopped; ${gw(latest.gasMin)} in the latest 365 days`],
+    ['--f-solar', `Price at ${hh(13)} and ${hh(20)}`, `${eur(last.byHour[13])} vs ${eur(last.byHour[20])}`, `per MWh on average in ${last.year}; a gas plant's fuel and carbon came to roughly ${eur(CCGT_COST)}`],
+    ['--fossil', 'Longest spell with fossil under 0.5 GW', fossilHalfSpell ? hrs(spellH(fossilHalfSpell)) : 'None', fossilHalfSpell ? `from ${fmtDate(at(fossilHalfSpell.start))}: the record to beat` : ''],
   ];
-  $('facts').innerHTML = `<div class="headline"><div class="big">${last.dipDays} days</div><div class="sub">Days in ${last.year} when nuclear output at midday (${hh(NOON[0])} to ${hh(NOON[1] + 1)}) was more than ${DIP_DAY} GW below the night (${hh(NIGHT[0])} to ${hh(NIGHT[1] + 1)}). In ${first.year} there were ${first.dipDays || 'none'}; in the latest 365 days there were ${latest.dipDays}.</div></div>
+  $('facts').innerHTML = `<div class="headline"><div class="big">${pc(last.gasExportingShare)}</div><div class="sub">Share of the gas France burnt in ${last.year} that was burnt while the country was a net exporter of power. In ${crisis.year}, the year the reactors failed, it was ${pc(crisis.gasExportingShare)}.</div></div>
     <ul class="fact-list">${facts.map(([c, l, v, w]) => `<li><span class="swatch" style="background:var(${c})"></span><span><b>${l}</b> <span class="v">${v}</span> <span class="sub">${w}</span></span></li>`).join('')}</ul>`;
-  $('story-hint').textContent = 'Five chapters: the year the reactors failed, the noon dip, exports at the limit, fossil fuel running out of hours, and the price gap that now pays for the evening.';
+  $('story-hint').textContent = 'Five chapters: more clean power than France can use, gas that runs for the neighbours, gas that runs on contract, what batteries could and could not replace, and what is coming, with the record each item should move.';
 
   const chapters = [
-    'The year the reactors failed',
-    'The reactors now dip at noon',
-    'Exports are already at the limit',
-    'Fossil fuel is running out of hours',
-    'The evening now pays for the day',
+    'France has more clean power than it can use',
+    'Gas runs for the neighbours',
+    'Gas runs on contract',
+    'What batteries could and could not replace',
+    'What is coming, and which records it moves',
   ];
   chapters.forEach((t, k) => {
     $(`title-${k + 1}`).textContent = t;
     if (k < 4) $(`next-${k + 1}`).textContent = `Next: ${chapters[k + 1]}`;
   });
-  const yearMs = (y) => (y === 'past365' ? at(end) : Date.UTC(y, 6, 1));
+  const cats = rows.map((r) => label(r.year));
+  const hourX = (hr) => hr * 3600000;
+  const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21].map((hr) => ({ t: hourX(hr), label: hh(hr) }));
+  const yearColors = ['--f-other', '--f-gas', '--f-hydro', '--f-nuclear'];
 
-  // Chapter 1: the 2022 collapse and the recovery.
-  $('take-1').textContent = `In ${crisis.year} nuclear made ${twh(crisis.nucTwh)}, the least in the data, and France imported power in ${Math.round((crisis.impHours / 8760) * 100)}% of hours.`;
-  $('body-1').innerHTML = `France's reactors made ${twh(first.nucTwh)} in ${first.year}. In ${crisis.year} they made ${twh(crisis.nucTwh)}, the lowest since 1988 (${src(SOURCES.bilan2022, 'RTE')}). Twelve reactors were shut that summer for checks on stress corrosion, cracking found in pipes of their safety injection circuits (${src(SOURCES.corrosion, 'EDF')}), and output fell to ${gw(crisis.nucMin)}${lowest ? ` on ${fmtDate(lowest)}` : ''}, the lowest quarter hour in the data. Nuclear was under ${NUC_LOW} GW for ${hrs(crisis.nucLow)}${nucLowSpell ? `, including one spell of ${n0(spellH(nucLowSpell) / 24)} days from ${fmtDate(at(nucLowSpell.start))}` : ''}. Gas filled the gap, at ${twh(crisis.gasTwh)}, and fossil plants were under 1 GW for just ${hrs(crisis.fosU1)}. France was a net importer in ${hrs(crisis.impHours)} and of ${twh(crisis.netImpTwh)} over the year, the first time since 1980 (${src(SOURCES.bilan2022, 'RTE')}). The day-ahead price averaged ${eur(crisis.price)} a megawatt hour. By ${last.year} nuclear was back at ${twh(last.nucTwh)}, and solar had grown from ${twh(first.solTwh)} to ${twh(last.solTwh)}.`;
-  $('chart-h-1').textContent = 'Nuclear\'s collapse and recovery, with solar on top';
-  $('chart-hint-1').textContent = 'Nuclear and solar generation each year, in TWh. The last bar is the latest 365 days. Hours with nuclear under 30 GW are in the tooltip.';
-  const ch1 = [['nucTwh', 'Nuclear', '--f-nuclear'], ['solTwh', 'Solar', '--f-solar']].map(([k, name, color]) => ({ name, color: css(color), values: rows.map((r) => r[k]) }));
+  // Chapter 1: the surplus.
+  $('take-1').textContent = `On the ${heavy.days} days with the most gas in ${last.year}, nuclear peaked at ${gw(heavy.nucPeak)}${Number.isFinite(nucCap) ? ` of a ${Math.round(nucCap)} GW fleet` : ''} and France still exported ${gw(heavy.exportGw)}: gas is not filling a gap.`;
+  $('body-1').innerHTML = `In ${crisis.year} France was short of power: twelve reactors were shut for stress-corrosion checks (${src(SOURCES.corrosion, 'EDF')}), nuclear made ${twh(crisis.nucTwh)}, gas made ${twh(crisis.gasTwh)}, and ${twh(crisis.gasImporting)} of that gas was burnt while the country was importing. By ${last.year} nuclear was back at ${twh(last.nucTwh)}, solar had reached ${twh(last.solTwh)}, and the problem had reversed. France exported ${twh(last.expTwh)} gross, was a net importer in only ${hrs(last.impHours)}, and turned its reactors down more than ${DIP_DAY} GW at midday on ${last.dipDays} days; EDF says it modulated 33 TWh in 2025 (${src(SOURCES.modulation, 'EDF')}). On the ${heavy.days} days when gas above ${GAS_FLOOR} GW passed ${HEAVY_GAS_DAY} GWh, nuclear's daily peak averaged ${gw(heavy.nucPeak)}, against ${gw(last.nucMax)} at its highest that year${Number.isFinite(nucCap) ? ` and ${Math.round(nucCap)} GW installed` : ''}, and France still exported ${gw(heavy.exportGw)} on average. The reactors had room. Gas ran anyway, for the reasons in the next two chapters.`;
+  $('chart-h-1').textContent = 'Gas burnt while importing and while exporting';
+  $('chart-hint-1').textContent = 'Gas generation each year, in TWh, split by whether France was a net importer or a net exporter in that quarter hour. The last bar is the latest 365 days.';
+  const ch1 = [
+    { name: 'While importing', color: css('--f-imports'), values: rows.map((r) => r.gasImporting) },
+    { name: 'While exporting', color: css('--f-gas'), values: rows.map((r) => r.gasTwh - r.gasImporting) },
+  ];
   barChart($('story-chart-1'), {
-    cats: rows.map((r) => label(r.year)),
+    cats,
     stacks: ch1,
     yFormat: twh,
     yTickFormat: (v) => `${v}`,
     highlight: (ci) => rows[ci].year === crisis.year,
-    tooltip: (ci) => `<strong>${title(rows[ci].year)}</strong>${[...ch1].reverse().map((s) => `<div><i style="background:${s.color}"></i>${s.name}: <b>${twh(s.values[ci])}</b></div>`).join('')}<div>Hours with nuclear under ${NUC_LOW} GW: <b>${n0(rows[ci].nucLow)}</b></div><div>Lowest quarter hour: <b>${gw(rows[ci].nucMin)}</b></div>`,
+    tooltip: (ci) => `<strong>${title(rows[ci].year)}</strong><div>Gas: <b>${twh(rows[ci].gasTwh)}</b></div>${[...ch1].reverse().map((sr) => `<div><i style="background:${sr.color}"></i>${sr.name}: <b>${twh(sr.values[ci])}</b></div>`).join('')}<div>While exporting over 10 GW: <b>${pc(rows[ci].gasExporting10Share)}</b></div>`,
   });
-  $('story-legend-1').innerHTML = legend([...ch1].reverse().map((s) => [s.name, s.color]));
+  $('story-legend-1').innerHTML = legend([...ch1].reverse().map((sr) => [sr.name, sr.color]));
 
-  // Chapter 2: nuclear by hour of day, April to June.
-  const sm = solarMax;
-  $('take-2').textContent = `In ${first.year} nuclear ran higher at noon than at night; in spring of the latest 365 days it ran ${gw(latest.springDip)} lower, and EDF cut 33 TWh in 2025 to make room.`;
-  $('body-2').innerHTML = `French reactors used to follow demand: in April to June ${first.year} nuclear averaged ${gw(first.spring[3])} at ${hh(3)} and ${gw(first.spring[13])} at ${hh(13)}. In the same months of the latest 365 days it averaged ${gw(latest.spring[3])} at ${hh(3)}, ${gw(latest.spring[13])} at ${hh(13)} and ${gw(latest.spring[20])} at ${hh(20)}: a dip of ${gw(latest.springDip)} in the middle of the day. Solar peaked at ${gw(sm.solar)} at ${atTime(at(sm.i))} on ${fmtDate(at(sm.i))}, with nuclear at ${gw(sm.nuclear)} and ${gw(sm.exports)} going abroad. Days with a noon dip over ${DIP_DAY} GW went from ${first.dipDays || 'none'} in ${first.year} to ${[row(2023), row(2024), last].filter((r, k, a) => a.indexOf(r) === k).map((r) => `${r.dipDays} in ${r.year}`).join(', ')}. EDF says it modulated 33 TWh of nuclear output in 2025, against 15 TWh in 2019, that this now happens by day rather than at night or at weekends, and that the extra manoeuvring is raising maintenance costs (${src(SOURCES.modulation, 'EDF')}). The most-cycled reactor, Cattenom 2, gave up nearly 1.4 TWh in 2025 alone (${src(SOURCES.kpler, 'Kpler')}).`;
-  $('chart-h-2').textContent = 'The hour-of-day shape of the French fleet';
-  $('chart-hint-2').textContent = 'Average nuclear output for each hour of the day, French time, April to June, in GW. The thick line is the latest 365 days.';
-  const hourX = (hr) => hr * 3600000;
-  const profileYears = [first.year, crisis.year, last.year, 'past365'].filter((y, k, a) => a.indexOf(y) === k && rows.some((r) => r.year === y));
-  const profileColors = ['--f-other', '--f-gas', '--f-hydro', '--f-nuclear'];
-  const profile = profileYears.map((y, k) => ({ name: title(y), color: css(profileColors[k]), points: row(y).spring.map((v, hr) => [hourX(hr), v]), width: y === 'past365' ? 3 : 2 }));
+  // Chapter 2: gas by hour and the price.
+  $('take-2').textContent = `${pc(last.gasExporting10Share)} of ${last.year}'s gas was burnt while France exported more than 10 GW, because the evening price covers a gas plant's fuel and carbon.`;
+  $('body-2').innerHTML = `A reactor's fuel is cheap, so EDF turns one down only when the price is near zero. A gas plant runs only when the price beats its fuel and carbon. With gas at €36 a megawatt hour and carbon at €77 a tonne on average in 2025 (${src(SOURCES.aleasoft, 'AleaSoft')}), a combined-cycle plant needs roughly ${eur(CCGT_COST)} a megawatt hour, our estimate at 55% efficiency. The French day-ahead price averaged ${eur(last.byHour[13])} at ${hh(13)} and ${eur(last.byHour[20])} at ${hh(20)} in ${last.year}. So gas runs in the evening, and much of the evening demand is abroad: ${pc(last.gasExporting10Share)} of ${last.year}'s gas was burnt while France exported more than 10 GW net, against ${pc(first.gasExporting10Share)} in ${first.year}. Gas averaged ${gw(last.gasHour[3])} at ${hh(3)} and ${gw(last.gasHour[20])} at ${hh(20)}. EDF reports that gas plant starts and stops doubled (${src(SOURCES.modulation, 'EDF')}). Italy, Germany and Spain set their evening price with their own gas, and France sells into it.`;
+  $('chart-h-2').textContent = 'Gas by hour of day';
+  $('chart-hint-2').textContent = 'Average gas output for each hour of the day, French time, in GW. The average price at each hour is in the tooltip. The thick line is the latest 365 days.';
+  const gasYears = [row(2019).year, crisis.year, last.year, 'past365'].filter((y, k, a) => a.indexOf(y) === k && rows.some((r) => r.year === y));
+  const gasLines = gasYears.map((y, k) => ({ name: title(y), year: y, color: css(yearColors[k]), points: row(y).gasHour.map((v, hr) => [hourX(hr), v]), width: y === 'past365' ? 3 : 2 }));
   lineChart($('story-chart-2'), {
-    series: profile,
-    // Not from zero: the dip is a few GW on a 30-40 GW fleet.
-    yMin: 25,
+    series: gasLines,
+    yMin: 0,
     yFormat: gw,
     yTickFormat: (v) => `${v}`,
-    xTicks: [0, 3, 6, 9, 12, 15, 18, 21].map((hr) => ({ t: hourX(hr), label: hh(hr) })),
-    tooltip: (t, vals) => `<strong>${hh(Math.round(t / 3600000))}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? gw(v.value) : '—'}</b></div>`).join('')}`,
+    xTicks: hourTicks,
+    tooltip: (t, vals) => {
+      const hr = Math.round(t / 3600000);
+      return `<strong>${hh(hr)}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? gw(v.value) : '—'}</b> at ${eur(row(v.series.year).byHour[hr])}/MWh</div>`).join('')}`;
+    },
   });
-  $('story-legend-2').innerHTML = legend(profile.map((s) => [s.name, s.color]));
+  $('story-legend-2').innerHTML = legend(gasLines.map((sr) => [sr.name, sr.color]));
 
-  // Chapter 3: exports.
-  $('take-3').textContent = `France exported ${EXPORT_HIGH} GW or more for ${hrs(last.expHigh)} in ${last.year}, against ${hrs(first.expHigh)} in ${first.year}, and imported in only ${n0(last.impHours)}.`;
-  $('body-3').innerHTML = `The first outlet for surplus power is the border. Gross exports were ${twh(first.expTwh)} in ${first.year}, ${twh(crisis.expTwh)} in ${crisis.year}, then ${twh(row(2024).expTwh)} in 2024 and ${twh(last.expTwh)} in ${last.year}. RTE puts the 2025 net balance at 92.3 TWh, a record for the second year running (${src(SOURCES.bilan2025, 'RTE')}), and the first half of 2026 set another, at 51 TWh (${src(SOURCES.h12026, 'RTE')}). The interconnectors are now full for long stretches: hours with net exports of ${EXPORT_HIGH} GW or more rose from ${n0(before.expHigh)} in ${before.year} to ${n0(row(2024).expHigh)} in 2024 and ${n0(last.expHigh)} in ${last.year}, and the biggest net export in the latest 365 days was ${gw(latest.expMax)}.${exportSpell ? ` The longest spell above 10 GW net is ${(spellH(exportSpell) / 24).toFixed(1)} days, from ${fmtDate(at(exportSpell.start))}.` : ''} France imported in ${hrs(crisis.impHours)} of ${crisis.year} and ${hrs(last.impHours)} of ${last.year}. More power cannot leave at noon, because Germany, Spain and Italy are flooded with solar at the same hour.`;
-  $('chart-h-3').textContent = 'Exports back to a record, and the hours at full stretch';
-  $('chart-hint-3').textContent = 'Gross exports and gross imports each year, in TWh. The last point is the latest 365 days. Hours with net exports of 15 GW or more are in the tooltip.';
-  const xs = rows.map((r) => yearMs(r.year));
-  const trade = [
-    { name: 'Exports', color: css('--f-imports'), points: rows.map((r, k) => [xs[k], r.expTwh]), width: 2.5 },
-    { name: 'Imports', color: css('--f-gas'), points: rows.map((r, k) => [xs[k], r.impTwh]), width: 2.5 },
-  ];
-  trade.forEach((s) => { s.markers = s.points; });
+  // Chapter 3: by month, and the cogeneration contract.
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const lm = last.gasMonth;
+  $('take-3').textContent = `${pc(last.gasWinterShare)} of ${last.year}'s gas was burnt from November to March, and gas never fell below ${gw(last.gasMin)}, because about 2.3 GW of cogeneration is paid to run through the winter.`;
+  $('body-3').innerHTML = `Not all gas follows the price. About 2.3 GW of small gas cogeneration plants, 632 contracts averaging 3.7 MW, sell under the C13 purchase obligation: a 12-year contract that pays a fixed fee plus a gas-indexed price to run during a tariff winter from 1 November to 1 April, in most cases around the clock (${src(SOURCES.c13, 'CRE')}). It shows in the data. Gas ran at ${twh(lm[0])}, ${twh(lm[1])} and ${twh(lm[2])} from January to March ${last.year}, ${twh(Math.min(...lm.slice(3, 9)))} to ${twh(Math.max(...lm.slice(3, 9)))} a month from April to September, and ${twh(lm[10])} and ${twh(lm[11])} in November and December. The floor never reached zero: ${gw(last.gasMin)} in ${last.year} and ${gw(latest.gasMin)} in the latest 365 days. RTE says the gas capacity that closed in 2025 was mainly small cogeneration (${src(SOURCES.bilan2025, 'RTE')}), and support for new gas cogeneration ended in 2021 (${src(SOURCES.c16, 'EDF OA')}).`;
+  $('chart-h-3').textContent = 'Gas by month';
+  $('chart-hint-3').textContent = 'Gas generation in each calendar month, in TWh. The contract winter runs from November to March.';
+  const monthYears = [row(2023).year, row(2024).year, last.year, 'past365'].filter((y, k, a) => a.indexOf(y) === k && rows.some((r) => r.year === y));
+  const monthX = (m) => Date.UTC(2001, m, 15);
+  const monthLines = monthYears.map((y, k) => ({ name: title(y), color: css(yearColors[k]), points: row(y).gasMonth.map((v, m) => [monthX(m), v]), width: y === 'past365' ? 3 : 2 }));
+  monthLines.forEach((sr) => { sr.markers = sr.points; });
   lineChart($('story-chart-3'), {
-    series: trade,
+    series: monthLines,
     yMin: 0,
     yFormat: twh,
     yTickFormat: (v) => `${v}`,
-    tooltip: (t, vals) => {
-      const r = rows[xs.indexOf(t)];
-      return `<strong>${title(r?.year ?? new Date(t).getUTCFullYear())}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? twh(v.value) : '—'}</b></div>`).join('')}${r ? `<div>Hours exporting ${EXPORT_HIGH} GW or more: <b>${n0(r.expHigh)}</b></div><div>Hours importing: <b>${n0(r.impHours)}</b></div>` : ''}`;
+    xTicks: monthNames.map((m, k) => ({ t: monthX(k), label: m })),
+    tooltip: (t, vals) => `<strong>${monthNames[new Date(t).getUTCMonth()]}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? twh(v.value) : '—'}</b></div>`).join('')}`,
+  });
+  $('story-legend-3').innerHTML = legend(monthLines.map((sr) => [sr.name, sr.color]));
+
+  // Chapter 4: battery sizing.
+  $('take-4').textContent = `${bat(0).gw} GW and ${bat(0).gwh} GWh of batteries would have covered gas above the floor on ${bat(0).days} days of ${last.year}; ${bat(3).gw} GW and ${bat(3).gwh} GWh on ${bat(3).days}. The rest is winter, with little solar to charge from.`;
+  $('body-4').innerHTML = `Take the ${GAS_FLOOR} GW floor as given and ask what would have covered the rest, ${twh(totalAbove)} in ${last.year}. The median day needed ${n0(median.gwh)} GWh and peaked at ${gw(median.peak)}; the worst needed ${n0(worst.gwh)} GWh and ${gw(worst.peak)}. Against those days, ${last.batteries.map((b, i) => (i ? `${i === last.batteries.length - 1 ? 'and ' : ''}${b.gw} GW and ${b.gwh} GWh ${b.days}` : `${b.gw} GW and ${b.gwh} GWh of batteries would have covered ${b.days} days`)).join(', ')}. France had just over 1.5 GW of batteries at the end of 2025, and about 14 GW of projects hold grid connections (${src(SOURCES.batteries, 'AFP')}); Modo Energy expects about 5 GW by 2030 (${src(SOURCES.modo, 'Modo Energy')}). The sizing assumes the batteries could charge. In summer they can, from the noon surplus. On the ${heavy.days} heaviest gas days solar averaged ${n0(heavy.solarGwh)} GWh a day, and gas above the floor came to ${twh(winterAbove)} from November to February against ${twh(summerAbove)} from April to September. Batteries can end the shoulder-season gas and lengthen the spells under 0.5 GW; January is a different problem, and RTE says batteries suit shortfalls of hours to days, not long cold spells (${src(SOURCES.bp2025, 'RTE')}).`;
+  $('chart-h-4').textContent = `Each day of ${last.year}, by the gas a battery would have had to replace`;
+  $('chart-hint-4').textContent = `Each day's gas above ${GAS_FLOOR} GW, in GWh, sorted from smallest to largest. The lines mark what 10, 20, 40 and 80 GWh of batteries could supply; days below a line are covered, if the batteries could charge.`;
+  const dayX = (k) => k * 864e5;
+  const sorted = [{ name: 'Gas above the floor', color: css('--f-gas'), points: last.gasDays.map((x, k) => [dayX(k), x.gwh]), width: 2.5 }];
+  lineChart($('story-chart-4'), {
+    series: sorted,
+    yMin: 0,
+    yFormat: (v) => `${n0(v)} GWh`,
+    yTickFormat: (v) => n0(v),
+    xTicks: [0, 60, 120, 180, 240, 300, 360].filter((k) => k < last.gasDays.length).map((k) => ({ t: dayX(k), label: `${k}` })),
+    refLines: last.batteries.map((b) => ({ value: b.gwh, color: css('--ink-3') })),
+    tooltip: (t) => {
+      const k = Math.round(t / 864e5);
+      const x = last.gasDays[k];
+      return x ? `<strong>Day ${k + 1} of ${last.gasDays.length}</strong><div>Gas above ${GAS_FLOOR} GW: <b>${n0(x.gwh)} GWh</b></div><div>Peak gas: <b>${gw(x.peak)}</b></div><div>Month: <b>${monthNames[x.month - 1]}</b></div>` : '';
     },
   });
-  $('story-legend-3').innerHTML = legend(trade.map((s) => [s.name, s.color]));
+  $('story-legend-4').innerHTML = `${legend(sorted.map((sr) => [sr.name, sr.color]))}<span>Lines: ${last.batteries.map((b) => `${b.gwh} GWh`).join(', ')}</span>`;
 
-  // Chapter 4: fossil fuel hours.
-  $('take-4').textContent = `Fossil plants ran under 1 GW for ${hrs(last.fosU1)} in ${last.year}${fossilHalfSpell ? `, and the longest spell under 0.5 GW is ${hrs(spellH(fossilHalfSpell))} from ${fmtDate(at(fossilHalfSpell.start))}` : ''}.`;
-  $('body-4').innerHTML = `The second outlet is to switch off the gas and coal, and that is nearly done. Fossil generation fell from ${twh(first.fosTwh)} in ${first.year} and ${twh(crisis.fosTwh)} in ${crisis.year} to ${twh(last.fosTwh)} in ${last.year}. RTE calls 2025 the lowest fossil output in nearly 75 years (${src(SOURCES.bilan2025, 'RTE')}). Hours with fossil under 1 GW were ${n0(first.fosU1)} in ${first.year}, ${n0(crisis.fosU1)} in ${crisis.year}, ${n0(row(2024).fosU1)} in 2024 and ${n0(last.fosU1)} in ${last.year}; under 2 GW, ${hrs(last.fosU2)} in ${last.year}.${fossil2Spell ? ` The longest spell under 2 GW is ${hrs(spellH(fossil2Spell))} from ${fmtDate(at(fossil2Spell.start))}` : ''}${fossilHalfSpell ? `, and the longest under 0.5 GW is ${hrs(spellH(fossilHalfSpell))} from ${fmtDate(at(fossilHalfSpell.start))}.` : '.'} Nuclear and renewables made ${last.lowCarbonPct.toFixed(1)}% of generation in ${last.year}. The fossil hours that are left are winter evenings, and cutting them does nothing for a sunny noon.`;
-  $('chart-h-4').textContent = 'Hours a year with fossil fuel under 1 GW';
-  $('chart-hint-4').textContent = 'Hours each year with gas, coal and oil together under 1 GW, and between 1 and 2 GW. The last bar is the latest 365 days.';
-  const ch4 = [
-    { name: 'Under 1 GW', color: css('--lowcarbon'), values: rows.map((r) => r.fosU1) },
-    { name: '1 to 2 GW', color: css('--f-gas'), values: rows.map((r) => r.fosU2 - r.fosU1) },
-  ];
-  barChart($('story-chart-4'), {
-    cats: rows.map((r) => label(r.year)),
-    stacks: ch4,
+  // Chapter 5: what's coming.
+  $('take-5').textContent = 'Coal ends in 2027, the cogeneration contracts by about 2028 and solar nearly doubles by 2030, but RTE keeps about 12.5 GW of gas plant to 2035.';
+  $('body-5').innerHTML = `The dated items are listed below, each with the record it should move. Coal goes first: Cordemais stops on 31 March 2027 (${src(SOURCES.cordemais, 'EDF')}) and Saint-Avold is to convert to gas (${src(SOURCES.saintAvold, 'AFP')}). The C13 contracts are 12 years long and the last were signed in 2016, so they should run out by about 2028 (our inference from the contract terms), which should lower the winter floor. Batteries at about 5 GW by 2030 cut the shoulder months. Against that, the new capacity mechanism pays existing plants to stay available from November 2026 to 2036 (${src(SOURCES.capacity, 'CRE')}), and RTE expects around 20 TWh a year of gas in 2026 and 2027 and needs 2 to 4 GW of extra peak capacity from 2030 in its fast case (${src(SOURCES.bp2025, 'RTE')}). Gas is falling, but no date now fixed takes it to zero. Hours with gas under ${GAS_FLOOR} GW went from ${hrs(first.gasLow)} in ${first.year} to ${hrs(last.gasLow)} in ${last.year}: that is the count to watch.`;
+  $('chart-h-5').textContent = `Hours a year with gas under ${GAS_FLOOR} GW`;
+  $('chart-hint-5').textContent = 'Hours each year with gas output under 0.5 GW. The lowest quarter hour of gas is in the tooltip. The last bar is the latest 365 days.';
+  const ch5 = [{ name: `Gas under ${GAS_FLOOR} GW`, color: css('--lowcarbon'), values: rows.map((r) => r.gasLow) }];
+  barChart($('story-chart-5'), {
+    cats,
+    stacks: ch5,
     yFormat: hrs,
     yTickFormat: (v) => n0(v),
     highlight: (ci) => rows[ci].year === crisis.year,
-    tooltip: (ci) => `<strong>${title(rows[ci].year)}</strong><div>Under 1 GW: <b>${hrs(rows[ci].fosU1)}</b></div><div>Under 2 GW: <b>${hrs(rows[ci].fosU2)}</b></div><div>Fossil generation: <b>${twh(rows[ci].fosTwh)}</b></div>`,
+    tooltip: (ci) => `<strong>${title(rows[ci].year)}</strong><div>Hours under ${GAS_FLOOR} GW: <b>${n0(rows[ci].gasLow)}</b></div><div>Lowest gas: <b>${gw(rows[ci].gasMin)}</b></div><div>Gas: <b>${twh(rows[ci].gasTwh)}</b></div>`,
   });
-  $('story-legend-4').innerHTML = legend([...ch4].reverse().map((s) => [s.name, s.color]));
-
-  // Chapter 5: the price by hour of day.
-  $('take-5').textContent = `In ${last.year} the price averaged ${eur(last.byHour[13])} at ${hh(13)} and ${eur(last.byHour[20])} at ${hh(20)}${last.pumpTwh >= Math.max(...full.map((r) => r.pumpTwh)) ? ', and pumped storage pumped more than in any year before' : ''}.`;
-  $('body-5').innerHTML = `In ${before.year} the day-ahead price averaged ${eur(before.byHour[13])} a megawatt hour at ${hh(13)} and ${eur(before.byHour[20])} at ${hh(20)}. In ${last.year} it averaged ${eur(last.byHour[13])} at ${hh(13)} and ${eur(last.byHour[20])} at ${hh(20)}, a gap of ${eur(last.byHour[20] - last.byHour[13])} on a yearly average of ${eur(last.price)}. The gap is what pays for the dip: a reactor that gives up a lunchtime megawatt hour loses little, and the pumped storage plants that fill at noon and empty in the evening pumped ${twh(last.pumpTwh)} in ${last.year}, against ${twh(first.pumpTwh)} in ${first.year}. EDF reports the same from the plant side: pumped storage ran for much longer in 2025, and gas plant starts and stops doubled (${src(SOURCES.modulation, 'EDF')}). Flamanville 3, at 1.65 GW the biggest unit in the fleet, reached full power in December 2025 (${src(SOURCES.flamanville, 'Enerdata')}), adding to the noon surplus. EDF's answer is to grow demand, through electrification, rather than cut supply (${src(SOURCES.modulation, 'EDF')}).`;
-  $('chart-h-5').textContent = 'The price by hour of day';
-  $('chart-hint-5').textContent = 'The average day-ahead price for each hour of the day, French time, in euros per MWh. The thick line is the latest 365 days.';
-  // 2022's prices were four times today's, so it is left out to keep the shape readable.
-  const priceYears = [before.year, row(2024).year, last.year, 'past365'].filter((y, k, a) => a.indexOf(y) === k && rows.some((r) => r.year === y));
-  const price = priceYears.map((y, k) => ({ name: title(y), color: css(profileColors[k]), points: row(y).byHour.map((v, hr) => [hourX(hr), v]), width: y === 'past365' ? 3 : 2 }));
-  lineChart($('story-chart-5'), {
-    series: price,
-    yMin: 0,
-    yFormat: (v) => eur(v),
-    yTickFormat: (v) => `${v}`,
-    xTicks: [0, 3, 6, 9, 12, 15, 18, 21].map((hr) => ({ t: hourX(hr), label: hh(hr) })),
-    tooltip: (t, vals) => `<strong>${hh(Math.round(t / 3600000))}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? `${eur(v.value)}/MWh` : '—'}</b></div>`).join('')}`,
-  });
-  $('story-legend-5').innerHTML = legend(price.map((s) => [s.name, s.color]));
+  $('story-legend-5').innerHTML = legend(ch5.map((sr) => [sr.name, sr.color]));
+  $('coming').innerHTML = COMING.map(([when, what, source, record]) => `<li><span class="swatch" style="background:var(--f-gas)"></span><span><b>${when}</b> ${what} (${src(SOURCES[source], 'source')}) <span class="sub">Watch: ${record}</span></span></li>`).join('');
 }

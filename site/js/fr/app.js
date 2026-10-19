@@ -172,9 +172,10 @@ function renderNowPlaceholder() {
 }
 
 let story = null;
+let installed = null; // site/data/fr/installed.json, or null if it didn't load
 function renderStory() {
   story ??= storyFigures(data, end);
-  drawStory(data, end, story);
+  drawStory(data, end, story, installed);
 }
 
 async function main() {
@@ -188,8 +189,10 @@ async function main() {
   }));
   renderNowPlaceholder();
   setupNowHover(() => nowFigures);
+  const capacity = fetch(`${fr.dataPath}/installed.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   try {
     data = await loadData(fr.dataPath);
+    installed = await capacity;
   } catch (err) {
     $('updated').textContent = 'The data could not be loaded. Please try again shortly.';
     console.error(err);

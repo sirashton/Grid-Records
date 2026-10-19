@@ -48,4 +48,12 @@ test('France story: the noon dip, export hours and fossil hours', async () => {
   assert.equal(Math.round(y25.byHour[13]), 20);
   assert.ok(Math.abs(y24.nucTwh - 40 * 24 * 366 / 1000) < 1e-6);
   assert.deepEqual(f.rows.map((r) => r.year), [2024, 2025, 'past365']);
+  // Gas: 0.5 GW at noon, 3 GW otherwise, always while exporting.
+  assert.equal(y25.gasExportingShare, 1);
+  assert.equal(y25.gasImporting, 0);
+  assert.ok(Math.abs(y25.gasMin - 0.5) < 1e-9);
+  assert.equal(y25.gasLow, 0);
+  // 19 hours a day at 2.5 GW above the floor: 47.5 GWh, more than 40 GWh, within 80 GWh.
+  assert.deepEqual(y25.batteries.map((b) => b.days), [0, 0, 0, 365]);
+
 });

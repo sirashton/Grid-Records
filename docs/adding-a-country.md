@@ -97,7 +97,7 @@ export default {
 
 1. `setTimeZone(country.timeZone)`; `const records = createRecordsTool({ host: $('records'), country })` after `startAnalytics()`.
 2. `const data = await loadData(country.dataPath)`; `records.setData(data, { end: dataEnd(data, country) })`.
-3. The story: country-specific chapters in `site/js/<cc>/`, answer first (Alex's pyramid style). This is the part that should differ per country.
+3. The story: country-specific chapters in `site/js/<cc>/`, answer first (Alex's pyramid style), in the shape set out in [The story](#the-story-every-page-answers-the-same-three-questions) below. This is the part that should differ per country.
 4. Add the flag to `site/flags/` and one entry to `site/js/countries/index.js` (its page, data path, flag, and `nav` if the switch label should differ from the config's name), then run `npm run nav`. That stamps the country switch onto every page, this one included, so never edit a page's `<nav class="region-nav">` by hand: `pipeline/nav.mjs` rewrites it from the list, `test/nav.test.mjs` fails while any page is out of date, and the deploy stamps it again before building. The switch stays plain HTML, so it shows with no layout shift and without scripts.
 
 The Live records page (`site/live/`, `site/js/core/live-records.js`) reads `site/js/countries/index.js`, so a listed country is checked there with no other change: every preset and threshold in its config, for spells still running that are records or close to one. It uses the config's `live` flag and the data's end to say whether the country is live or how far behind its latest data is. `navHtml` ends every switch with the Live records button.
@@ -114,6 +114,16 @@ Every country should be as live as its sources allow. The deploy workflow alread
 - **Say how fresh it is:** the line under the title gives the latest data's time and `agoText`, and the note under the panel says what Live means for that source ("usually under an hour old", "about three hours behind").
 
 Status 2026-10-19: GB live (NESO, under an hour), Australia live (AEMO 5-minute reports, under an hour), Germany live (Energy-Charts, about three hours), New Zealand not live (EMI monthly files arrive weeks late; the daily 5-minute dispatch file is about three days late, and Transpower's real-time feed needs a subscription). Western Australia not live (AEMO WA rewrites the current month's facility file each morning, so the data is up to a day old; `pipeline/build-wa.mjs`).
+
+## The story: every page answers the same three questions
+
+Alex's rule (2026-10-19, from the France page): every country page is built around **the last fossil fuel on its grid**. The site exists to chart the next phase of the transition, from adding renewables to not needing fossil plants at all, so each story answers, in this order:
+
+1. **Why does fossil power still run?** Name the fuel that is left (gas in France, coal in Poland, gas and coal in Australia) and show, from the data, when it runs: by month, by hour of day, and against net trade, demand, wind and solar. Separate what the country needs from what runs for other reasons (exports, contracts, heat, grid support), and say which is which with a source or a clear "inferred".
+2. **What are the economics?** Why each plant is on at that hour: who pays it, what it is paid against (marginal cost of fuel and carbon versus the price, capacity or support contracts, must-run rules), and why the cheaper clean power is turned down or exported instead.
+3. **What is coming, and when?** Dated, sourced items (closures, contracts ending, batteries, interconnectors, new reactors or wind, targets) and, for each, **which record it should move**: the spell to watch (for example "longest spell with fossil under 0.5 GW"), the floor that should fall, the battery or solar peak that should rise. End with the records to watch, so a reader can come back and see whether it happened. Where the data allows, size what would replace the remaining fossil output (for example how much battery would cover it on how many days) and say what it would not cover.
+
+The answer comes first: the lede and "In short" answer the page's question in a sentence or two, with three supporting points that link to the chapters. Every number on the page is computed from the data by `storyFigures()` (tested) or cites a source the writer opened. The France page (`site/js/fr/story.js`) is the worked example.
 
 ## What stays country-specific
 
