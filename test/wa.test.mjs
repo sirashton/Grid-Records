@@ -106,8 +106,8 @@ test('merging puts every dataset on the facility grid', () => {
   assert.deepEqual([...merged.columns.demand], [5, 5, 5, 5, 5]);
 });
 
-test('story figures: evening averages, demand without charging, and the year so far', async () => {
-  const { storyFigures } = await import('../site/js/wa/story.js');
+test('story figures: evening averages, demand without charging, the year so far, the fossil floor and battery sizing', async () => {
+  const { storyFigures, FOSSIL_FLOOR, FOSSIL_LOW, BATTERIES } = await import('../site/js/wa/story.js');
   // Two days a year apart, half-hourly, in Perth time (UTC+8): 1 Jan 2025 and 1 Jan 2026.
   const day = 48;
   const startMs = Date.UTC(2024, 11, 31, 16);
@@ -123,6 +123,7 @@ test('story figures: evening averages, demand without charging, and the year so 
     cols.battery[i] = evening && y2026 ? 400 : 0;
     cols.battery_charge[i] = hr === 12 ? -300 : 0;
     cols.demand[i] = hr === 12 ? 900 : 2000;
+    cols.solar_rooftop[i] = hr >= 10 && hr <= 15 ? 1500 : 0;
   }
   const f = storyFigures({ startMs, stepMinutes: 30, length, columns: cols }, length);
   const [y25, y26] = f.years;
@@ -135,4 +136,27 @@ test('story figures: evening averages, demand without charging, and the year so 
   assert.equal(y25.coalMin, 500);
   // 1 Jan 2026 against 1 Jan 2025: evening coal 600 instead of 1000 for 8 half hours.
   assert.ok(Math.abs(f.yearToDate.delta.coal - (-400 * 8 * 0.5) / 1e6) < 1e-9);
+  // Fossil is coal plus gas: 1,300 MW all day, 1,800 MW in the evening, so never under FOSSIL_LOW.
+  assert.equal(y25.fosMin, 1300);
+  assert.equal(y25.gasMin, 800);
+  assert.equal(y25.fosLow, 0);
+  assert.ok(FOSSIL_LOW <= 1300);
+  assert.equal(y25.byHour[18].fos, 1800);
+  assert.equal(y25.byHour[3].fos, 1300);
+  // Noon (11:00 to 14:00): fossil 1,300 MW, charging 300 MW in the 12:00 hour only, 2 of 8 slots.
+  assert.equal(y25.noon.fos, 1300);
+  assert.equal(y25.noon.charge, 75);
+  // Each day above the 400 MW floor: 900 MW for 20 hours plus 1,400 MW for 4 hours = 23.6 GWh, peaking 1.4 GW above it.
+  assert.equal(y25.days.length, 365);
+  assert.ok(Math.abs(y25.days[0].gwh - 23.6) < 1e-9);
+  assert.ok(Math.abs(y25.days[0].peak - 1.4) < 1e-9);
+  assert.ok(Math.abs(y25.aboveTwh - 23.6 * 365 / 1000) < 1e-9);
+  assert.ok(Math.abs(y25.days[0].solar - 1500 * 6 / 1000) < 1e-9);
+  // Fleets need at least 1.4 GW and 23.6 GWh to cover a day.
+  assert.deepEqual(y25.batteries.map((b) => b.days), BATTERIES.map(([gw, gwh]) => (gw >= 1.4 && gwh >= 23.6 ? 365 : 0)));
+  assert.equal(y25.fosMonth.length, 12);
+  assert.ok(Math.abs(y25.fosMonth[0] - 31 * (1300 * 20 + 1800 * 4) / 1000) < 1e-6);
+  assert.equal(y25.fosMonth[11] > y25.fosMonth[1], true, 'December has more days than February');
+  assert.equal(FOSSIL_FLOOR, 400);
+  assert.equal(f.fossilSpells[500], null);
 });
