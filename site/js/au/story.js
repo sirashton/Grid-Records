@@ -31,6 +31,8 @@ function comparePeriods(data, end, months = 3) {
   return {
     now: { fromMs: at(y, endMonth - months), toMs: at(y, endMonth) },
     before: { fromMs: at(y - 1, endMonth - months), toMs: at(y - 1, endMonth) },
+    // Two years back, to tell a change in the day's shape from a falling level.
+    earlier: { fromMs: at(y - 2, endMonth - months), toMs: at(y - 2, endMonth) },
   };
 }
 
@@ -56,9 +58,11 @@ export function storyFigures(data, end, country) {
   const coalPct = metricSeries(d, country, ['coal', 'lignite'], { unit: 'pct' });
   const renewablePct = metricSeries(d, country, fuelsWhere(country, 'renewable'), { unit: 'pct' });
 
-  const series = { price, dis, chg, gas };
-  const day = { now: averageDay(d, periods.now.fromMs, periods.now.toMs, series), before: averageDay(d, periods.before.fromMs, periods.before.toMs, series) };
-  const period = (p) => {
+  const series = { price, dis, chg, gas, demand: d.columns.demand };
+  const day = Object.fromEntries(Object.entries(periods).map(([k, p]) => [k, withShape(averageDay(d, p.fromMs, p.toMs, series))]));
+  // Hours of the average day dearer than a year earlier.
+  day.hoursDearer = day.now.price.filter((v, k) => v > day.before.price[k]).length / 2;
+  const period = (p, avg) => {
     const [a, b] = [idx(p.fromMs), idx(p.toMs)];
     let pd = 0;
     let w = 0;
@@ -75,7 +79,6 @@ export function storyFigures(data, end, country) {
     // Evening peak: 4pm to 9pm, NEM time, as AEMO defines it.
     const evening = (k) => (k >= 32 && k < 42);
     const dayOf = (s, pick) => { let v = 0; let c = 0; s.forEach((x, k) => { if (pick(k) && !Number.isNaN(x)) { v += x; c++; } }); return c ? v / c : NaN; };
-    const avg = p === periods.now ? day.now : day.before;
     return {
       ...p,
       label: label(p),
@@ -88,11 +91,13 @@ export function storyFigures(data, end, country) {
       middayPrice: dayOf(avg.price, (k) => k >= 20 && k < 32),
       eveningBatteryGw: dayOf(avg.dis, evening),
       eveningGasGw: dayOf(avg.gas, evening),
+      eveningDemandGw: dayOf(avg.demand, evening) / 1000,
       renewablePct: meanOver(renewablePct, a, b),
     };
   };
-  const now = period(periods.now);
-  const before = period(periods.before);
+  const now = period(periods.now, day.now);
+  const before = period(periods.before, day.before);
+  const earlier = period(periods.earlier, day.earlier);
 
   // Records: how long the grid has gone with little coal, and with the price below zero.
   const spells = {
@@ -109,7 +114,16 @@ export function storyFigures(data, end, country) {
     if (dis[i] > peakDis.v) peakDis = { v: dis[i], i };
     if (chg[i] > peakChg.v) peakChg = { v: chg[i], i };
   }
-  return { energy, months, now, before, day, spells, fossilHours, negativeHours, peakDis, peakChg };
+  return { energy, months, now, before, earlier, day, spells, fossilHours, negativeHours, peakDis, peakChg };
+}
+
+/** The average day's dearest and cheapest half hours, and its battery and gas peaks. */
+function withShape(avg) {
+  const at = (arr, better) => arr.reduce((b, v, k) => (!Number.isNaN(v) && (b.k < 0 || better(v, b.v)) ? { v, k } : b), { v: NaN, k: -1 });
+  const hi = at(avg.price, (a, b) => a > b);
+  const lo = at(avg.price, (a, b) => a < b);
+  const max = (arr) => at(arr, (a, b) => a > b).v;
+  return { ...avg, peakPrice: hi.v, peakAt: hi.k, minPrice: lo.v, minAt: lo.k, spread: hi.v - lo.v, peakDis: max(avg.dis), peakChg: max(avg.chg), peakGas: max(avg.gas) };
 }
 
 const pick = (s) => ({ record: s.record, current: s.current, perYear: s.perYear, pastYear: s.pastYear });
@@ -161,6 +175,7 @@ const DAY0 = Date.UTC(2000, 0, 3) - OFFSET;
 const dayPoints = (arr, scale = 1) => arr.map((v, k) => [DAY0 + k * 18e5, v * scale]);
 // Clock labels every three hours for the average-day charts.
 const DAY_TICKS = Array.from({ length: 8 }, (_, k) => ({ t: DAY0 + k * 108e5, label: k ? `${(k * 3) % 12 || 12}${k * 3 < 12 ? 'am' : 'pm'}` : 'midnight' }));
+const slotClock = (k) => clock(DAY0 + k * 18e5);
 const clock = (t) => new Date(t).toLocaleTimeString('en-AU', { timeZone: 'Australia/Brisbane', hour: 'numeric', minute: '2-digit' });
 
 function chapter(n, id, title, take, body, next) {
@@ -188,44 +203,65 @@ export function renderStory({ data, end, country, area, areaName, cache, factsHt
 
   // In short: the answer, then why, each point linking to its chapter.
   const link = (ch, text) => `<a href="#${ch}" data-open="${ch}">${text}</a>`;
+  const { day } = f;
   const fell = now.price < before.price;
-  $('answer-lead').innerHTML = `${Where}'s wholesale price averaged ${money(now.price)}/MWh over ${now.label}, ${fell ? 'down' : 'up'} ${change(now.price, before.price)} on a year earlier (${money(before.price)}). Grid batteries ${now.batteryGw > before.batteryGw * 1.5 ? 'did most of it' : 'helped'}: they now soak up spare midday solar and sell it back in the evening, the hours that used to set the price.`;
+  const eveningFell = now.eveningPrice < before.eveningPrice;
+  const middayRose = now.middayPrice > before.middayPrice;
+  const hrs = f.fossilHours;
+  const lastHours = hrs.at(-1);
+  const firstHours = hrs.find((r) => r.hours[1] < r.n / 2) ?? hrs[0];
+  $('answer-lead').innerHTML = `${Where}'s wholesale price averaged ${money(now.price)}/MWh over ${now.label}, ${fell ? 'down' : 'up'} ${change(now.price, before.price)} on the same months a year earlier (${money(before.price)}). ${eveningFell && middayRose
+    ? `Most of the fall came between 4pm and 9pm. Grid batteries now charge on the midday solar surplus and sell it back in the evening, so the evening price fell by ${change(now.eveningPrice, before.eveningPrice)} while midday prices went up.`
+    : `Between 4pm and 9pm the price went from ${money(before.eveningPrice)} to ${money(now.eveningPrice)}/MWh, and at midday from ${money(before.middayPrice)} to ${money(now.middayPrice)}.`}`;
   $('answer-points').innerHTML = [
-    `<b>Evenings got cheaper.</b> Between 4pm and 9pm the average price fell from ${money(before.eveningPrice)} to ${money(now.eveningPrice)}/MWh, as battery output at those hours went from ${gw(before.eveningBatteryGw)} to ${gw(now.eveningBatteryGw)} and gas fell from ${gw(before.eveningGasGw)} to ${gw(now.eveningGasGw)}. ${link('chapter-1', 'Batteries')}`,
-    `<b>Middays stopped going so far below zero.</b> Batteries charging at ${gw(now.chargeGw)} on average (${gw(before.chargeGw)} a year earlier) give spare solar somewhere to go: ${pc(now.negativePct)} of half hours were priced below zero, against ${pc(before.negativePct)}. ${link('chapter-2', 'Prices')}`,
-    `<b>Coal is giving ground hour by hour.</b> ${Where} has run on under 30% fossil fuel for up to ${dur(f.spells.fossil[2])} at a stretch, and renewables made ${pc(past.renewablePct)} of generation over the latest year, from ${pc(first.renewablePct)} in ${first.year}. ${link('chapter-3', 'Coal')}`,
+    `<b>Evenings got ${eveningFell ? 'cheaper' : 'dearer'}.</b> Between 4pm and 9pm the price averaged ${money(now.eveningPrice)}/MWh, from ${money(before.eveningPrice)}. The dearest half hour of the average day went from ${money(day.before.peakPrice)} to ${money(day.now.peakPrice)}. ${link('chapter-1', 'The evening')}`,
+    `<b>Batteries moved the surplus to where the price was.</b> Between 4pm and 9pm grid batteries put out ${gw(now.eveningBatteryGw)}, from ${gw(before.eveningBatteryGw)} a year earlier, and gas went from ${gw(before.eveningGasGw)} to ${gw(now.eveningGasGw)}. They charge at up to ${gw(day.now.peakChg)} around midday, when ${pc(now.negativePct)} of half hours were priced below zero, against ${pc(before.negativePct)}. ${link('chapter-2', 'Batteries')}`,
+    `<b>This was storage, not more renewables.</b> Renewables made ${pc(now.renewablePct)} of generation over ${now.label}, against ${pc(before.renewablePct)} a year earlier. Over the longer run coal is giving ground hour by hour: fossil fuels were under 40% of ${where}'s generation for ${num(Math.round(lastHours.hours[1]))} hours in the latest year, from ${num(Math.round(firstHours.hours[1]))} in ${firstHours.year}. ${link('chapter-3', 'Coal')}`,
   ].map((x) => `<li>${x}</li>`).join('');
 
-  $('facts').innerHTML = factsHtml(dur(f.spells.fossil[1]), `with fossil fuels under 40% of ${where}'s generation, ${from(f.spells.fossil[1])}. The longest so far.`, [
+  $('facts').innerHTML = factsHtml(dur(f.spells.fossil[1]), `with fossil fuels under 40% of ${where}'s generation, ${from(f.spells.fossil[1])}. The longest run so far.`, [
     ['--lowcarbon', 'Renewables above 50%', dur(f.spells.renewables[0]), from(f.spells.renewables[0])],
     ['--f-coal', 'Coal under 30%', dur(f.spells.coal[1]), from(f.spells.coal[1])],
     ['--s1', 'Price below zero', dur(f.spells.negative[0]), from(f.spells.negative[0])],
     ['--f-battery', 'Most battery output', gw(f.peakDis.v), f.peakDis.i >= 0 ? `at ${fmtDate(slotTime(f.peakDis.i, data.startMs))}` : ''],
   ]);
-  $('story-hint').textContent = 'Four chapters on what the batteries changed, what it did to prices, how fast coal is going, and the home batteries the data can\'t see.';
+  $('story-hint').textContent = "Four chapters: what happened to the evening price, what the batteries did, how fast coal is going, and the half a million home batteries the market data can't see.";
 
+  const { earlier } = f;
+  const pastEnergy = en.at(-1);
+  const coalShare = ((pastEnergy.twh.coal + pastEnergy.twh.lignite) / pastEnergy.total) * 100;
+  const gasFirst = en.find((r) => r.twh.gas > 0) ?? first;
   const chapters = [
-    chapter(1, 'chapter-1', 'Batteries took over the evening', `Grid batteries averaged ${gw(now.batteryGw)} of output over ${now.label}, from ${gw(before.batteryGw)} a year earlier.`, `
-      <h3>The average day, a year apart</h3>
-      <p class="hint">Grid battery output (up) and charging (down) through the average day, in MW, NEM time. ${now.label} against ${before.label}.</p>
-      <div class="chart-host" id="au-bat-day"></div>
-      <div class="legend" id="au-bat-day-legend"></div>
-      <h3>Battery output each month</h3>
-      <p class="hint">Mean discharge and charging each month, in MW. Charging is bigger because batteries lose some energy on the way through.</p>
-      <div class="chart-host" id="au-bat-month"></div>
-      <div class="legend" id="au-bat-month-legend"></div>`, ['chapter-2', 'Prices']),
-    chapter(2, 'chapter-2', 'Prices fell where batteries work', `Over 4pm to 9pm the price averaged ${money(now.eveningPrice)}/MWh, from ${money(before.eveningPrice)}.`, `
+    chapter(1, 'chapter-1', `The evening peak ${eveningFell ? 'lost' : 'gained'} ${change(now.eveningPrice, before.eveningPrice)}`, `Between 4pm and 9pm the price averaged ${money(now.eveningPrice)}/MWh over ${now.label}, from ${money(before.eveningPrice)} a year earlier.`, `
+      <p>A year ago the price climbed through the afternoon to ${money(day.before.peakPrice)} at ${slotClock(day.before.peakAt)}. This year the dearest half hour was ${money(day.now.peakPrice)}, at ${slotClock(day.now.peakAt)}, and the gap between the dearest and cheapest half hours of the average day went from ${money(day.before.spread)} to ${money(day.now.spread)}. Midday went the other way, from ${money(before.middayPrice)} to ${money(now.middayPrice)}/MWh between 10am and 4pm. Only ${day.hoursDearer} hours of the average day are dearer than a year ago.</p>
+      ${Number.isFinite(earlier.eveningPrice) ? `<p>Two years back, over ${earlier.label}, the evening averaged ${money(earlier.eveningPrice)} and midday ${money(earlier.middayPrice)}.${earlier.eveningPrice > before.eveningPrice && before.eveningPrice > now.eveningPrice ? ' The evening price has now fallen two years running.' : ''}${middayRose && earlier.middayPrice > before.middayPrice ? ` Midday is back near where it was then, after a dip in ${before.label.slice(-4)}.` : ''}</p>` : ''}
       <h3>The price through the average day</h3>
-      <p class="hint">Spot price by half hour of the day, in $/MWh, NEM time, weighted by demand for the whole NEM.</p>
+      <p class="hint">Spot price by half hour, in $/MWh, NEM time${area === 'nem' ? ', weighted by each state\'s demand' : ''}.</p>
       <div class="chart-host" id="au-price-day"></div>
       <div class="legend" id="au-price-day-legend"></div>
       <h3>The price each month</h3>
-      <p class="hint">Demand-weighted mean spot price each month, in $/MWh. Hover a month for the share of half hours below zero.</p>
-      <div class="chart-host" id="au-price-month"></div>
+      <p class="hint">Demand-weighted mean spot price each month, in $/MWh. September is cheap every year, with spring sun and wind.</p>
+      <div class="chart-host" id="au-price-month"></div>`, ['chapter-2', 'Batteries']),
+    chapter(2, 'chapter-2', 'Batteries bought the midday surplus', `Grid batteries charge at up to ${gw(day.now.peakChg)} around midday and put out up to ${gw(day.now.peakDis)} in the evening, from ${gw(day.before.peakDis)} a year earlier.`, `
+      <p>Batteries charge when solar is pushing the price down and sell when gas would otherwise set it. Over ${now.label} they averaged ${gw(now.batteryGw)} of output and ${gw(now.chargeGw)} of charging, against ${gw(before.batteryGw)} and ${gw(before.chargeGw)} a year earlier. Gas at its evening peak went from ${gw(day.before.peakGas)} to ${gw(day.now.peakGas)}. With somewhere for spare solar to go, ${pc(now.negativePct)} of half hours were priced below zero, against ${pc(before.negativePct)}.</p>
+      <p>Batteries are still a small part of evening supply, and they are not the only thing in these prices: power flows between states, the price of gas and the weather matter too, and this data can't say how much of the fall is which.${area === 'nem' ? ' The state buttons above show where the batteries are; some states saw their evening price fall with little change in their own batteries.' : ''}</p>
+      <h3>Batteries through the average day</h3>
+      <p class="hint">Grid battery output (up) and charging (down), in MW, NEM time.</p>
+      <div class="chart-host" id="au-bat-day"></div>
+      <div class="legend" id="au-bat-day-legend"></div>
+      <h3>Gas through the average day</h3>
+      <p class="hint">Gas generation by half hour, in MW, NEM time.</p>
+      <div class="chart-host" id="au-gas-day"></div>
+      <div class="legend" id="au-gas-day-legend"></div>
+      <h3>Battery output each month</h3>
+      <p class="hint">Mean output and charging each month, in MW. Charging is bigger because some energy is lost on the way through.</p>
+      <div class="chart-host" id="au-bat-month"></div>
+      <div class="legend" id="au-bat-month-legend"></div>
       <h3>Hours below zero each year</h3>
-      <p class="hint">Half hours with a negative spot price, in hours. The last bar is the latest 365 days.</p>
+      <p class="hint">Hours with a negative spot price. The last bar is the latest 365 days.</p>
       <div class="chart-host" id="au-neg-year"></div>`, ['chapter-3', 'Coal']),
-    chapter(3, 'chapter-3', 'Coal is giving ground hour by hour', `Renewables made ${pc(past.renewablePct)} of ${where}'s generation over the latest year.`, `
+    chapter(3, 'chapter-3', 'Coal is going by the hour, not the year', `Renewables made ${pc(past.renewablePct)} of ${where}'s generation over the latest year, from ${pc(first.renewablePct)} in ${first.year}.`, `
+      <p>The price fall above came with little change in the renewable share: ${pc(before.renewablePct)} a year ago, ${pc(now.renewablePct)} now. Coal still made ${pc(coalShare)} of the latest year's power. What is changing fast is the number of hours it isn't needed: fossil fuels were under 40% of generation for ${num(Math.round(lastHours.hours[1]))} hours in the latest year and under 30% for ${num(Math.round(lastHours.hours[2]))}, against ${num(Math.round(firstHours.hours[1]))} and ${num(Math.round(firstHours.hours[2]))} in ${firstHours.year}. Gas made ${pastEnergy.twh.gas.toFixed(1)} TWh in the latest year, from ${gasFirst.twh.gas.toFixed(1)} TWh in ${gasFirst.year}.</p>
       <h3>Where the power comes from</h3>
       <p class="hint">Share of generation each year, rooftop solar included. The last bar is the latest 365 days.</p>
       <div class="chart-host" id="au-mix"></div>
@@ -234,19 +270,19 @@ export function renderStory({ data, end, country, area, areaName, cache, factsHt
       <p class="hint">Hours with fossil fuels under 50%, 40% and 30% of generation.</p>
       <div class="chart-host" id="au-fossil-hours"></div>
       <div class="legend" id="au-fossil-hours-legend"></div>`, ['chapter-4', 'Home batteries']),
-    chapter(4, 'chapter-4', "The batteries the data can't see", `Australians have installed ${num(HOME_BATTERIES.latest.installs)} home batteries under the federal scheme since July 2025.`, homeBatteriesHtml(), null),
+    chapter(4, 'chapter-4', "The batteries the data can't see", `About ${num(HOME_BATTERIES.latest.installs)} home batteries have been installed under the federal scheme since July 2025.`, homeBatteriesHtml(now, before), null),
   ];
   $('chapters').innerHTML = chapters.join('');
   drawCharts(f, data);
   return { area, f };
 }
 
-function homeBatteriesHtml() {
+function homeBatteriesHtml(now, before) {
   const h = HOME_BATTERIES;
   const q = AEMO_Q2_2026;
-  return `<p>Home batteries sit behind the meter, so AEMO's market data doesn't show them. To the grid they look like homes using less power in the evening. The Cheaper Home Batteries Program has paid about 30% of the cost of a battery since July 2025, and the uptake has been fast:</p>
+  return `<p>Home batteries sit behind the meter, so none of the charts above include them. To the grid they look like homes using less power at 6pm. The Cheaper Home Batteries Program has paid about 30% of the cost since July 2025, and uptake has been quick:</p>
     <ul class="notes">${h.milestones.map((m) => `<li><b>${m.when}:</b> ${m.text} (<a href="${m.url}">${m.source}</a>)</li>`).join('')}</ul>
-    <p>AEMO's quarterly report for April to June 2026 put the program at ${num(q.homeBatteryMwh)} MWh across ${num(q.homeBatteryInstalls)} homes, up ${q.homeBatteryGrowthPct}% in a quarter, and found households with solar and a battery took ${q.eveningImportCutPct}% less from the grid between 4pm and 9pm than those with solar alone (<a href="${q.url}">AEMO</a>, <a href="${q.newsUrl}">Energy-Storage.News</a>). That evening demand is what used to be met by gas, and set the price.</p>`;
+    <p>AEMO's report for April to June 2026 counted ${num(q.homeBatteryMwh)} MWh across ${num(q.homeBatteryInstalls)} homes, up ${q.homeBatteryGrowthPct}% in a quarter, and found homes with solar and a battery drew ${q.eveningImportCutPct}% less from the grid between 4pm and 9pm than homes with solar alone (<a href="${q.url}">AEMO</a>, <a href="${q.newsUrl}">Energy-Storage.News</a>). In this data that can only show up as lower evening demand: ${gw(now.eveningDemandGw)} between 4pm and 9pm over ${now.label}, against ${gw(before.eveningDemandGw)} a year earlier. The weather moves that as much as batteries do.</p>`;
 }
 
 function drawCharts(f, data) {
@@ -270,6 +306,14 @@ function drawCharts(f, data) {
     ];
     lineChart($('au-bat-month'), { series: ms, zeroLine: true, yFormat: mw, yTickFormat: (v) => num(v), tooltip: (t, v) => `<strong>${new Date(t).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })}</strong>${v.map((x) => `<div><i style="background:${x.series.color}"></i>${x.series.name}: <b>${mw(Math.abs(x.value))}</b></div>`).join('')}` });
     $('au-bat-month-legend').innerHTML = legend(ms.map((x) => [x.color, x.name]));
+  }
+  if ($('au-gas-day')) {
+    const s = [
+      { name: now.label, color: css('--f-gas'), points: dayPoints(day.now.gas, 1000) },
+      { name: before.label, color: css('--f-gas'), points: dayPoints(day.before.gas, 1000), width: 1.5, opacity: 0.45 },
+    ];
+    lineChart($('au-gas-day'), { xTicks: DAY_TICKS, series: s, yMin: 0, yFormat: mw, yTickFormat: (v) => num(v), tooltip: (t, v) => tip(t, v, mw) });
+    $('au-gas-day-legend').innerHTML = legend(s.map((x) => [x.color, x.name]));
   }
   if ($('au-price-day')) {
     const s = [
