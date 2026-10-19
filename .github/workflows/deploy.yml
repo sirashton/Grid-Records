@@ -94,6 +94,20 @@ jobs:
         with:
           path: .cache-pl
           key: pl-${{ github.run_id }}
+      # Brazil, likewise. The first runs backfill the 26-year ONS history
+      # into the cache; after that a run fetches only files ONS replaced.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-br
+          key: br-${{ github.run_id }}
+          restore-keys: br-
+      - run: node pipeline/build-br.mjs --budget-minutes 4
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-br
+          key: br-${{ github.run_id }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
