@@ -2,7 +2,7 @@
 
 As of 2026-10-19:
 
-- **Name: still open.** The site stays "Grid Records" for now. Alex wants a name that is easy to find on Google. Still in the running after round three: Longspell, Gridspell, Emberless, Gridstreak and Last Burn.
+- **Name: Gridstreak** (chosen 2026-10-19, "for now"). It says grid and record run, it is hard to misspell, and a web search found nothing that already owns it. The runners-up were Longspell, Emberless, The Long Run and Last Burn.
 - **Mark: 3f-a, "Mix rows" in teal.** Four years of the fuel mix as 100% stacked rows, fossil on the left. The rows build once, then a dashed "lowest fossil share" line hops to the newest row. It lives in `site/js/core/hero-mark.js` (markup) and `site/style.css` (styles), and the favicon is `site/favicon.svg`.
 
 The pages in this folder are the full set of options considered. Open them in a browser:
