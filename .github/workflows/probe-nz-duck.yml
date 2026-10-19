@@ -12,8 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: node pipeline/nz-duck/probe.mjs
-      - run: node pipeline/build-nz.mjs --budget-minutes 20 --concurrency 6 --from 2008-01 --out probe-out/nz
+      - run: node pipeline/nz-duck/probe2.mjs
       - name: Commit results
         if: always()
         run: |
