@@ -14,7 +14,10 @@ export const LAKE = {
   hydroMinGw: 0.8,
   // Roughly the hydro fleet's capacity; more than this in a day can't come from the lakes.
   hydroMaxGw: 5.3,
-  load: { geothermal: 0.92, wind: 0.38, solar: 0.19 }, // as in the cost model
+  // As in the cost model. New hydro runs at about the fleet's average load
+  // factor (24 TWh from 5.3 GW); its water arrives when the existing rivers'
+  // does, so it is modelled as a larger share of the same inflows, plus more turbines.
+  load: { geothermal: 0.92, wind: 0.38, solar: 0.19, hydro: 0.5 },
 };
 
 const DAY = 864e5;
@@ -52,6 +55,13 @@ function demandByDay(inputs, fleet) {
   return d;
 }
 
+// Average daily inflow to the lakes, GWh, as the model scales it.
+const inflowCache = new WeakMap();
+function meanInflow(inputs) {
+  if (!inflowCache.has(inputs)) inflowCache.set(inputs, (inputs.inflow.reduce((a, b) => a + b, 0) / inputs.days) * inputs.inflowScale);
+  return inflowCache.get(inputs);
+}
+
 /**
  * Runs the record twice, starting the second pass where the first ended, so
  * the start doesn't depend on a guess of 1980's lake levels.
@@ -63,7 +73,8 @@ export function simulate(inputs, fleet, add = {}, { cap = inputs.activeGwh, trac
   const solar = fleet.solarGw + (add.solar ?? 0);
   const flat = fleet.geoGwh + fleet.bioGwh + (add.geothermal ?? 0) * l.load.geothermal * 24;
   const hmin = l.hydroMinGw * 24;
-  const hmax = l.hydroMaxGw * 24;
+  const hmax = (l.hydroMaxGw + (add.hydro ?? 0)) * 24;
+  const inflowScale = add.hydro ? inputs.inflowScale * (1 + (add.hydro * l.load.hydro * 24) / meanInflow(inputs)) : inputs.inflowScale;
   const demand = demandByDay(inputs, fleet);
   const first = Date.parse(inputs.first);
   const years = new Map();
@@ -80,7 +91,7 @@ export function simulate(inputs, fleet, add = {}, { cap = inputs.activeGwh, trac
       const need = demand[i] - flat - (inputs.wind[i] * wind + inputs.solar[i] * solar) * 24;
       const draw = Math.min(hmax, Math.max(hmin, need));
       let gap = Math.max(0, need - draw);
-      s += inputs.inflow[i] * inputs.inflowScale - draw;
+      s += inputs.inflow[i] * inflowScale - draw;
       if (s < 0) { gap -= s; s = 0; }
       if (pass === 0) { s = Math.min(s, cap); continue; }
       if (s > cap) { spill += s - cap; s = cap; }
@@ -107,6 +118,37 @@ export function minimumBuild(inputs, fleet, tech, opts = {}, max = 40, l = LAKE)
     else hi = mid;
   }
   return hi;
+}
+
+/**
+ * Every mix of new geothermal, hydro and solar that just gets through the
+ * record: for each amount of geothermal and hydro up to its limit (GW), the
+ * least solar that keeps the lakes from running dry. The cheapest of these
+ * depends on the year's costs, so the cost model picks from the list.
+ */
+export function mixFrontier(inputs, fleet, limits, opts = {}, l = LAKE) {
+  const steps = (max, step) => Array.from({ length: Math.floor(max / step + 1e-9) + 1 }, (_, i) => Math.round(i * step * 1000) / 1000);
+  const out = [];
+  for (const geothermal of steps(limits.geothermal, 0.05)) {
+    // More hydro never needs more solar, so each search starts below the last.
+    let prev = 40;
+    for (const hydro of steps(limits.hydro, 0.1)) {
+      const fixed = { geothermal, hydro };
+      const shortAt = (solar) => simulate(inputs, fleet, { ...fixed, solar }, opts, l).short;
+      if (shortAt(0) <= 0) { out.push({ ...fixed, solar: 0 }); prev = 0; continue; }
+      let lo = 0;
+      let hi = prev;
+      if (shortAt(hi) > 0) continue;
+      while (hi - lo > 0.01) {
+        const mid = (lo + hi) / 2;
+        if (shortAt(mid) > 0) lo = mid;
+        else hi = mid;
+      }
+      out.push({ ...fixed, solar: hi });
+      prev = hi;
+    }
+  }
+  return out;
 }
 
 /**

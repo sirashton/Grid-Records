@@ -5,11 +5,11 @@ import nz from '../countries/nz.js';
 import { loadData, dataEnd, windowPoints as corePoints } from '../core/dataset.js';
 import { createRecordsTool } from '../core/records-tool.js';
 import { FUELS, FOSSIL, RENEWABLE, metricSeries, generationTotal, yearlyEnergy, yearlyHoursBelow, dailyEnergy } from './data.js';
-import { LAKE, fleetFromDays, simulate, lakeSizes, minimumBuild, dryYearWeather, solarSeason } from './lakes.js';
+import { LAKE, fleetFromDays, simulate, lakeSizes, minimumBuild, mixFrontier, dryYearWeather, solarSeason } from './lakes.js';
 import { recentRecords } from '../recent.js';
 import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, setupNowWindows, windowSlots, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
 import { startAnalytics } from '../analytics.js';
-import { ASSUMPTIONS as A, needs, projection, yearCosts, fuelCost, crf, SOURCES } from './firming.js';
+import { ASSUMPTIONS as A, needs, projection, yearCosts, buildCost, fuelCost, SOURCES } from './firming.js';
 
 setTimeZone(nz.timeZone);
 
@@ -186,6 +186,7 @@ function renderStory() {
       const sizes = lakeSizes(lakeInputs, fleet);
       story.lakes = { fleet, sizes, half: lakeSizes(lakeInputs, fleet, { cap: lakeInputs.activeGwh / 2 }), contingent: lakeSizes(lakeInputs, fleet, { cap: lakeInputs.activeGwh + lakeInputs.contingentGwh }) };
       story.needs.sizes = Object.fromEntries(Object.entries(sizes).map(([k, v]) => [k, v.gw]));
+      story.needs.mixes = mixFrontier(lakeInputs, fleet, A.limits);
     }
   }
   const at = (i) => fmtDate(slotTime(i, data.startMs));
@@ -284,7 +285,7 @@ function renderAnswer() {
   const gasNow = now.keepPerMwh.gas;
   const gasImported = fuelCost({ ...A.gas, pricePerGj: A.importedGasPerGj }, 0);
   const cross = Object.entries(imported.crossover).filter(([, y]) => y).sort((x, y) => x[1] - y[1]);
-  const crossText = cross.map(([k, y]) => `${A.tech[k].label.toLowerCase()}${k === 'geothermal' ? '' : ' with batteries'} ${y === now.year ? 'is already cheaper' : `from ${y}`}`);
+  const crossText = cross.map(([k, y]) => `${k === 'mix' ? 'the cheapest mix of geothermal, solar and batteries' : `${A.tech[k].label.toLowerCase()}${k === 'geothermal' ? '' : ' with batteries'}`} ${y === now.year ? 'is already cheaper' : `from ${y}`}`);
   const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
   const record = story.spells[0];
   const link = (ch, text, gas) => `<a href="#${ch}" data-open="${ch}"${gas ? ` data-gas-price="${gas}"` : ''}>${text}</a>`;
@@ -303,6 +304,23 @@ const pctLess = (v) => `${Math.round((1 - v) * 100)}%`;
 function lakesPoint(link) {
   const { sizes } = story.lakes;
   return `<b>Solar can do it, but wind and geothermal do more per unit.</b> Replaying every day from 1980 to 2024 through the hydro lakes, the grid needs about ${sizes.wind.gw.toFixed(1)} GW of new wind, ${sizes.solar.gw.toFixed(1)} GW of solar or ${sizes.geothermal.gw.toFixed(1)} GW of geothermal to never run them dry. Each MWh of solar counts for about ${pctLess(sizes.solar.value / sizes.wind.value)} less than a MWh of wind, because the sun is weakest in winter. ${link('chapter-6', 'Solar on the lakes')}`;
+}
+
+const techLabel = (k) => (k === 'mix' ? 'The cheapest mix' : A.tech[k].label);
+const gwText = (v) => `${v.toFixed(v < 1 ? 2 : 1)} GW`;
+
+// The answer to "what is the cheapest mix?", for chapter 5.
+function mixText(rows, crossYear) {
+  const [now, later] = [rows[0], rows.at(-1)];
+  const parts = (add, bat) => [
+    ...['geothermal', 'solar', 'hydro'].filter((k) => add[k] > 0.005).map((k) => `${gwText(add[k])} of ${k}`),
+    `${gwText(bat)} of batteries`,
+  ];
+  const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
+  const m = now.renewables.mix;
+  const same = rows.every((r) => ['geothermal', 'solar', 'hydro'].every((k) => Math.abs((r.renewables.mix.add[k] ?? 0) - (m.add[k] ?? 0)) < 0.01));
+  const noHydro = !(m.add.hydro > 0.005);
+  return `<b>The cheapest mix of new geothermal, solar, hydro and batteries is ${list(parts(m.add, m.batteryGw))}${noHydro ? ', and no new hydro' : ''}.</b> It costs about ${nzd(m.cost)}m a year now and ${nzd(later.renewables.mix.cost)}m by ${later.year}${same ? '' : `, when the cheapest mix is ${list(parts(later.renewables.mix.add, later.renewables.mix.batteryGw))}`}, against ${nzd(now.keep)}m for keeping fossil backup. ${crossYear ? `It ${crossYear === now.year ? 'already beats' : `beats`} keeping fossil backup${crossYear === now.year ? '' : ` from ${crossYear}`}.` : `It doesn't beat keeping fossil backup by ${later.year} at these prices.`} ${m.add.geothermal >= A.limits.geothermal - 1e-6 ? 'Geothermal goes in first, up to all the known fields have left, because it runs day and night and stands in for batteries at the evening peak. ' : ''}${m.add.solar > 0.005 ? 'Solar fills the rest. ' : ''}${noHydro ? `New hydro costs too much to build (NZ$${nzNum(A.tech.hydro.capexPerKw)}/kW), and its rivers run low in the same dry years as the lakes.` : ''} ${link6('The lake model')}`;
 }
 
 const firmOpts = { carbon: 0, surplusValue: 0, gasPrice: A.gas.pricePerGj };
@@ -331,6 +349,7 @@ function renderFirming() {
   const series = [
     { key: 'keep', name: 'Keep coal and gas on standby', color: css('--fossil'), points: rows.map((r) => [at(r.year), r.keep]), width: 3 },
     ...Object.entries(A.tech).map(([k, g]) => ({ key: k, name: `100% renewable: ${g.label.toLowerCase()} and batteries`, color: css(FUELS[k].color), points: rows.map((r) => [at(r.year), r.renewables[k].cost]) })),
+    ...(rows[0].renewables.mix ? [{ key: 'mix', name: '100% renewable: the cheapest mix of geothermal, solar, hydro and batteries', color: css('--h7'), width: 3, points: rows.map((r) => [at(r.year), r.renewables.mix.cost]) }] : []),
   ];
   lineChart($('firm-chart'), {
     series,
@@ -343,20 +362,21 @@ function renderFirming() {
   const first = rows[0];
   const named = Object.entries(crossover).filter(([, y]) => y).sort((x, y) => x[1] - y[1]);
   const when = ([k, y], i) => {
-    const name = i ? A.tech[k].label.toLowerCase() : A.tech[k].label;
+    const name = i ? techLabel(k).toLowerCase() : techLabel(k);
     return y === rows[0].year ? `${name} is already cheaper` : `${name} gets cheaper in ${y}`;
   };
-  const never = Object.keys(A.tech).filter((k) => !crossover[k]).map((k) => A.tech[k].label.toLowerCase());
+  const never = Object.keys(crossover).filter((k) => !crossover[k]).map((k) => techLabel(k).toLowerCase());
   const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
   const carbonText = firmOpts.carbon ? `NZ$${firmOpts.carbon} a tonne of carbon` : 'no carbon price';
   const gasText = firmOpts.gasPrice === A.gas.pricePerGj ? 'domestic gas' : `imported gas at NZ$${firmOpts.gasPrice}/GJ`;
   $('firm-answer').innerHTML = `<b>With ${carbonText}, ${gasText}${firmOpts.surplusValue ? ` and NZ$${firmOpts.surplusValue}/MWh for spare energy` : ' and spare energy worth nothing'}:</b> keeping fossil backup costs about ${nzd(first.keep)}m a year. `
     + (named.length ? `${list(named.map(when))}.` : 'No single renewable source gets cheaper by 2045.')
-    + (named.length && never.length ? ` Not ${list(never)}, before 2045.` : '');
+    + (named.length && never.length ? ` Not ${never.length > 1 ? `${never.slice(0, -1).join(', ')} or ${never.at(-1)}` : never[0]}, before 2045.` : '');
   $('firm-take').textContent = named.length
-    ? `With ${carbonText} and ${gasText}, ${A.tech[named[0][0]].label.toLowerCase()} plus batteries ${named[0][1] === rows[0].year ? 'already beats' : `beats`} keeping fossil backup${named[0][1] === rows[0].year ? '' : ` from ${named[0][1]}`}.`
+    ? `With ${carbonText} and ${gasText}, ${techLabel(named[0][0]).toLowerCase()} plus batteries ${named[0][1] === rows[0].year ? 'already beats' : `beats`} keeping fossil backup${named[0][1] === rows[0].year ? '' : ` from ${named[0][1]}`}.`
     : `With ${carbonText} and ${gasText}, keeping fossil backup stays cheaper for now.`;
   const g = first.renewables.geothermal;
+  $('firm-mix').innerHTML = first.renewables.mix ? mixText(rows, crossover.mix) : '';
   $('firm-notes').innerHTML = [
     `<b>The value of spare energy.</b> Renewables sized for the driest years make about ${twh(first.renewables.wind.spareTwh)} (wind) to ${twh(first.renewables.solar.spareTwh)} (solar) more than an average year needs. If that sells, to new electric demand, to flexible industry like the Tiwai smelter, or by keeping lakes fuller, the renewable lines fall a long way.`,
     `<b>The gas price.</b> Imported gas at NZ$${A.importedGasPerGj}/GJ instead of NZ$${A.gas.pricePerGj} adds about ${nzd(yearCosts(n, first.year, { ...firmOpts, gasPrice: A.importedGasPerGj }).keep - yearCosts(n, first.year, { ...firmOpts, gasPrice: A.gas.pricePerGj }).keep)}m a year to keeping fossil backup. New Zealand's gas fields are running down, and an LNG import terminal would tie the price in dry years to the world market.`,
@@ -365,13 +385,27 @@ function renderFirming() {
     story.lakes
       ? `<b>Wind and sun in a dry winter.</b> Each source is sized by replaying every day from 1980 to 2024 through the hydro lakes. Solar needs ${story.lakes.sizes.solar.gw.toFixed(1)} GW, a little more than its yearly average suggests, because it is weakest in winter. ${link6('Solar on the lakes')}`
       : `<b>Wind and sun in a dry winter.</b> Each source is sized on its yearly average. Dry years tend to be winters, when solar makes a third of its summer output. Hydro lakes can hold some summer energy back, but solar in particular would need more than shown.`,
-    `<b>Batteries.</b> Two-hour batteries in place of ${n.peakGw.toFixed(2)} GW of fossil peak capacity, less the ${Math.round(A.committedBatteryGw * 1000)} MW Huntly battery already being built, cost about ${nzd(first.battery)}m a year, a large share of each renewable line. More demand response, or hydro run harder at peaks, would cut that.`,
+    `<b>Batteries.</b> Two-hour batteries in place of ${n.peakGw.toFixed(2)} GW of fossil peak capacity, less the ${Math.round(A.committedBatteryGw * 1000)} MW Huntly battery already being built, cost about ${nzd(first.battery)}m a year, a large share of the wind and solar lines. Geothermal and new hydro can be counted on at the evening peak, so each GW of them needs about ${Math.round(A.peakCredit.geothermal * 100)}% and ${Math.round(A.peakCredit.hydro * 100)}% of a GW less battery. More demand response, or hydro run harder at peaks, would cut that.`,
   ].map((x) => `<li>${x}</li>`).join('');
   $('firm-method').innerHTML = `<p>Hydro output stands in for rainfall. The hydro fleet has barely changed since the late 1990s, so a year with less hydro had less water. Today's need for fossil fuel in an average year is the latest 365 days' fossil output (${twh(story.energy.at(-1).fossil)}) plus how much wetter than average those days were. Each year from ${n.years[0]} to ${n.years[1]} then adds its own shortfall of water.</p>
     <p>${story.lakes ? `Each renewable line is sized by the lake model in chapter 6: the least of that one source that gets through every day from 1980 to 2024 without the lakes running dry (${Object.entries(story.lakes.sizes).map(([k, v]) => `${A.tech[k].label.toLowerCase()} ${v.gw.toFixed(2)} GW`).join(', ')}).` : 'Each renewable line is sized to make the driest year\'s fossil need on its yearly average.'} The energy it makes beyond what an average year needs is the spare energy valued above.</p>
+    ${n.mixes ? `<p>The cheapest mix is found the same way. For every amount of new geothermal up to ${gwText(A.limits.geothermal)} and new hydro up to ${gwText(A.limits.hydro)}, the lake model finds the least solar that gets through every day from 1980 to 2024. Each mix then pays for the batteries it still needs at the peak, and the cheapest is picked for each year's costs. Geothermal stops at ${gwText(A.limits.geothermal)}, what the known fields have left after the plants built since 2024; hydro stops at ${gwText(A.limits.hydro)}, the schemes MBIE's 2020 review rated six out of ten or better to consent. New hydro's water is modelled as a larger share of today's inflows, so it is short in the same dry years.</p>` : ''}
     <p>Keeping fossil backup costs NZ$${A.thermalFixedPerKw}/kW a year to keep ${n.peakGw.toFixed(2)} GW of existing plant open (an assumption; the Huntly reserve's price is not public), plus fuel and carbon for each year's need. Gas covers the fossil an average year needs (${nzd(first.keepPerMwh.gas)}/MWh at these prices; domestic gas at NZ$${A.gas.pricePerGj}/GJ, imported LNG at NZ$${A.importedGasPerGj}/GJ, which is an assumption), and coal covers the extra in a dry year (${nzd(first.keepPerMwh.coal)}/MWh).</p>
-    <p>Renewables are annualised at ${A.wacc * 100}% real. ${Object.values(A.tech).map((t) => `${t.label}: NZ$${nzNum(t.capexPerKw)}/kW, ${Math.round(t.loadFactor * 100)}% load factor, ${t.life} years, falling ${(t.decline * 100).toFixed(t.decline < 0.01 ? 2 : 1)}% a year`).join('; ')}. Batteries: NZ$${nzNum(A.battery.capexPerKw)}/kW for two hours, ${A.battery.life} years, falling ${A.battery.decline * 100}% a year. The rates of decline are assumptions.</p>
+    <p>Renewables are annualised at ${A.wacc * 100}% real. ${Object.values(A.tech).map((t) => `${t.label}: NZ$${nzNum(t.capexPerKw)}/kW, ${Math.round(t.loadFactor * 100)}% load factor, ${t.life} years, ${t.decline ? `falling ${(t.decline * 100).toFixed(t.decline < 0.01 ? 2 : 1)}% a year` : 'not getting cheaper'}`).join('; ')}. New hydro's running costs and life are assumptions; the report gives only its build cost. Batteries: NZ$${nzNum(A.battery.capexPerKw)}/kW for two hours, ${A.battery.life} years, falling ${A.battery.decline * 100}% a year. The rates of decline are assumptions.</p>
     <ul>${SOURCES.map(([what, who, url]) => `<li>${what}: <a href="${url}">${who}</a></li>`).join('')}</ul>`;
+}
+
+// One note in chapter 6: the cheapest mix of the four, and why new hydro isn't in it.
+function mixPoint(best, mixes, sizes, cost, gw) {
+  const y = 2025;
+  const parts = ['geothermal', 'solar', 'hydro'].filter((k) => best[k] > 0.005).map((k) => `${gwText(best[k])} of ${k}`);
+  const noGeo = mixes.find((m) => m.geothermal === 0 && Math.abs(m.hydro - best.hydro) < 1e-6);
+  const withHydro = mixes.find((m) => Math.abs(m.geothermal - best.geothermal) < 1e-6 && Math.abs(m.hydro - 0.5) < 1e-6);
+  const hydroText = sizes.hydro.gw === null ? '' : ` New hydro on its own would need ${gw(sizes.hydro.gw)}${sizes.hydro.gw > A.limits.hydro ? `, more than the ${gw(A.limits.hydro)} of schemes that might get consent,` : ''} because its rivers run low in the same dry years as the lakes: each MWh counts for ${pctLess(sizes.hydro.value)} less than geothermal's.`;
+  const swap = withHydro && Math.abs(best.hydro - 0.5) > 0.05
+    ? ` With 0.5 GW of new hydro the solar needed falls to ${gwText(withHydro.solar)}, and the bill is ${nzd(cost(withHydro, y))}m a year against ${nzd(cost(best, y))}m today. That is close, because hydro also covers the evening peak, but by 2035 it is ${nzd(cost(withHydro, 2035))}m against ${nzd(cost(best, 2035))}m as solar gets cheaper.`
+    : '';
+  return `<b>The cheapest mix leads with geothermal.</b> Allowing new geothermal up to the ${gwText(A.limits.geothermal)} the known fields have left, and new hydro up to ${gw(A.limits.hydro)}, the cheapest way through every year on record is ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]}, plus batteries: ${nzd(cost(best, y))}m a year today, including batteries. Geothermal goes first because it runs day and night and stands in for batteries at the evening peak.${noGeo && best.geothermal > 0 ? ` Each 0.1 GW of it saves about ${gwText(((noGeo.solar - best.solar) / best.geothermal) * 0.1)} of solar.` : ''}${hydroText}${swap}`;
 }
 
 // Chapter 6: the lake model. What each source is worth when the lakes run
@@ -408,15 +442,25 @@ function renderLakes() {
     solar: { name: `With ${gw(sizes.solar.gw)} of new solar`, label: 'New solar', color: '--f-solar', add: { solar: sizes.solar.gw } },
     ...(mixWind === null ? {} : { mix: { name: `With ${gw(sizes.solar.gw / 2)} of solar and ${gw(mixWind)} of wind`, label: 'Solar and wind', color: '--lowcarbon', add: { solar: sizes.solar.gw / 2, wind: mixWind } } }),
     geothermal: { name: `With ${gw(sizes.geothermal.gw)} of new geothermal`, label: 'New geothermal', color: '--f-geo', add: { geothermal: sizes.geothermal.gw } },
+    ...(sizes.hydro.gw === null ? {} : { hydro: { name: `With ${gw(sizes.hydro.gw)} of new hydro`, label: 'New hydro', color: '--f-hydro', add: { hydro: sizes.hydro.gw } } }),
   };
-  // NZ$m a year: GW × NZ$/kW a year.
-  const perKw = (k, y) => { const g = A.tech[k]; return g.capexPerKw * (1 - g.decline) ** (y - 2025) * crf(A.wacc, g.life) + g.omPerKw; };
-  const cost = (add, y) => Object.entries(add).reduce((s, [k, v]) => s + v * perKw(k, y), 0);
+  // NZ$m a year to build and run, with the batteries each build still needs at the peak.
+  const cost = (add, y) => buildCost(story.needs, y, add).cost;
   const costYears = [2025, 2035, 2045];
+  const mixes = story.needs.mixes ?? [];
+  const bestMix = (y) => mixes.reduce((x, m) => (!x || cost(m, y) < cost(x, y) ? m : x), null);
+  const best = bestMix(costYears[0]);
+  if (best) {
+    const parts = ['geothermal', 'solar', 'hydro'].filter((k) => best[k] > 0.005);
+    builds.best = { name: `With the cheapest mix: ${parts.map((k) => `${gwText(best[k])} of ${k}`).join(' and ')}`, label: 'Cheapest mix', color: '--h7', add: Object.fromEntries(parts.map((k) => [k, best[k]])), mixOf: bestMix };
+  }
   const solarYear = Array.from({ length: 21 }, (_, i) => 2025 + i).find((y) => cost(builds.solar.add, y) <= cost(builds.wind.add, y)) ?? null;
   const costRows = Object.values(builds).filter((b) => b.label);
-  const cheapest = costYears.map((y) => Math.min(...costRows.filter((b) => !b.add.geothermal).map((b) => cost(b.add, y))));
-  $('lakes-costs').innerHTML = `<thead><tr><th>Build</th>${costYears.map((y) => `<th>${y}</th>`).join('')}</tr></thead><tbody>${costRows.map((b) => `<tr><td><span class="swatch" style="background:var(${b.color})"></span> ${b.label}<span class="when">${Object.entries(b.add).map(([k, v]) => `${gw(v)} of ${k}`).join(' and ')}</span></td>${costYears.map((y, i) => { const c = cost(b.add, y); return `<td${!b.add.geothermal && c <= cheapest[i] + 1e-6 ? ' class="big"' : ''}>${nzd(c)}m</td>`; }).join('')}</tr>`).join('')}</tbody>`;
+  // Only builds within what can be built count as cheapest: not more geothermal or hydro than the limits.
+  const buildable = (add) => Object.entries(A.limits).every(([k, max]) => (add[k] ?? 0) <= max + 1e-9);
+  const rowCost = (b, y) => cost(b.mixOf ? b.mixOf(y) : b.add, y);
+  const cheapest = costYears.map((y) => Math.min(...costRows.filter((b) => buildable(b.add)).map((b) => rowCost(b, y))));
+  $('lakes-costs').innerHTML = `<thead><tr><th>Build</th>${costYears.map((y) => `<th>${y}</th>`).join('')}</tr></thead><tbody>${costRows.map((b) => `<tr><td><span class="swatch" style="background:var(${b.color})"></span> ${b.label}<span class="when">${Object.entries(b.add).map(([k, v]) => `${gw(v)} of ${k}`).join(' and ')}, ${((g) => (g > 0.005 ? `${gwText(g)} of batteries` : 'no batteries'))(buildCost(story.needs, costYears[0], b.add).batteryGw)}${buildable(b.add) ? '' : ', more than can be built'}</span></td>${costYears.map((y, i) => { const c = rowCost(b, y); return `<td${buildable(b.add) && c <= cheapest[i] + 1e-6 ? ' class="big"' : ''}>${nzd(c)}m</td>`; }).join('')}</tr>`).join('')}</tbody>`;
   const area = sizes.solar.gw * 10; // km², at Rosedale's 1 MW a hectare
   // Evaporation saved under floating panels: about half, over Pūkaki water
   // worth 0.73 GWh per million m³ through the stations below it.
@@ -428,6 +472,7 @@ function renderLakes() {
     `<b>But solar is weakest when it's needed.</b> It makes ${Math.round(season[5] * 100)}% of its average in June and ${Math.round(season[11] * 100)}% in December, while demand peaks in winter as the lakes draw down. The lakes make up for it by holding water back while the sun shines, and with today's ${(inputs.activeGwh / 1000).toFixed(1)} TWh of storage that works well. With half as much storage, solar would need ${gw(half.solar.gw)} and wind ${gw(half.wind.gw)}. The lakes are what make solar work.`,
     `<b>The emergency water helps solar most.</b> Counting the lakes' ${(inputs.contingentGwh / 1000).toFixed(1)} TWh of contingent storage, mostly low levels in Pūkaki and Tekapo kept for emergencies, wind would need ${gw(contingent.wind.gw)} and solar ${gw(contingent.solar.gw)}. Then each MWh of solar is worth ${Math.abs(1 - contingent.solar.value / contingent.wind.value) < 0.03 ? 'about the same as' : `${pctLess(contingent.solar.value / contingent.wind.value)} less than`} a MWh of wind.`,
     `<b>Mixing them is no shortcut.</b> Half the solar (${gw(sizes.solar.gw / 2)}) still needs ${mixWind === null ? 'more than half the wind' : `${gw(mixWind)} of wind`} to get through, ${mixWind !== null && mixWind <= sizes.wind.gw * 0.55 ? 'which is just half the wind' : `against half the wind's ${gw(sizes.wind.gw / 2)}`}. In a dry year sun and wind don't fill each other's gaps, so a mix costs what its parts do. ${solarYear === 2025 ? 'Solar is already the cheaper of the two.' : solarYear ? `Today wind is the cheaper of the two. Solar's cost falls faster, and it becomes cheaper from ${solarYear}.` : 'Wind stays the cheaper of the two to 2045.'}`,
+    ...(best ? [mixPoint(best, mixes, sizes, cost, gw)] : []),
     `<b>On a hydro lake, solar shares the wiring.</b> Panels floating on or beside a hydro lake can send power through the station's existing grid connection: the turbines back off while the sun shines and run harder after dark, so no new transmission line is needed up to the station's size. Huntly's new battery uses the same trick at a coal station. New Zealand has no solar on its hydro lakes yet, and no generator has announced any. Its only floating array is 1 MW on one hectare of Watercare's Rosedale wastewater ponds in Auckland. A 2023 study of 10 MW on Lake Maraetai and Lake Tekapo put the cost at NZ$176 to NZ$237/MWh, about twice what land-based solar costs (<a href="https://durham-repository.worktribe.com/output/2148836">Brent, Crossland and Ranusa</a>). At Rosedale's density, ${gw(sizes.solar.gw)} would cover about ${Math.round(area / 5) * 5} km², under a quarter of Lake Pūkaki. The Mackenzie Basin's landscape is fiercely protected, so it would be a hard consent.`,
     `<b>Less evaporation, but not much power.</b> Covering water roughly halves evaporation from the covered part: a Fraunhofer ISE study of Lake Nasser found 90% cover cut it by about 50% (<a href="https://www.pv-magazine.com/?p=254055">pv magazine</a>). If a Mackenzie lake loses about ${EVAP_M} m a year (our assumption), ${Math.round(area / 5) * 5} km² of panels would save about ${Math.round(evapMm3)} million m³ of water, worth about ${Math.round(evapGwh)} GWh a year through the Waitaki stations. That is ${(evapGwh / (sizes.solar.twh * 10)).toFixed(1)}% of what the panels themselves make: a bonus, not a reason to build.`,
   ].map((x) => `<li>${x}</li>`).join('');
