@@ -39,6 +39,11 @@ jobs:
           path: .cache-nz
           key: nz-${{ github.run_id }}
           restore-keys: nz-
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-au
+          key: au-${{ github.run_id }}
+          restore-keys: au-
       - run: npm test
       - run: node pipeline/build.mjs --budget-minutes 3 --concurrency 2 --merge-cache .cache-backfill
       - uses: actions/cache/save@v4
@@ -54,6 +59,14 @@ jobs:
         with:
           path: .cache-nz
           key: nz-${{ github.run_id }}
+      # Australia, the same way. The first runs fill in the history a few months at a time.
+      - run: node pipeline/build-au.mjs --budget-minutes 6
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-au
+          key: au-${{ github.run_id }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

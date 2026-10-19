@@ -10,7 +10,7 @@
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { fetchMonth, AU_COLUMNS, AU_FUELS, REGIONS, PARSE_VERSION } from './sources/aemo-mms.mjs';
+import { fetchMonth, fetchRegistryTables, AU_COLUMNS, AU_FUELS, REGIONS, PARSE_VERSION } from './sources/aemo-mms.mjs';
 import { encodeColumns } from './encode.mjs';
 import { SLOT_MS, DAY_MS, log } from './lib.mjs';
 import { monthList } from './build-nz.mjs';
@@ -86,6 +86,14 @@ async function main() {
   log(`AU: ${cached.size} months in cache`);
 
   const queue = months.map((m, i) => [m, i]).filter(([m, i]) => isStale(cached.get(m), i, now));
+  // The newest month's registration tables, for units older months don't give a fuel for.
+  let latest = null;
+  if (queue.length) {
+    for (const m of months.slice(0, RECENT_MONTHS + 1)) {
+      latest = await fetchRegistryTables(m).catch((err) => log(`AU: registry ${m} failed: ${err.message}`));
+      if (latest) { log(`AU: registration tables from ${m}`); break; }
+    }
+  }
   let fetched = 0;
   let next = 0;
   const worker = async () => {
@@ -93,7 +101,7 @@ async function main() {
       const [month] = queue[next++];
       const t0 = Date.now();
       try {
-        const parsed = await fetchMonth(month, { log });
+        const parsed = await fetchMonth(month, { log, latest });
         const entry = parsed
           ? { fetched: new Date().toISOString(), version: PARSE_VERSION, ...parsed }
           : { fetched: new Date().toISOString(), missing: true };

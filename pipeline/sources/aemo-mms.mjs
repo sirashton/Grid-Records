@@ -21,7 +21,7 @@ const ARCHIVE = `${HOST}/Data_Archive/Wholesale_Electricity/MMSDM`;
 const UA = { 'user-agent': 'grid-records (+https://github.com/sirashton/Grid-Records)' };
 
 // Bump when parsing changes, so cached months are parsed again.
-export const PARSE_VERSION = 1;
+export const PARSE_VERSION = 2;
 
 export const REGIONS = ['NSW1', 'QLD1', 'VIC1', 'SA1', 'TAS1'];
 
@@ -128,16 +128,18 @@ export function buildRegistry({ dudetail, dualloc, genunits }) {
     const prev = latest.get(r.DUID);
     if (!prev || r.START_DATE > prev.START_DATE) latest.set(r.DUID, r);
   }
-  const source = new Map(genunits.map((g) => [g.GENSETID, g.CO2E_ENERGY_SOURCE]));
+  // Energy sources were only filled in from late 2020, so a blank one gives way to another table's.
+  const source = new Map();
+  for (const g of genunits) if (g.CO2E_ENERGY_SOURCE || !source.has(g.GENSETID)) source.set(g.GENSETID, g.CO2E_ENERGY_SOURCE);
   const gensets = new Map();
   for (const a of dualloc) {
-    if (!gensets.has(a.DUID)) gensets.set(a.DUID, []);
-    gensets.get(a.DUID).push(a.GENSETID);
+    if (!gensets.has(a.DUID)) gensets.set(a.DUID, new Set());
+    gensets.get(a.DUID).add(a.GENSETID);
   }
   const units = {};
   const stationFuel = {};
   for (const [duid, r] of latest) {
-    const src = (gensets.get(duid) ?? []).map((g) => source.get(g)).find((s) => s);
+    const src = [...(gensets.get(duid) ?? [])].map((g) => source.get(g)).find((s) => s);
     const column = src ? fuelColumn(src) : null;
     units[duid] = { region: r.REGIONID, type: r.DISPATCHTYPE, station: r.STATIONID, column };
     if (column && r.DISPATCHTYPE !== 'LOAD') stationFuel[r.STATIONID] ??= column;
@@ -179,19 +181,38 @@ function emptyMonth(ym) {
   return { startMs, length, regions };
 }
 
+const REGISTRY_TABLES = ['DUDETAILSUMMARY', 'DUALLOC', 'GENUNITS'];
+
+/** A month's registration tables, as { dudetail, dualloc, genunits } rows. */
+export async function fetchRegistryTables(ym, html) {
+  html ??= await fetchText(monthDir(ym));
+  if (!html) return null;
+  const [dudetail, dualloc, genunits] = await Promise.all(REGISTRY_TABLES.map(async (t) => {
+    const url = tableLinks(html, t)[0];
+    return url ? collect(url) : [];
+  }));
+  return dudetail.length ? { dudetail, dualloc, genunits } : null;
+}
+
 /**
  * Parses one month. Unit output is summed per interval, then averaged over
  * the six intervals of each half hour. A half hour with no unit readings at
  * all is missing; units that don't report simply add nothing.
  */
-export async function fetchMonth(ym, { log = () => {} } = {}) {
+export async function fetchMonth(ym, { log = () => {}, latest = null } = {}) {
   const html = await fetchText(monthDir(ym));
   if (!html) return null;
   const link = (t) => tableLinks(html, t);
   const scadaLinks = link('DISPATCH_UNIT_SCADA');
   if (!scadaLinks.length) return null;
-  const [dudetail, dualloc, genunits] = await Promise.all(['DUDETAILSUMMARY', 'DUALLOC', 'GENUNITS'].map(async (t) => (link(t)[0] ? collect(link(t)[0]) : [])));
-  const units = buildRegistry({ dudetail, dualloc, genunits });
+  // The month's own tables first, then the latest month's, which name the fuel of units
+  // registered before AEMO recorded energy sources.
+  const own = (await fetchRegistryTables(ym, html)) ?? { dudetail: [], dualloc: [], genunits: [] };
+  const units = buildRegistry({
+    dudetail: [...own.dudetail, ...(latest?.dudetail ?? [])],
+    dualloc: [...own.dualloc, ...(latest?.dualloc ?? [])],
+    genunits: [...own.genunits, ...(latest?.genunits ?? [])],
+  });
   const month = emptyMonth(ym);
   const { startMs, length } = month;
   const idx = (t) => (slotOf(t) - startMs) / SLOT_MS;

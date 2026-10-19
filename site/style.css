@@ -25,6 +25,7 @@
   --f-nuclear: #b48cf2; --f-hydro: #3b7dd8; --f-wind: #3ec1d3; --f-solar: #ffc93c;
   --f-hydro-2: #7fb3ec;
   --f-geo: #c7604a; --f-diesel: #8b6f5c; --f-battery: #7a5bd6;
+  --f-brown: #8a5a3c; --f-rooftop: #ffe39a;
   --fossil: #ef7d3c;
   --fossil-ink: #b8460f; --lowcarbon: #2fb56b;
 }
@@ -309,3 +310,4 @@ footer { padding-bottom: 40px; }
 .firm-controls .field { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .firm-controls .field > span { font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
 #lakes-costs td:first-child { white-space: normal; }
+.region-switch { display: flex; flex-wrap: wrap; margin: 4px 0 10px; }

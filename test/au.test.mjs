@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { csvRows, buildRegistry, unitFlows, nemTime, slotOf, fuelColumn, tableLinks } from '../pipeline/sources/aemo-mms.mjs';
+import { csvRows, buildRegistry, unitFlows, nemTime, slotOf, fuelColumn, tableLinks, PARSE_VERSION } from '../pipeline/sources/aemo-mms.mjs';
 import { nemColumns, isStale } from '../pipeline/build-au.mjs';
 
 test('reads NEM time as UTC+10 and puts interval ends in the half hour before', () => {
@@ -77,6 +77,6 @@ test('sums regions for the whole market and weights price by demand', () => {
 test('rechecks recent months but keeps old ones', () => {
   const now = Date.parse('2026-10-19T00:00:00Z');
   assert.equal(isStale({ fetched: '2026-10-18T00:00:00Z', missing: true }, 0, now), true);
-  assert.equal(isStale({ fetched: '2026-10-18T00:00:00Z', version: 1 }, 1, now), false);
-  assert.equal(isStale({ fetched: '2020-01-01T00:00:00Z', version: 1 }, 40, now), false);
+  assert.equal(isStale({ fetched: '2026-10-18T00:00:00Z', version: PARSE_VERSION }, 1, now), false);
+  assert.equal(isStale({ fetched: '2020-01-01T00:00:00Z', version: PARSE_VERSION }, 40, now), false);
 });
