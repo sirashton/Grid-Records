@@ -157,3 +157,29 @@ test('the lake model only burns fossil fuel when the lakes run dry, and sizes bu
   assert.deepEqual(w.years, [2000]);
   assert.ok(Math.abs(w.windPct + 20) < 1e-9);
 });
+
+test('new hydro adds water in step with the existing inflows, and the cheapest mix uses what each build saves', async () => {
+  const { fleetFromDays, simulate, mixFrontier } = await import('../site/js/nz/lakes.js');
+  const { buildCost, ASSUMPTIONS } = await import('../site/js/nz/firming.js');
+  const days = Array.from({ length: 365 }, (_, i) => ({ date: new Date(Date.UTC(2025, 0, 1 + i)).toISOString().slice(0, 10), total: 100 }));
+  const fleet = fleetFromDays(days);
+  const n = 731;
+  // Inflow covers 90 GWh a day in year one and 110 in year two, so the average is 100.
+  const inputs = { first: '2000-01-01', days: n, inflowScale: 1, activeGwh: 2000, inflow: Array.from({ length: n }, (_, i) => (i < 366 ? 90 : 110)), wind: new Array(n).fill(0), solar: new Array(n).fill(0.5) };
+  const l = { hydroMinGw: 0, hydroMaxGw: 10, load: { geothermal: 1, wind: 0.5, solar: 0.5, hydro: 0.5 } };
+  // 1 GW of hydro at 50% adds 12 GWh a day on average, scaled with the inflows:
+  // 10.8 in the dry year, which just covers its 10 GWh gap.
+  assert.ok(simulate(inputs, fleet, {}, {}, l).short > 0);
+  assert.equal(simulate(inputs, fleet, { hydro: 1 }, {}, l).short, 0);
+  // More geothermal or hydro never needs more solar.
+  const f = mixFrontier(inputs, fleet, { geothermal: 0.2, hydro: 0.2 }, {}, l);
+  assert.equal(f.length, 5 * 3);
+  for (const m of f) {
+    const more = f.filter((x) => x.geothermal >= m.geothermal && x.hydro >= m.hydro);
+    assert.ok(more.every((x) => x.solar <= m.solar + 1e-9));
+  }
+  // Geothermal and hydro stand in for batteries at the peak; solar doesn't.
+  const need = { peakGw: 1.2, expectedFossil: 0 };
+  assert.ok(Math.abs(buildCost(need, 2025, { solar: 1 }).batteryGw - (1.2 - ASSUMPTIONS.committedBatteryGw)) < 1e-9);
+  assert.ok(Math.abs(buildCost(need, 2025, { geothermal: 0.5 }).batteryGw - (1.2 - ASSUMPTIONS.committedBatteryGw - 0.5 * ASSUMPTIONS.peakCredit.geothermal)) < 1e-9);
+});

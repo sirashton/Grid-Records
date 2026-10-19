@@ -131,10 +131,11 @@
           </div>
         </div>
       </div>
-      <p class="hint">NZ$ million a year, in 2025 dollars. Each renewable line is enough of that one source, plus batteries, to get through every year from 1980 to 2024 with no fossil fuel, sized by the lake model in chapter 6. Renewable and battery costs fall a little each year; fuel and carbon are held at the chosen prices.</p>
+      <p class="hint">NZ$ million a year, in 2025 dollars. Each renewable line is enough of that one source, plus batteries, to get through every year from 1980 to 2024 with no fossil fuel, sized by the lake model in chapter 6. The thick line is the cheapest mix of geothermal, solar, hydro and batteries, within what can be built. Renewable and battery costs fall a little each year; fuel and carbon are held at the chosen prices.</p>
       <div class="chart-host" id="firm-chart"></div>
       <div class="legend" id="firm-legend"></div>
       <p id="firm-answer"></p>
+      <p id="firm-mix"></p>
       <h3>What the answer depends on</h3>
       <ul class="notes" id="firm-notes"></ul>
       <details>
@@ -155,12 +156,13 @@
         <button type="button" data-lakes="wind" role="radio">+ Wind</button>
         <button type="button" data-lakes="solar" role="radio">+ Solar</button>
         <button type="button" data-lakes="mix" role="radio">+ Both</button>
+        <button type="button" data-lakes="best" role="radio">Cheapest mix</button>
       </div>
       <p class="hint" id="lakes-hint">Energy stored in the hydro lakes each week, in TWh, if every day from 1980 to 2024 had today's demand and no coal or gas.</p>
       <div class="chart-host" id="lakes-chart"></div>
       <div class="legend" id="lakes-legend"></div>
       <h3>What each build costs</h3>
-      <p class="hint">NZ$ million a year to build and run, in 2025 dollars, annualised at the cost model's rates. Each gets through every year from 1980 to 2024 with no fossil fuel. All of them also need the same batteries for the evening peaks, costed in chapter 5.</p>
+      <p class="hint">NZ$ million a year to build and run, in 2025 dollars, annualised at the cost model's rates, including the two-hour batteries each build still needs for the evening peaks. Each gets through every year from 1980 to 2024 with no fossil fuel. The highlighted cell is the cheapest build that stays within what New Zealand's geothermal fields and hydro schemes can supply.</p>
       <div class="table-scroll"><table id="lakes-costs"></table></div>
       <ul class="notes" id="lakes-points"></ul>
       <details>
