@@ -39,6 +39,7 @@ jobs:
           path: .cache-nz
           key: nz-${{ github.run_id }}
           restore-keys: nz-
+      - run: node pipeline/nav.mjs
       - run: npm test
       - run: node pipeline/build.mjs --budget-minutes 3 --concurrency 2 --merge-cache .cache-backfill
       - uses: actions/cache/save@v4

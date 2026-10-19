@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "build": "node pipeline/build.mjs",
+    "nav": "node pipeline/nav.mjs",
     "serve": "npx http-server site -p 8080 -c-1"
   },
   "engines": { "node": ">=20" }
