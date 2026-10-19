@@ -26,6 +26,18 @@ jobs:
         with:
           path: .cache-nz
           key: nz-${{ github.run_id }}
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-de
+          key: de-${{ github.run_id }}
+          restore-keys: de-
+      - run: node pipeline/build-de.mjs --budget-minutes 4
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-de
+          key: de-${{ github.run_id }}
+      - run: ls -la site/data/de && node -e "const m=require('./site/data/de/meta.json'); console.log(m.length, m.columns, m.years)"
       - run: ls -la site/data site/data/nz && node -e "const m=require('./site/data/nz/meta.json'); console.log(m.length, m.columns, m.months)"
       - run: ls -la site/data && node -e "const m=require('./site/data/meta.json'); console.log(m.length, m.columns, m.battery.coverage, m.battery.units.length)"
       # Snapshot the built site, data included, on a throwaway branch for previews.
