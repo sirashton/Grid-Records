@@ -1,0 +1,100 @@
+09:30:02 AU: 142 months in cache
+09:30:05 AU: registration tables from 202609
+09:30:45 AU: 202202 parsed in 41 s
+09:30:46 AU: 202204 parsed in 41 s
+09:30:46 AU: 202205 parsed in 41 s
+09:30:48 AU: 202203 parsed in 43 s
+09:31:24 AU: 202112 parsed in 38 s
+09:31:25 AU: 202201 parsed in 40 s
+09:31:25 AU: 202111 parsed in 40 s
+09:31:25 AU: 202110 parsed in 38 s
+09:32:00 AU: 202109 parsed in 36 s
+09:32:01 AU: 202108 parsed in 36 s
+09:32:04 AU: 202106 parsed in 38 s
+09:32:04 AU: 202107 parsed in 38 s
+09:32:37 AU: 202105 parsed in 37 s
+09:32:37 AU: 202102 parsed in 33 s
+09:32:37 AU: 202104 parsed in 36 s
+09:32:39 AU: 202103 parsed in 35 s
+09:33:12 AU: 202101 parsed in 35 s
+09:33:12 AU: 202011 parsed in 35 s
+09:33:12 AU: 202012 parsed in 35 s
+09:33:14 AU: 202010 parsed in 35 s
+09:33:47 AU: 202007 parsed in 35 s
+09:33:47 AU: 202009 parsed in 35 s
+09:33:48 AU: 202006 parsed in 34 s
+09:33:48 AU: 202008 parsed in 36 s
+09:34:21 AU: 202002 parsed in 33 s
+09:34:21 AU: 202003 parsed in 34 s
+09:34:21 AU: 202005 parsed in 35 s
+09:34:21 AU: 202004 parsed in 35 s
+09:34:55 AU: 201911 parsed in 33 s
+09:34:55 AU: 201912 parsed in 33 s
+09:34:55 AU: 201910 parsed in 33 s
+09:34:55 AU: 202001 parsed in 33 s
+09:35:28 AU: 201907 parsed in 33 s
+09:35:28 AU: 201909 parsed in 33 s
+09:35:28 AU: 201906 parsed in 34 s
+09:35:28 AU: 201908 parsed in 34 s
+09:36:00 AU: 201902 parsed in 32 s
+09:36:03 AU: 201904 parsed in 35 s
+09:36:03 AU: 201905 parsed in 35 s
+09:36:03 AU: 201903 parsed in 34 s
+09:36:35 AU: 201811 parsed in 32 s
+09:36:35 AU: 201901 parsed in 34 s
+09:36:35 AU: 201812 parsed in 32 s
+09:36:35 AU: 201810 parsed in 32 s
+09:37:04 AU: 201806 parsed in 29 s
+09:37:07 AU: 201807 parsed in 32 s
+09:37:07 AU: 201809 parsed in 32 s
+09:37:07 AU: 201808 parsed in 32 s
+09:37:35 AU: 201805 parsed in 31 s
+09:37:36 AU: 201802 parsed in 29 s
+09:37:36 AU: 201803 parsed in 29 s
+09:37:36 AU: 201804 parsed in 29 s
+09:38:05 AU: 201712 parsed in 30 s
+09:38:05 AU: 201710 parsed in 30 s
+09:38:05 AU: 201801 parsed in 30 s
+09:38:05 AU: 201711 parsed in 30 s
+09:38:31 AU: 201707 parsed in 26 s
+09:38:32 AU: 201708 parsed in 26 s
+09:38:32 AU: 201709 parsed in 26 s
+09:38:32 AU: 201706 parsed in 27 s
+09:39:00 AU: 201703 parsed in 28 s
+09:39:00 AU: 201702 parsed in 27 s
+09:39:00 AU: 201704 parsed in 28 s
+09:39:00 AU: 201705 parsed in 29 s
+09:39:26 AU: 201611 parsed in 27 s
+09:39:28 AU: 201610 parsed in 28 s
+09:39:29 AU: 201612 parsed in 30 s
+09:39:29 AU: 201701 parsed in 30 s
+09:39:57 AU: 201606 parsed in 28 s
+09:39:57 AU: 201609 parsed in 31 s
+09:39:57 AU: 201608 parsed in 30 s
+09:39:57 AU: 201607 parsed in 28 s
+09:40:22 AU: 201605 parsed in 25 s
+09:40:22 AU: 201603 parsed in 25 s
+09:40:24 AU: 201602 parsed in 26 s
+09:40:24 AU: 201604 parsed in 26 s
+09:40:50 AU: 201510 parsed in 27 s
+09:40:52 AU: 201601 parsed in 30 s
+09:40:52 AU: 201511 parsed in 29 s
+09:40:52 AU: 201512 parsed in 30 s
+09:41:19 AU: 201509 parsed in 29 s
+09:41:19 AU: 201506 parsed in 27 s
+09:41:19 AU: 201507 parsed in 27 s
+09:41:19 AU: 201508 parsed in 27 s
+09:41:42 AU: 201505 parsed in 22 s
+09:41:44 AU: 201504 parsed in 25 s
+09:41:46 AU: 201502 parsed in 27 s
+09:41:46 AU: 201503 parsed in 27 s
+09:41:53 AU: 201501 parsed in 12 s
+09:41:53 AU: fetched 89 months, 0 still to fetch
+09:41:55 AU: wrote site/data/au/nem (2.85 MB)
+09:41:56 AU: wrote site/data/au/nsw (1.89 MB)
+09:41:57 AU: wrote site/data/au/qld (1.88 MB)
+09:41:57 AU: wrote site/data/au/vic (1.82 MB)
+09:41:57 warning: au: column demand has 195 slots with the wrong sign (generation is 0 or more)
+09:41:58 AU: wrote site/data/au/sa (1.53 MB)
+09:41:58 AU: wrote site/data/au/tas (1.02 MB)
+09:41:58 AU: 201501 to 202609, 205968 slots, in 717 s
