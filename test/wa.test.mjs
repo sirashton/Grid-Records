@@ -105,3 +105,34 @@ test('merging puts every dataset on the facility grid', () => {
   assert.deepEqual([...merged.columns.solar_rooftop].map((v) => (Number.isNaN(v) ? null : v)), [null, 1, 2, null, null]);
   assert.deepEqual([...merged.columns.demand], [5, 5, 5, 5, 5]);
 });
+
+test('story figures: evening averages, demand without charging, and the year so far', async () => {
+  const { storyFigures } = await import('../site/js/wa/story.js');
+  // Two days a year apart, half-hourly, in Perth time (UTC+8): 1 Jan 2025 and 1 Jan 2026.
+  const day = 48;
+  const startMs = Date.UTC(2024, 11, 31, 16);
+  const length = 366 * day;
+  const cols = {};
+  for (const k of ['coal', 'gas', 'oil', 'biomass', 'wind', 'solar_utility', 'solar_rooftop', 'other', 'battery', 'battery_charge', 'demand']) cols[k] = new Float64Array(length);
+  for (let i = 0; i < length; i++) {
+    const hr = Math.floor((i % day) / 2);
+    const evening = hr >= 17 && hr < 21;
+    const y2026 = i >= 365 * day;
+    cols.coal[i] = evening ? (y2026 ? 600 : 1000) : 500;
+    cols.gas[i] = 800;
+    cols.battery[i] = evening && y2026 ? 400 : 0;
+    cols.battery_charge[i] = hr === 12 ? -300 : 0;
+    cols.demand[i] = hr === 12 ? 900 : 2000;
+  }
+  const f = storyFigures({ startMs, stepMinutes: 30, length, columns: cols }, length);
+  const [y25, y26] = f.years;
+  assert.equal(y25.year, 2025);
+  assert.equal(y26.partial, true);
+  assert.equal(y25.eve.coal, 1000);
+  assert.equal(y26.eve.battery, 400);
+  assert.equal(y25.demandMin, 900);
+  assert.equal(y25.underMin, 600, 'demand less what batteries took');
+  assert.equal(y25.coalMin, 500);
+  // 1 Jan 2026 against 1 Jan 2025: evening coal 600 instead of 1000 for 8 half hours.
+  assert.ok(Math.abs(f.yearToDate.delta.coal - (-400 * 8 * 0.5) / 1e6) < 1e-9);
+});
