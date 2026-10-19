@@ -2,10 +2,10 @@
 // The records tool works as on the GB and NZ pages, on Germany's fuels.
 import { loadData } from '../data.js';
 import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from '../records.js';
-import { lineChart, heatmap, barChart, niceTicks, fmtDate, fmtDateTime, setTimeZone } from '../charts.js';
+import { lineChart, heatmap, niceTicks, fmtDate, fmtDateTime, setTimeZone } from '../charts.js';
 import { envelopes, windowEnvelopes } from '../envelope.js';
-import { FUELS, FOSSIL, RENEWABLE, LOW_CARBON, COAL, WIND, metricSeries, generationTotal, yearlyEnergy, yearlyHoursBelow } from './data.js';
-import { renderStory as drawStory } from './story.js';
+import { FUELS, FOSSIL, RENEWABLE, LOW_CARBON, COAL, WIND, metricSeries, generationTotal } from './data.js';
+import { renderStory as drawStory, storyFigures } from './story.js';
 import { recentRecords } from '../recent.js';
 import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
 import { startAnalytics } from '../analytics.js';
@@ -396,13 +396,6 @@ function renderTimeline(values) {
   });
 }
 
-// One headline figure set large, with the other highlights as a list beside it.
-function factsHtml(big, sub, rest) {
-  return `<div class="headline"><div class="big">${big}</div><div class="sub">${sub}</div></div>
-    <ul class="fact-list">${rest.map(([c, label, v, when]) => `<li><span class="swatch" style="background:var(${c})"></span><span><b>${label}</b> <span class="v">${v}</span> <span class="sub">${when}</span></span></li>`).join('')}</ul>`;
-}
-
-const mw = (v) => (v >= 1000 ? `${(v / 1000).toFixed(2)} GW` : `${Math.round(v)} MW`);
 
 // The latest data panel, the same as the GB page's Right now panel. Energy-
 // Charts updates through the day, a few hours behind, so each time frame ends
@@ -525,9 +518,11 @@ function renderNowPlaceholder() {
   $('now-right').innerHTML = nowRightHtml(null, {}, 0);
 }
 
+let installed = null; // site/data/de/installed.json, or null if it didn't load
 let story = null;
 function renderStory() {
-  story ??= drawStory(data, end);
+  story ??= storyFigures(data, end);
+  drawStory(data, end, installed, story);
 }
 
 async function main() {
@@ -543,8 +538,10 @@ async function main() {
     document.querySelectorAll('[data-now-window]').forEach((x) => x.setAttribute('aria-checked', x === b));
     if (data) renderNow(true);
   }));
+  const capacity = fetch('../data/de/installed.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
   try {
     data = await loadData('../data/de');
+    installed = await capacity;
   } catch (err) {
     $('updated').textContent = 'The data could not be loaded. Please try again shortly.';
     console.error(err);

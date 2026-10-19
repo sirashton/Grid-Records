@@ -68,3 +68,31 @@ test('refreshes the current year, and last year only around New Year', () => {
   assert.equal(isStale(entry(Date.UTC(2026, 0, 2)), 2025, now), true);
   assert.equal(isStale(entry(Date.UTC(2020, 0, 2)), 2019, now), false);
 });
+
+test('works out the story figures: floor, ceiling, solar hours and the tightest half hours', async () => {
+  const { storyFigures, demandSeries } = await import('../site/js/de/story.js');
+  const { DE_COLUMNS: cols } = await import('../pipeline/sources/energy-charts.mjs');
+  // Two years and a bit, from New Year 2024 in German time.
+  const startMs = Date.UTC(2023, 11, 31, 23);
+  const length = 48 * (366 + 365 + 30);
+  const columns = Object.fromEntries(cols.map((c) => [c, new Float64Array(length)]));
+  for (let i = 0; i < length; i++) {
+    const hour = (i / 2 + 1) % 24;
+    columns.solar[i] = hour >= 11 && hour < 14 ? 30000 : 0;
+    columns.lignite[i] = hour >= 18 ? 20000 : 8000;
+    columns.wind_on[i] = 5000;
+    columns.imports[i] = hour >= 18 ? 3000 : 0;
+  }
+  const data = { startMs, length, columns };
+  assert.equal(demandSeries(data)[40], 20 + 5 + 3);
+  const f = storyFigures(data, length);
+  assert.deepEqual(f.years, [2024, 2025, 'past365']);
+  const [y24] = f.rows;
+  assert.equal(y24.fossilMin, 8);
+  assert.equal(y24.fossilMax, 20);
+  assert.equal(y24.solar22, 366 * 3);
+  assert.equal(y24.fossil10, 366 * 18);
+  assert.equal(y24.top.fossil, 20);
+  assert.equal(y24.top.imports, 3);
+  assert.equal(f.importRun.hours[0], 6);
+});

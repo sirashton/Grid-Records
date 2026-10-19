@@ -74,7 +74,7 @@ export function metricSeries(data, members, { unit = 'gw' } = {}) {
  * Groups slots by calendar year in German time, keeping only years the data
  * fully covers, plus a final "past365" bucket for the latest 365 days.
  */
-function byYear(data, init, add) {
+export function byYear(data, init, add) {
   const { length, startMs, columns } = data;
   const years = new Map();
   const rolling = { year: 'past365', ...init() };
