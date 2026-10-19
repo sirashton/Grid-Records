@@ -27,6 +27,7 @@ const { values: args } = parseArgs({
 const started = Date.now();
 const deadline = started + Number(args['budget-minutes']) * 60000;
 const COLUMNS = [...FR_COLUMNS, 'price'];
+export const FLOOR_MW = { nuclear: 5000, demand: 15000 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Merges generation and price years, ending at the last slot with generation. */
@@ -36,6 +37,13 @@ export function mergeFrance(power, prices) {
   let end = merged.length;
   while (end > 0 && FR_COLUMNS.every((c) => Number.isNaN(merged.columns[c][end - 1]))) end--;
   for (const c of COLUMNS) merged.columns[c] = merged.columns[c].subarray(0, end);
+  // The parser counts a single blank type as zero. French nuclear has never
+  // been under 20 GW and load under 25 GW since 2015, so readings far below
+  // that are ones Energy-Charts didn't have.
+  for (const [c, floor] of Object.entries(FLOOR_MW)) {
+    const col = merged.columns[c];
+    for (let i = 0; i < end; i++) if (col[i] < floor) col[i] = NaN;
+  }
   return { ...merged, length: end };
 }
 
