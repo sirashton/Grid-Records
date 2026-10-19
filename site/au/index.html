@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grid Records: Australia</title>
+  <meta name="description" content="Records for Australia's National Electricity Market: the longest spells with little coal or gas, how batteries took over the evening, and why wholesale prices have fallen.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-text">
+        <nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><a href="../nz/"><img src="../flags/nz.svg" alt="" width="30" height="15">New Zealand</a><a href="../de/"><img src="../flags/de.svg" alt="" width="30" height="15">Germany</a><span aria-current="page"><img src="../flags/au.svg" alt="" width="30" height="15">Australia</span><a href="../pl/"><img src="../flags/pl.svg" alt="" width="30" height="15">Poland</a></nav>
+        <h1>Grid Records</h1>
+        <p class="lede">Australia's east coast grid still runs mostly on coal, but rooftop solar, wind and a fast-growing fleet of batteries are pushing it out, and wholesale prices have fallen with them. This page tracks how long the grid can now go with less and less coal and gas.</p>
+        <div class="segmented small region-switch" role="radiogroup" aria-label="Region">
+          <button type="button" data-region="nem" role="radio">Whole NEM</button>
+          <button type="button" data-region="nsw" role="radio">NSW</button>
+          <button type="button" data-region="qld" role="radio">Queensland</button>
+          <button type="button" data-region="vic" role="radio">Victoria</button>
+          <button type="button" data-region="sa" role="radio">South Australia</button>
+          <button type="button" data-region="tas" role="radio">Tasmania</button>
+        </div>
+        <p class="updated" id="updated">Loading the generation data.</p>
+      </div>
+      <svg class="hero-art" viewBox="0 0 220 160" aria-hidden="true">
+        <g class="sun"><path class="rays" d="M200.0 38.0L208.0 38.0M193.0 55.0L198.6 60.6M176.0 62.0L176.0 70.0M159.0 55.0L153.4 60.6M152.0 38.0L144.0 38.0M159.0 21.0L153.4 15.4M176.0 14.0L176.0 6.0M193.0 21.0L198.6 15.4"/><circle cx="176" cy="38" r="18"/></g>
+        <path class="hill" d="M0 160 C40 112 90 114 130 136 S200 122 220 130 V160 Z"/><path class="ridge" d="M0 160 C40 112 90 114 130 136 S200 122 220 130"/>
+        <g transform="translate(62 60)"><path class="mast" d="M-2.5 0 L2.5 0 L4.5 66 L-4.5 66 Z"/><g class="blades"><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(120)"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(240)"/></g><circle class="hub" r="4.5"/></g>
+        <g transform="translate(146 100) scale(0.6)"><path class="mast" d="M-2.5 0 L2.5 0 L4.5 66 L-4.5 66 Z"/><g class="blades slow"><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(120)"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(240)"/></g><circle class="hub" r="4.5"/></g>
+      </svg>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card answer" aria-labelledby="answer-h">
+      <h2 id="answer-h">In short</h2>
+      <p class="answer-lead" id="answer-lead">Working it out from the generation data.</p>
+      <ol class="answer-points" id="answer-points"></ol>
+    </section>
+
+    <section class="card now-card" aria-labelledby="now-h">
+      <div class="now-head">
+        <h2 id="now-h">The latest data</h2>
+        <div class="segmented small" id="now-window" role="radiogroup" aria-label="Time frame">
+          <button type="button" data-now-window="day" role="radio" aria-checked="true">24 hours</button>
+          <button type="button" data-now-window="week" role="radio" aria-checked="false">7 days</button>
+          <button type="button" data-now-window="month" role="radio" aria-checked="false">30 days</button>
+          <button type="button" data-now-window="year" role="radio" aria-checked="false">365 days</button>
+        </div>
+      </div>
+      <div class="now-panel">
+        <div class="now-col now-left" id="now-groups"></div>
+        <div class="now-donut" id="now-donut"></div>
+        <div class="now-col now-right" id="now-right"></div>
+      </div>
+      <p class="hint now-note" id="now-note">AEMO publishes each month's full unit data a few weeks after it ends, so this shows the latest data, not live output.</p>
+    </section>
+
+    <section class="card records-card" id="records" aria-labelledby="records-h"></section>
+
+    <section class="plain story" aria-labelledby="story-h">
+      <h2 id="story-h">The story</h2>
+      <div class="facts" id="facts"></div>
+      <p class="hint" id="story-hint"></p>
+      <div id="chapters"></div>
+    </section>
+
+    <section class="plain about" aria-labelledby="about-h">
+      <h2 id="about-h">About the data</h2>
+      <p>Generation comes from AEMO's <a href="https://nemweb.com.au/Data_Archive/Wholesale_Electricity/MMSDM/">MMS Data Model archive</a>: the five-minute output of every scheduled and semi-scheduled unit in the National Electricity Market (Queensland, New South Wales and the ACT, Victoria, South Australia and Tasmania), averaged here to half hours. Each unit's fuel comes from AEMO's registration tables. Small non-scheduled plant, such as some older wind farms and landfill gas engines, is not in the unit data, so totals read a few percent lower than AEMO's own.</p>
+      <p>Rooftop solar is AEMO's half-hourly estimate of household and business panels (ROOFTOP_PV_ACTUAL), counted as generation. Prices are each region's half-hourly spot price, and the whole-NEM price is weighted by each region's demand. Western Australia and the Northern Territory are separate grids and not included yet.</p>
+      <p>Renewables here are wind, solar farms, rooftop solar, hydro and bioenergy. Fossil fuels are black coal, brown coal, gas, and diesel and oil. Grid batteries are shown on their own, charging and discharging, and are not counted in total generation; pumped hydro's generation is counted as hydro. Home batteries are not in AEMO's data.</p>
+      <p>A spell is a run of consecutive half hours that meet the threshold. Gaps in the data of up to an hour are bridged when the half hours either side qualify; longer gaps end the spell. Times and years are in NEM time (AEST, UTC+10, no daylight saving).</p>
+      <p>Built by <a href="https://github.com/sirashton">Alex</a>, and the source code is on <a href="https://github.com/sirashton/Grid-Records">GitHub</a>.</p>
+      <p class="small">Contains data from the Australian Energy Market Operator (AEMO), used under AEMO's copyright permissions.</p>
+    </section>
+  </main>
+  <script type="module" src="../js/au/app.js"></script>
+</body>
+</html>
