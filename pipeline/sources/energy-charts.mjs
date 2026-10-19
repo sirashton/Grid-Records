@@ -1,6 +1,6 @@
 // Energy-Charts (Fraunhofer ISE) public net electricity generation by
 // production type: Germany every 15 minutes since 2015, and Poland hourly
-// from 2015 and every 15 minutes in recent years.
+// from 2015 and every 15 minutes in recent years, and France likewise.
 // https://api.energy-charts.info/ (CC BY 4.0, no key)
 //
 // Values are MW, averaged over each quarter hour, on UTC timestamps.
@@ -64,6 +64,29 @@ export const PL_SOURCES = {
   trade: ['Cross border electricity trading'],
 };
 export const PL_COLUMNS = columnsOf(PL_SOURCES);
+
+// France. Hourly in the early years, 15 minutes later. Coal is a few hundred
+// MW at most since 2022 (Cordemais, Saint-Avold); batteries are listed only
+// in recent years and count as zero before.
+export const FR_SOURCES = {
+  nuclear: ['Nuclear'],
+  coal: ['Fossil hard coal'],
+  gas: ['Fossil gas'],
+  oil: ['Fossil oil'],
+  wind_onshore: ['Wind onshore'],
+  wind_offshore: ['Wind offshore'],
+  solar: ['Solar'],
+  hydro: ['Hydro Run-of-River', 'Hydro water reservoir'],
+  biomass: ['Biomass', 'Other renewables', 'Geothermal'],
+  other: ['Waste', 'Others'],
+  pumped_storage: ['Hydro pumped storage'],
+  pumped_storage_charge: ['Hydro pumped storage consumption'],
+  battery: ['Battery'],
+  battery_charge: ['Battery Consumption'],
+  demand: ['Load'],
+  trade: ['Cross border electricity trading'],
+};
+export const FR_COLUMNS = columnsOf(FR_SOURCES);
 
 /**
  * Parses one Energy-Charts public_power response into MW on a 15-minute UTC

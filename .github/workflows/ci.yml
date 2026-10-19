@@ -50,6 +50,20 @@ jobs:
           key: pl-${{ github.run_id }}
       - uses: actions/cache/restore@v4
         with:
+          path: .cache-fr
+          key: fr-${{ github.run_id }}
+          restore-keys: fr-
+      - run: node pipeline/build-fr.mjs --budget-minutes 6
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-fr
+          key: fr-${{ github.run_id }}
+      - run: ls -la site/data/fr && node -e "const m=require('./site/data/fr/meta.json'); console.log(m.length, m.columns, m.years)"
+        continue-on-error: true
+      - uses: actions/cache/restore@v4
+        with:
           path: .cache-br
           key: br-${{ github.run_id }}
           restore-keys: br-

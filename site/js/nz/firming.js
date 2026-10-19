@@ -13,7 +13,17 @@ export const ASSUMPTIONS = {
     geothermal: { label: 'Geothermal', capexPerKw: 5600, omPerKw: 160, loadFactor: 0.92, life: 30, decline: 0.0035 },
     wind: { label: 'Wind', capexPerKw: 3400, omPerKw: 45, loadFactor: 0.38, life: 27, decline: 0.01 },
     solar: { label: 'Solar', capexPerKw: 1900, omPerKw: 20, loadFactor: 0.19, life: 30, decline: 0.025 },
+    // No new hydro projects are costed in the report, only a generic 9,200 $/kW.
+    // Running costs and life are assumptions.
+    hydro: { label: 'Hydro', capexPerKw: 9200, omPerKw: 45, loadFactor: 0.5, life: 60, decline: 0 },
   },
+  // Share of each GW that can be counted on at a winter evening peak, so
+  // needs no battery behind it. Wind and solar are counted as nothing.
+  peakCredit: { geothermal: 0.92, hydro: 0.9 },
+  // The most of each the cheapest mix may build, GW. Geothermal: the known
+  // fields' headroom left after the plants built since 2024 (GNS Science, via
+  // Castalia). Hydro: schemes MBIE rated six out of ten or better to consent.
+  limits: { geothermal: 0.2, hydro: 1.3 },
   battery: { capexPerKw: 1700, omShare: 0.025, life: 15, decline: 0.04 }, // two-hour, per kW
   // Huntly's battery is already being built and counts toward the peak:
   // 100 MW from mid-2026 and another 100 MW around 2029 (Genesis).
@@ -75,24 +85,43 @@ export function yearCosts(n, year, { carbon, surplusValue, gasPrice }, a = ASSUM
   // 100% renewable: enough of one technology to cover the driest year on
   // record, plus batteries in place of the fossil peak capacity. The lake
   // model's sizes (n.sizes, GW) replace sizing on the yearly average when given.
-  const b = a.battery;
-  const batteryCapex = b.capexPerKw * (1 - b.decline) ** t;
-  const battery = (Math.max(0, n.peakGw - a.committedBatteryGw) * 1e6 * (batteryCapex * (crf(a.wacc, b.life) + b.omShare))) / 1e6;
+  const battery = batteryCost(n, year, {}, a).cost;
   const renewables = {};
   for (const [key, g] of Object.entries(a.tech)) {
-    const capex = g.capexPerKw * (1 - g.decline) ** t;
-    const perKw = capex * crf(a.wacc, g.life) + g.omPerKw;
-    const kw = n.sizes?.[key] ? n.sizes[key] * 1e6 : (n.driest.fossil * 1e9) / (g.loadFactor * 8760); // TWh → kWh
-    const spareTwh = (kw * g.loadFactor * 8760) / 1e9 - n.expectedFossil;
-    const surplus = Math.max(0, spareTwh) * 1e6 * surplusValue;
-    renewables[key] = {
-      gw: kw / 1e6,
-      lcoe: perKw / (g.loadFactor * 8.76),
-      spareTwh,
-      cost: (kw * perKw - surplus) / 1e6 + battery,
-    };
+    const gw = n.sizes?.[key] ?? (n.driest.fossil * 1e3) / (g.loadFactor * 8760); // TWh → GW
+    renewables[key] = { ...buildCost(n, year, { [key]: gw }, surplusValue, a), gw, lcoe: perKwYear(g, year, a) / (g.loadFactor * 8.76) };
+  }
+  // The cheapest mix of geothermal, hydro, solar and batteries this year,
+  // from the mixes the lake model found would get through the record.
+  if (n.mixes?.length) {
+    renewables.mix = n.mixes.map((add) => ({ add, ...buildCost(n, year, add, surplusValue, a) })).reduce((x, y) => (y.cost < x.cost ? y : x));
   }
   return { year, keep, keepPerMwh: { gas: gasMwh, coal: coalMwh }, battery, renewables };
+}
+
+/** NZ$ a year to build and run one kW of a technology bought in `year`. */
+export const perKwYear = (g, year, a = ASSUMPTIONS) => g.capexPerKw * (1 - g.decline) ** (year - 2025) * crf(a.wacc, g.life) + g.omPerKw;
+
+/**
+ * NZ$ million a year for two-hour batteries in place of the fossil peak
+ * capacity, less Huntly's battery and whatever firm capacity a build adds.
+ */
+export function batteryCost(n, year, add = {}, a = ASSUMPTIONS) {
+  const b = a.battery;
+  const firm = Object.entries(add).reduce((s, [k, gw]) => s + gw * (a.peakCredit[k] ?? 0), 0);
+  const gw = Math.max(0, n.peakGw - a.committedBatteryGw - firm);
+  return { gw, cost: gw * b.capexPerKw * (1 - b.decline) ** (year - 2025) * (crf(a.wacc, b.life) + b.omShare) };
+}
+
+/**
+ * NZ$ million a year for a build ({ tech: GW }) and the batteries it still
+ * needs, less what its energy beyond an average year's need sells for.
+ */
+export function buildCost(n, year, add, surplusValue = 0, a = ASSUMPTIONS) {
+  const plant = Object.entries(add).reduce((s, [k, gw]) => s + gw * perKwYear(a.tech[k], year, a), 0); // GW × $/kW = $m
+  const spareTwh = Object.entries(add).reduce((s, [k, gw]) => s + gw * a.tech[k].loadFactor * 8.76, 0) - n.expectedFossil;
+  const bat = batteryCost(n, year, add, a);
+  return { plant, batteryGw: bat.gw, battery: bat.cost, spareTwh, cost: plant + bat.cost - Math.max(0, spareTwh) * surplusValue };
 }
 
 export const PROJECTION = Array.from({ length: 21 }, (_, i) => 2025 + i);
@@ -100,7 +129,7 @@ export const PROJECTION = Array.from({ length: 21 }, (_, i) => 2025 + i);
 /** Costs for every projection year, and the first year each technology beats keeping fossil. */
 export function projection(n, opts, a = ASSUMPTIONS) {
   const rows = PROJECTION.map((y) => yearCosts(n, y, opts, a));
-  const crossover = Object.fromEntries(Object.keys(a.tech).map((k) => [k, rows.find((r) => r.renewables[k].cost <= r.keep)?.year ?? null]));
+  const crossover = Object.fromEntries(Object.keys(rows[0].renewables).map((k) => [k, rows.find((r) => r.renewables[k].cost <= r.keep)?.year ?? null]));
   return { rows, crossover };
 }
 

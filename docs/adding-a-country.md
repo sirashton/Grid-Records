@@ -44,7 +44,7 @@ Rules:
 - **Fetching in chunks within a time budget**: `runQueue(items, fn, { concurrency, deadline })` and `stitch(chunks, { stepMinutes, columns })` from `pipeline/core/chunks.mjs`, plus `monthList` / `isStale` for monthly files. Cache parsed chunks in `.cache-<cc>/` (Actions cache) and bump a `PARSE_VERSION` to force a re-parse. `pipeline/build-nz.mjs` is the worked example.
 - **Size.** The Int16 delta file is small at 30 minutes (GB 17 years is about 3 MB). At 5 minutes a 25-year history is six times the slots, so keep the column list to what the page uses: aggregate units to fuels in the adapter.
 
-Another country on a source that already has an adapter reuses it: Poland (`pipeline/build-pl.mjs`) uses the Energy-Charts adapter with its own type map (`PL_SOURCES`) and Germany's year cache and merge.
+Another country on a source that already has an adapter reuses it: Poland (`pipeline/build-pl.mjs`) uses the Energy-Charts adapter with its own type map (`PL_SOURCES`) and Germany's year cache and merge, and France (`pipeline/build-fr.mjs`, `FR_SOURCES`) copies Poland. Energy-Charts can leave a single type blank, which the parser reads as zero; France drops nuclear and load readings below a floor that real output never reaches (`FLOOR_MW`).
 
 Adapter layout: `pipeline/sources/<source>.mjs` (fetch + parse, pure functions tested in `test/<cc>.test.mjs`) and `pipeline/build-<cc>.mjs` (cache, budget, `writeDataset`). Add a step to `deploy.yml` and `ci.yml` with `continue-on-error: true` so one country failing never blocks the others.
 

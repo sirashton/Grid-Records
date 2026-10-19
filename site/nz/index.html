@@ -16,7 +16,7 @@
   <header class="hero">
     <div class="wrap hero-inner">
       <div class="hero-text">
-        <nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><span aria-current="page"><img src="../flags/nz.svg" alt="" width="30" height="15">New Zealand</span><a href="../de/"><img src="../flags/de.svg" alt="" width="30" height="15">Germany</a><a href="../au/"><img src="../flags/au.svg" alt="" width="30" height="15">Australia</a><a href="../pl/"><img src="../flags/pl.svg" alt="" width="30" height="15">Poland</a><a href="../br/"><img src="../flags/br.svg" alt="" width="30" height="15">Brazil</a><a href="../wa/"><img src="../flags/wa.svg" alt="" width="30" height="15">Western Australia</a><a class="live-link" href="../live/"><i class="live-dot" aria-hidden="true"></i>Live records</a></nav>
+        <nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><span aria-current="page"><img src="../flags/nz.svg" alt="" width="30" height="15">New Zealand</span><a href="../de/"><img src="../flags/de.svg" alt="" width="30" height="15">Germany</a><a href="../au/"><img src="../flags/au.svg" alt="" width="30" height="15">Australia</a><a href="../pl/"><img src="../flags/pl.svg" alt="" width="30" height="15">Poland</a><a href="../br/"><img src="../flags/br.svg" alt="" width="30" height="15">Brazil</a><a href="../fr/"><img src="../flags/fr.svg" alt="" width="30" height="15">France</a><a href="../wa/"><img src="../flags/wa.svg" alt="" width="30" height="15">Western Australia</a><a class="live-link" href="../live/"><i class="live-dot" aria-hidden="true"></i>Live records</a></nav>
         <h1>Grid Records</h1>
         <p class="lede">New Zealand already makes most of its electricity from water, steam and wind. This page follows the last part of the story: how long the grid can now run with almost no fossil fuel, and what it would take to go all the way.</p>
         <p class="updated" id="updated">Loading the generation data.</p>
@@ -131,10 +131,11 @@
           </div>
         </div>
       </div>
-      <p class="hint">NZ$ million a year, in 2025 dollars. Each renewable line is enough of that one source, plus batteries, to get through every year from 1980 to 2024 with no fossil fuel, sized by the lake model in chapter 6. Renewable and battery costs fall a little each year; fuel and carbon are held at the chosen prices.</p>
+      <p class="hint">NZ$ million a year, in 2025 dollars. Each renewable line is enough of that one source, plus batteries, to get through every year from 1980 to 2024 with no fossil fuel, sized by the lake model in chapter 6. The thick line is the cheapest mix of geothermal, solar, hydro and batteries, within what can be built. Renewable and battery costs fall a little each year; fuel and carbon are held at the chosen prices.</p>
       <div class="chart-host" id="firm-chart"></div>
       <div class="legend" id="firm-legend"></div>
       <p id="firm-answer"></p>
+      <p id="firm-mix"></p>
       <h3>What the answer depends on</h3>
       <ul class="notes" id="firm-notes"></ul>
       <details>
@@ -155,12 +156,13 @@
         <button type="button" data-lakes="wind" role="radio">+ Wind</button>
         <button type="button" data-lakes="solar" role="radio">+ Solar</button>
         <button type="button" data-lakes="mix" role="radio">+ Both</button>
+        <button type="button" data-lakes="best" role="radio">Cheapest mix</button>
       </div>
       <p class="hint" id="lakes-hint">Energy stored in the hydro lakes each week, in TWh, if every day from 1980 to 2024 had today's demand and no coal or gas.</p>
       <div class="chart-host" id="lakes-chart"></div>
       <div class="legend" id="lakes-legend"></div>
       <h3>What each build costs</h3>
-      <p class="hint">NZ$ million a year to build and run, in 2025 dollars, annualised at the cost model's rates. Each gets through every year from 1980 to 2024 with no fossil fuel. All of them also need the same batteries for the evening peaks, costed in chapter 5.</p>
+      <p class="hint">NZ$ million a year to build and run, in 2025 dollars, annualised at the cost model's rates, including the two-hour batteries each build still needs for the evening peaks. Each gets through every year from 1980 to 2024 with no fossil fuel. The highlighted cell is the cheapest build that stays within what New Zealand's geothermal fields and hydro schemes can supply.</p>
       <div class="table-scroll"><table id="lakes-costs"></table></div>
       <ul class="notes" id="lakes-points"></ul>
       <details>
