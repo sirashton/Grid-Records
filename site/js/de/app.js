@@ -431,14 +431,14 @@ const INFO = {
   Lignite: 'Brown coal, dug and burnt in the Rhineland, Lusatia and around Leipzig. The last plants close by 2038 at the latest.',
   'Hard coal': 'Black coal, almost all imported. Most of these plants have closed since 2020.',
   Gas: 'Gas-fired power stations, including combined heat and power.',
-  'Oil and other fossil': 'Oil, and gas from coke ovens and blast furnaces at steelworks.',
+  'Oil and other': 'Oil, and gas from coke ovens and blast furnaces at steelworks.',
   Other: 'Nuclear, pumped storage, and waste and other plants.',
   Nuclear: 'Germany closed its last three reactors on 15 April 2023.',
   'Pumped storage': 'Water pumped uphill when power is cheap and run back down when it is needed.',
   'Waste and other': 'Waste incineration and plants Energy-Charts does not assign a fuel.',
   'Net imports': 'Power flowing in from neighbouring countries, less what flows out, when that is positive.',
   'Net exports': 'Power flowing out to neighbouring countries, less what flows in, when that is positive.',
-  'Pumped storage charging': 'Power taken off the grid to pump water uphill.',
+  Pumping: 'Power taken off the grid to pump water uphill.',
 };
 const info = infoButton(INFO);
 
@@ -489,7 +489,7 @@ function nowRightHtml(recs, bat, total) {
     <div class="nr head" style="--tint: var(--f-imports)"><span class="lbl">Trade and pumping</span><span></span><span></span><span></span></div>
     ${row('Net imports', bat.imp, bat.impSeries, '--f-imports')}
     ${row('Net exports', bat.exp, bat.expSeries, '--f-imports')}
-    ${row('Pumped storage charging', bat.chg, bat.chgSeries, '--f-hydro-2')}`;
+    ${row('Pumping', bat.chg, bat.chgSeries, '--f-hydro-2')}`;
 }
 
 let nowShown = null;

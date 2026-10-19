@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grid Records: Germany</title>
+  <meta name="description" content="Records for Germany's electricity grid: the longest spells with little coal or fossil fuel, how solar grew from a novelty to the biggest source at midday, and what still holds the fossil floor up.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-text">
+        <nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><a href="../nz/"><img src="../flags/nz.svg" alt="" width="30" height="15">New Zealand</a><span aria-current="page"><img src="../flags/de.svg" alt="" width="30" height="15">Germany</span></nav>
+        <h1>Grid Records</h1>
+        <p class="lede" id="lede">Germany was the country that made solar cheap. This page follows what came after: how long its grid can now run with little coal or gas, and how far it still has to go.</p>
+        <p class="updated" id="updated">Loading the generation data.</p>
+      </div>
+      <svg class="hero-art" viewBox="0 0 220 160" aria-hidden="true">
+        <g class="sun"><path class="rays" d="M200.0 38.0L208.0 38.0M193.0 55.0L198.6 60.6M176.0 62.0L176.0 70.0M159.0 55.0L153.4 60.6M152.0 38.0L144.0 38.0M159.0 21.0L153.4 15.4M176.0 14.0L176.0 6.0M193.0 21.0L198.6 15.4"/><circle cx="176" cy="38" r="18"/></g>
+        <path class="hill" d="M0 160 C40 112 90 114 130 136 S200 122 220 130 V160 Z"/><path class="ridge" d="M0 160 C40 112 90 114 130 136 S200 122 220 130"/>
+        <g transform="translate(62 60)"><path class="mast" d="M-2.5 0 L2.5 0 L4.5 66 L-4.5 66 Z"/><g class="blades"><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(120)"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(240)"/></g><circle class="hub" r="4.5"/></g>
+        <g transform="translate(146 100) scale(0.6)"><path class="mast" d="M-2.5 0 L2.5 0 L4.5 66 L-4.5 66 Z"/><g class="blades slow"><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(120)"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(240)"/></g><circle class="hub" r="4.5"/></g>
+      </svg>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card answer" aria-labelledby="answer-h">
+      <h2 id="answer-h">In short</h2>
+      <p class="answer-lead" id="answer-lead">Working it out from the generation data.</p>
+      <ol class="answer-points" id="answer-points"></ol>
+    </section>
+
+    <section class="card now-card" aria-labelledby="now-h">
+      <div class="now-head">
+        <h2 id="now-h">The latest data</h2>
+        <div class="segmented small" id="now-window" role="radiogroup" aria-label="Time frame">
+          <button type="button" data-now-window="day" role="radio" aria-checked="true">24 hours</button>
+          <button type="button" data-now-window="week" role="radio" aria-checked="false">7 days</button>
+          <button type="button" data-now-window="month" role="radio" aria-checked="false">30 days</button>
+          <button type="button" data-now-window="year" role="radio" aria-checked="false">365 days</button>
+        </div>
+      </div>
+      <div class="now-panel">
+        <div class="now-col now-left" id="now-groups"></div>
+        <div class="now-donut" id="now-donut"></div>
+        <div class="now-col now-right" id="now-right"></div>
+      </div>
+      <p class="hint now-note" id="now-note">Energy-Charts updates through the day, a few hours behind, so this shows the latest data, not live output.</p>
+    </section>
+
+    <section class="card records-card" aria-labelledby="records-h">
+      <h2 id="records-h">Records</h2>
+      <p class="hint">How long the grid can now run below or above any level, for any fuel or group.</p>
+      <form class="controls" id="controls" onsubmit="return false">
+        <label class="field">
+          <span>Measure</span>
+          <select id="preset"></select>
+        </label>
+        <div class="field">
+          <span>Record type</span>
+          <div class="segmented" role="radiogroup" aria-label="Record type">
+            <button type="button" data-mode="below" role="radio">Below</button>
+            <button type="button" data-mode="above" role="radio">Above</button>
+          </div>
+        </div>
+        <div class="field">
+          <span>Units</span>
+          <div class="segmented" role="radiogroup" aria-label="Units">
+            <button type="button" data-unit="gw" role="radio">GW</button>
+            <button type="button" data-unit="pct" role="radio">% of generation</button>
+          </div>
+        </div>
+        <label class="field grow">
+          <span>Thresholds</span>
+          <input id="thresholds" inputmode="decimal" autocomplete="off">
+        </label>
+        <div class="field" id="members-field">
+          <span>Sources</span>
+          <button type="button" class="edit-btn" id="members-toggle" aria-expanded="false" aria-controls="members"></button>
+        </div>
+        <fieldset class="field members" id="members" hidden>
+          <legend>Sources in the group</legend>
+        </fieldset>
+      </form>
+      <p class="question" id="question"></p>
+      <div class="table-scroll">
+        <table class="records" id="records-table"></table>
+      </div>
+
+      <h3>How the records have grown</h3>
+      <p class="hint">Each step is a new longest spell.</p>
+      <div class="segmented small" id="prog-scale" role="radiogroup" aria-label="Y axis scale">
+        <button type="button" data-prog-scale="linear" role="radio" aria-checked="false">Linear</button>
+        <button type="button" data-prog-scale="log" role="radio" aria-checked="true">Log</button>
+      </div>
+      <div class="chart-host" id="progression"></div>
+      <div class="legend" id="progression-legend"></div>
+
+      <h3>Longest spell in each year</h3>
+      <p class="hint">✓ marks a spell that lasted the whole year.</p>
+      <div class="chart-host" id="by-year"></div>
+      <div class="legend" id="by-year-legend"></div>
+
+      <h3>The measure over time</h3>
+      <div class="segmented small" id="range" role="radiogroup" aria-label="Time range">
+        <button type="button" data-range="7">Week</button>
+        <button type="button" data-range="30">Month</button>
+        <button type="button" data-range="365">Year</button>
+        <button type="button" data-range="all">All time</button>
+      </div>
+      <div class="segmented small" id="scale" role="radiogroup" aria-label="Y axis scale">
+        <button type="button" data-scale="linear" role="radio">Linear</button>
+        <button type="button" data-scale="log" role="radio">Log</button>
+      </div>
+      <div class="chart-host" id="timeline"></div>
+      <p class="hint" id="timeline-note"></p>
+    </section>
+
+    <section class="plain story" aria-labelledby="story-h">
+      <h2 id="story-h">The story</h2>
+      <div id="story"></div>
+    </section>
+
+    <section class="plain about" aria-labelledby="about-h">
+      <h2 id="about-h">About the data</h2>
+      <p>Generation comes from Fraunhofer ISE's <a href="https://www.energy-charts.info/?l=en&amp;c=DE">Energy-Charts</a>, through its <a href="https://api.energy-charts.info/">open API</a>: public net electricity generation in Germany every 15 minutes since 2015, from the grid operators' and the EEX transparency data. Each half hour here is the mean of its two quarter hours. "Public" means what is fed into the grid: it leaves out power that industry makes and uses on site, and the part of rooftop solar that homes use themselves, so solar and the total read lower than the national energy balance.</p>
+      <p>Renewables here are solar, onshore and offshore wind, hydro and biomass (with about 20 MW of geothermal). Fossil fuels are lignite, hard coal, gas, and oil with gas from coke ovens and blast furnaces. Pumped storage counts as generation when it runs, and its pumping as a separate measure. Net imports are not counted in generation.</p>
+      <p>A spell is a run of consecutive half hours that meet the threshold. Gaps in the data of up to an hour are bridged when the half hours either side qualify; longer gaps end the spell. Years run in German time.</p>
+      <p>Built by <a href="https://github.com/sirashton">Alex</a>, and the source code is on <a href="https://github.com/sirashton/Grid-Records">GitHub</a>.</p>
+      <p class="small">Data: Energy-Charts, Fraunhofer ISE, CC BY 4.0.</p>
+    </section>
+  </main>
+  <script type="module" src="../js/de/app.js"></script>
+</body>
+</html>

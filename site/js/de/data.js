@@ -5,7 +5,7 @@ export const FUELS = {
   lignite: { label: 'Lignite', color: '--f-lignite', fossil: true, coal: true },
   hardcoal: { label: 'Hard coal', color: '--f-coal', fossil: true, coal: true },
   gas: { label: 'Gas', color: '--f-gas', fossil: true },
-  oil: { label: 'Oil and other fossil', color: '--f-diesel', fossil: true },
+  oil: { label: 'Oil and other', color: '--f-diesel', fossil: true },
   nuclear: { label: 'Nuclear', color: '--f-nuclear', lowCarbon: true },
   wind_on: { label: 'Onshore wind', color: '--f-wind', renewable: true, wind: true },
   wind_off: { label: 'Offshore wind', color: '--f-wind-off', renewable: true, wind: true },
@@ -16,7 +16,7 @@ export const FUELS = {
   pumped: { label: 'Pumped storage', color: '--f-hydro-2', storage: true },
   imports: { label: 'Net imports', color: '--f-imports', notGeneration: true },
   // Taking power off the grid: measures on their own, never in a group total.
-  pumped_chg: { label: 'Pumped storage charging', color: '--f-hydro-2', notGeneration: true },
+  pumped_chg: { label: 'Pumping', color: '--f-hydro-2', notGeneration: true },
   exports: { label: 'Net exports', color: '--f-imports', notGeneration: true },
 };
 
@@ -82,7 +82,9 @@ function byYear(data, init, add) {
   let end = length;
   while (end > 0 && Number.isNaN(columns.lignite[end - 1])) end--;
   // A year counts only if the data starts on or before its New Year.
-  const firstYear = startMs <= deNewYear(deYear(startMs)) ? deYear(startMs) : deYear(startMs) + 1;
+  // Energy-Charts starts at midnight UTC on 1 January 2015, an hour after
+  // New Year in Germany, so a year missing only its first hour still counts.
+  const firstYear = startMs <= deNewYear(deYear(startMs)) + 3600000 ? deYear(startMs) : deYear(startMs) + 1;
   const lastYear = deYear(startMs + end * 18e5) - 1;
   let y = firstYear - 1;
   let nextYear = deNewYear(y + 1);
