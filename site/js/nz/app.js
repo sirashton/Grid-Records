@@ -1,6 +1,6 @@
 // The New Zealand page: the latest data, the shared Records card and the story.
-import { summarise, formatDuration, slotTime } from '../records.js';
-import { lineChart, barChart, fmtDate, fmtDateTime, setTimeZone } from '../charts.js';
+import { formatDuration, slotTime } from '../records.js';
+import { lineChart, fmtDate, fmtDateTime, setTimeZone } from '../charts.js';
 import nz from '../countries/nz.js';
 import { loadData, dataEnd, windowPoints as corePoints } from '../core/dataset.js';
 import { createRecordsTool } from '../core/records-tool.js';
@@ -9,7 +9,8 @@ import { LAKE, fleetFromDays, simulate, lakeSizes, minimumBuild, mixFrontier, dr
 import { recentRecords } from '../recent.js';
 import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, setupNowWindows, windowSlots, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
 import { startAnalytics } from '../analytics.js';
-import { ASSUMPTIONS as A, needs, projection, yearCosts, buildCost, fuelCost, SOURCES } from './firming.js';
+import { ASSUMPTIONS as A, needs, projection, yearCosts, buildCost, SOURCES } from './firming.js';
+import { storyFigures, storageFigures, renderStory as drawStory, factsHtml } from './story.js';
 
 setTimeZone(nz.timeZone);
 
@@ -58,12 +59,6 @@ function redrawAll() {
   if (!data) return;
   renderStory();
   records.update();
-}
-
-// One headline figure set large, with the other highlights as a list beside it.
-function factsHtml(big, sub, rest) {
-  return `<div class="headline"><div class="big">${big}</div><div class="sub">${sub}</div></div>
-    <ul class="fact-list">${rest.map(([c, label, v, when]) => `<li><span class="swatch" style="background:var(${c})"></span><span><b>${label}</b> <span class="v">${v}</span> <span class="sub">${when}</span></span></li>`).join('')}</ul>`;
 }
 
 const mw = (v) => (v >= 1000 ? `${(v / 1000).toFixed(2)} GW` : `${Math.round(v)} MW`);
@@ -178,7 +173,8 @@ function renderStory() {
     story = {
       energy: yearlyEnergy(data),
       hours: yearlyHoursBelow(data, FOSSIL, [500, 250, 100]),
-      spells: [0.1, 0.25, 0.5].map((gw) => summarise(metricSeries(data, FOSSIL).subarray(0, end), gw, 'below', { startMs: data.startMs, maxGap: 2 }).record),
+      figs: storyFigures(data, end),
+      storage: storageFigures(data, end, lakeInputs),
     };
     story.needs = needs(story.energy, metricSeries(data, FOSSIL), end);
     if (lakeInputs) {
@@ -189,122 +185,20 @@ function renderStory() {
       story.needs.mixes = mixFrontier(lakeInputs, fleet, A.limits);
     }
   }
-  const at = (i) => fmtDate(slotTime(i, data.startMs));
-  const spellText = (r) => (r ? formatDuration(r.end - r.start) : 'Never');
-  const from = (r) => (r ? `from ${at(r.start)}` : 'not yet');
-  const [r100, r250, r500] = story.spells;
-  const en = story.energy;
-  const past = en.at(-1);
-  const best = en.filter((r) => r.year !== 'past365').reduce((a, b) => (b.renewablePct > a.renewablePct ? b : a));
-  const worst = en.filter((r) => r.year !== 'past365' && r.year >= 2010).reduce((a, b) => (b.fossil > a.fossil ? b : a));
-  $('facts').innerHTML = factsHtml(spellText(r100), `with gas, coal and diesel together under 100 MW, ${from(r100)}. The longest New Zealand has run on almost no fossil fuel.`, [
-    ['--fossil', 'Under 250 MW of fossil fuel', spellText(r250), from(r250)],
-    ['--fossil', 'Under 500 MW of fossil fuel', spellText(r500), from(r500)],
-    ['--lowcarbon', 'Renewable share', `${past.renewablePct.toFixed(1)}%`, 'over the latest 365 days of data'],
-    ['--lowcarbon', 'Best calendar year', `${best.renewablePct.toFixed(1)}%`, `renewable, in ${best.year}`],
-    ['--f-coal', 'Most fossil since 2010', `${worst.fossil.toFixed(1)} TWh`, `in ${worst.year}`],
-  ]);
-
-  const yearLabel = (y) => (y === 'past365' ? '365d' : String(y));
-  const yearTitle = (y) => (y === 'past365' ? 'Latest 365 days' : String(y));
-  const pc = (v) => `${v.toFixed(v < 10 ? 1 : 0)}%`;
-  // Stack order, fossil at the bottom.
-  const MIX = ['coal', 'gas', 'diesel', 'other', 'bioenergy', 'geothermal', 'hydro', 'wind', 'solar'];
-  const stacks = MIX.map((k) => ({ name: FUELS[k].label, color: css(FUELS[k].color), values: en.map((r) => (r.twh[k] / r.total) * 100) }));
-  barChart($('story-mix'), {
-    cats: en.map((r) => yearLabel(r.year)),
-    stacks,
-    yMax: 100,
-    yFormat: pc,
-    yTickFormat: (v) => `${v}%`,
-    highlight: (ci) => en[ci].year === 'past365',
-    tooltip: (ci) => `<strong>${yearTitle(en[ci].year)}</strong><div>Renewable: <b>${pc(en[ci].renewablePct)}</b></div>${[...stacks].reverse().filter((s) => s.values[ci] >= 0.05).map((s) => `<div><i style="background:${s.color}"></i>${s.name}: <b>${pc(s.values[ci])}</b></div>`).join('')}`,
-  });
-  $('story-mix-legend').innerHTML = [...stacks].reverse().map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
-  $('mix-take').textContent = `Renewables made ${pc(en[0].renewablePct)} of grid power in ${en[0].year} and ${pc(past.renewablePct)} over the latest year of data.`;
-
-  // Dry years: fossil TWh as bars, hydro TWh in the tooltip and as a marker line.
-  const years = en.filter((r) => r.year !== 'past365');
-  const twh = (v) => `${v.toFixed(1)} TWh`;
-  const fossilStacks = ['coal', 'gas', 'diesel'].map((k) => ({ name: FUELS[k].label, color: css(FUELS[k].color), values: years.map((r) => r.twh[k]) }));
-  const meanHydro = years.reduce((s, r) => s + r.twh.hydro, 0) / years.length;
-  barChart($('story-dry'), {
-    cats: years.map((r) => String(r.year)),
-    stacks: fossilStacks,
-    yFormat: twh,
-    yTickFormat: (v) => `${v}`,
-    highlight: (ci) => years[ci].twh.hydro < meanHydro - 1,
-    badge: (ci) => (years[ci].twh.hydro < meanHydro - 1 ? 'dry' : null),
-    tooltip: (ci) => `<strong>${years[ci].year}</strong><div>Hydro: <b>${twh(years[ci].twh.hydro)}</b> (${years[ci].twh.hydro >= meanHydro ? '+' : ''}${(years[ci].twh.hydro - meanHydro).toFixed(1)} on average)</div>${[...fossilStacks].reverse().map((s) => `<div><i style="background:${s.color}"></i>${s.name}: <b>${twh(s.values[ci])}</b></div>`).join('')}<div>Renewable: <b>${pc(years[ci].renewablePct)}</b></div>`,
-  });
-  $('story-dry-legend').innerHTML = `${[...fossilStacks].reverse().map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('')}<span>Outlined: hydro at least 1 TWh below its ${years[0].year} to ${years.at(-1).year} average of ${twh(meanHydro)}</span>`;
-
-  const hrs = story.hours;
-  const hourStacks = [
-    { name: 'Under 100 MW', color: css('--h7'), values: hrs.map((r) => r.hours[2]) },
-    { name: '100 to 250 MW', color: css('--lowcarbon'), values: hrs.map((r) => r.hours[1] - r.hours[2]) },
-    { name: '250 to 500 MW', color: css('--h2'), values: hrs.map((r) => r.hours[0] - r.hours[1]) },
-  ];
-  const fmtH = (v) => `${nzNum(Math.round(v))} h`;
-  barChart($('story-hours'), {
-    cats: hrs.map((r) => yearLabel(r.year)),
-    stacks: hourStacks,
-    yFormat: fmtH,
-    yTickFormat: (v) => nzNum(v),
-    highlight: (ci) => hrs[ci].year === 'past365',
-    tooltip: (ci) => `<strong>${yearTitle(hrs[ci].year)}</strong><div>Under 500 MW: <b>${fmtH(hrs[ci].hours[0])}</b> (${((hrs[ci].hours[0] / 8760) * 100).toFixed(0)}% of the year)</div><div>Under 250 MW: <b>${fmtH(hrs[ci].hours[1])}</b></div><div>Under 100 MW: <b>${fmtH(hrs[ci].hours[2])}</b></div>`,
-  });
-  $('story-hours-legend').innerHTML = hourStacks.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
-
+  // The answer, the facts and chapters 1 to 4 and 7 are drawn by story.js;
+  // the cost chapters, 5 and 6, stay here with the firming and lake models.
+  // The cheapest renewable build against keeping fossil backup, with no
+  // carbon price, so the answer doesn't rest on one.
+  const now = projection(story.needs, { carbon: 0, surplusValue: 0 }).rows[0];
+  const cheapest = { cost: Math.min(...Object.values(now.renewables).map((x) => x.cost)), keep: now.keep };
+  drawStory(data, end, story.figs, { energy: story.energy, hours: story.hours, storage: story.storage, needs: story.needs, cheapest });
   renderBatteryStory();
   renderFirming();
   renderLakes();
-  renderAnswer();
-}
-
-// The page's answer first, then the three reasons for it, each linking to the
-// chapter with the evidence. Always worked out with no carbon price, so the
-// case doesn't rest on one.
-function renderAnswer() {
-  const n = story.needs;
-  const past = story.energy.at(-1);
-  const plain = { carbon: 0, surplusValue: 0 };
-  const cheapest = (r) => Math.min(...Object.values(r.renewables).map((x) => x.cost));
-  const { rows } = projection(n, plain);
-  // NZ$m a year over the grid's TWh a year is $/MWh; a tenth of that is c/kWh.
-  const centsMore = (r) => (cheapest(r) - r.keep) / past.total / 10;
-  const [now, later] = [rows[0], rows.at(-1)];
-  const imported = projection(n, { ...plain, gasPrice: A.importedGasPerGj });
-  const c = (v) => `${v.toFixed(v < 0.1 ? 2 : 1)}c`;
-  const premium = centsMore(now) > 0
-    ? `covering even the driest year on record without fossil fuel would add about ${c(centsMore(now))} a unit to power prices today${centsMore(later) > 0 ? `, and ${c(centsMore(later))} by ${later.year}` : `, and save money by ${rows.find((r) => centsMore(r) <= 0).year}`}`
-    : 'covering even the driest year on record without fossil fuel already costs less than keeping it';
-  $('answer-lead').textContent = `New Zealand's grid is ${past.renewablePct.toFixed(0)}% renewable, and finishing the job doesn't need a carbon tax. New wind and solar already cost less than the gas they would replace, and ${premium}. If gas has to be imported, going all the way is the cheaper choice.`;
-
-  const r = now.renewables;
-  const gasNow = now.keepPerMwh.gas;
-  const gasImported = fuelCost({ ...A.gas, pricePerGj: A.importedGasPerGj }, 0);
-  const cross = Object.entries(imported.crossover).filter(([, y]) => y).sort((x, y) => x[1] - y[1]);
-  const crossText = cross.map(([k, y]) => `${k === 'mix' ? 'the cheapest mix of geothermal, solar and batteries' : `${A.tech[k].label.toLowerCase()}${k === 'geothermal' ? '' : ' with batteries'}`} ${y === now.year ? 'is already cheaper' : `from ${y}`}`);
-  const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}` : xs[0]);
-  const record = story.spells[0];
-  const link = (ch, text, gas) => `<a href="#${ch}" data-open="${ch}"${gas ? ` data-gas-price="${gas}"` : ''}>${text}</a>`;
-  $('answer-points').innerHTML = [
-    `<b>Home-grown power is the cheapest new power.</b> New wind costs about ${nzd(r.wind.lcoe)} and new solar about ${nzd(r.solar.lcoe)} per MWh to build and run. Gas costs ${nzd(gasNow)} per MWh in fuel alone at today's domestic price, before paying for the power station. ${link('chapter-5', 'The costs')}`,
-    `<b>The only hard part is a dry year.</b> The grid has run ${record ? formatDuration(record.end - record.start) : 'for days'} on almost no fossil fuel. But a year as dry as ${n.driest.year} would still need ${n.driest.fossil.toFixed(1)} TWh of coal and gas, and that is what the last few percent has to replace. ${link('chapter-2', 'Dry years')}`,
-    ...(story.lakes ? [lakesPoint(link)] : []),
-    `<b>Imported gas would be the expensive choice.</b> New Zealand's own gas is running down, and the Government plans to import LNG. At about NZ$${A.importedGasPerGj}/GJ, gas costs ${nzd(gasImported)} per MWh in fuel and keeping fossil backup costs ${nzd(imported.rows[0].keep)}m a year, against ${nzd(now.keep)}m today. ${cross.length ? `At that price, ${list(crossText)}.` : ''} Wind, water, sun and steam are priced at home; imported gas is priced on the world market. ${link('chapter-5', 'With imported gas', A.importedGasPerGj)}`,
-  ].map((x) => `<li>${x}</li>`).join('');
 }
 
 const link6 = (text) => `<a href="#chapter-6" data-open="chapter-6">${text}</a>`;
 const pctLess = (v) => `${Math.round((1 - v) * 100)}%`;
-
-// One line of the In short card: what each source is really worth in a dry year.
-function lakesPoint(link) {
-  const { sizes } = story.lakes;
-  return `<b>Solar can do it, but wind and geothermal do more per unit.</b> Replaying every day from 1980 to 2024 through the hydro lakes, the grid needs about ${sizes.wind.gw.toFixed(1)} GW of new wind, ${sizes.solar.gw.toFixed(1)} GW of solar or ${sizes.geothermal.gw.toFixed(1)} GW of geothermal to never run them dry. Each MWh of solar counts for about ${pctLess(sizes.solar.value / sizes.wind.value)} less than a MWh of wind, because the sun is weakest in winter. ${link('chapter-6', 'Solar on the lakes')}`;
-}
 
 const techLabel = (k) => (k === 'mix' ? 'The cheapest mix' : A.tech[k].label);
 const gwText = (v) => `${v.toFixed(v < 1 ? 2 : 1)} GW`;

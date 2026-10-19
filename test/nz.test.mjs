@@ -183,3 +183,71 @@ test('new hydro adds water in step with the existing inflows, and the cheapest m
   assert.ok(Math.abs(buildCost(need, 2025, { solar: 1 }).batteryGw - (1.2 - ASSUMPTIONS.committedBatteryGw)) < 1e-9);
   assert.ok(Math.abs(buildCost(need, 2025, { geothermal: 0.5 }).batteryGw - (1.2 - ASSUMPTIONS.committedBatteryGw - 0.5 * ASSUMPTIONS.peakCredit.geothermal)) < 1e-9);
 });
+
+test('NZ story: the floor, the evening, the batteries and the lakes', async () => {
+  const { storyFigures, storageFigures, FLOOR, BATTERIES, THERMAL_COST } = await import('../site/js/nz/story.js');
+  // Two whole NZ years from New Year 2024 (UTC+13) plus a month, half hourly.
+  const startMs = Date.UTC(2024, 0, 1) - 13 * 3600000;
+  const length = (366 + 365 + 31) * 48;
+  const cols = ['hydro', 'geothermal', 'wind', 'solar', 'bioenergy', 'gas', 'coal', 'diesel', 'battery'];
+  const columns = Object.fromEntries(cols.map((c) => [c, new Float64Array(length)]));
+  const hourOf = new Intl.DateTimeFormat('en', { timeZone: 'Pacific/Auckland', hour: 'numeric', hourCycle: 'h23' });
+  const in2025 = (i) => startMs + i * 1800000 >= Date.UTC(2025, 0, 1) - 13 * 3600000;
+  for (let i = 0; i < length; i++) {
+    const hour = Number(hourOf.format(new Date(startMs + i * 1800000)));
+    const evening = hour >= 17 && hour < 21;
+    // 2024: 400 MW of gas all day and 200 MW of coal on top in the evening.
+    // 2025: 100 MW of gas, nothing else.
+    columns.gas[i] = in2025(i) ? 100 : 400;
+    columns.coal[i] = !in2025(i) && evening ? 200 : 0;
+    columns.hydro[i] = 3000;
+    columns.wind[i] = hour === 12 ? 900 : 300;
+  }
+  const f = storyFigures({ startMs, length, stepMinutes: 30, columns }, length);
+  const y24 = f.rows.find((r) => r.year === 2024);
+  const y25 = f.rows.find((r) => r.year === 2025);
+  assert.deepEqual(f.rows.map((r) => r.year), [2024, 2025, 'past365']);
+  assert.ok(Math.abs(y24.night - 0.4) < 1e-9 && Math.abs(y24.evening - 0.6) < 1e-9);
+  assert.ok(Math.abs(y24.gasTwh - 0.4 * 24 * 366 / 1000) < 1e-6);
+  assert.ok(Math.abs(y24.coalTwh - 0.2 * 4 * 366 / 1000) < 1e-6);
+  // The evening coal is the only fossil fuel above each day's minimum.
+  assert.ok(Math.abs(y24.aboveDayMin - y24.coalTwh) < 1e-6);
+  assert.ok(Math.abs(y24.fosHour[18] - 0.6) < 1e-9 && Math.abs(y24.fosHour[3] - 0.4) < 1e-9);
+  assert.ok(Math.abs(y24.fosMin - 0.4) < 1e-9);
+  // A 2024 day is 0.3 GW above the floor all day and 0.5 GW for four hours: 8 GWh,
+  // peak 0.5 GW. The median day, since the clock-change days are an hour short or long.
+  const mid = y24.days[Math.floor(y24.days.length / 2)];
+  assert.ok(Math.abs(mid.gwh - ((0.4 - FLOOR) * 24 + 0.2 * 4)) < 1e-9);
+  assert.ok(Math.abs(mid.peak - 0.5) < 1e-9);
+  // 2 GW and 8 GWh just covers a normal day; the 25-hour clock-change day needs more.
+  assert.deepEqual(y24.batteries.slice(0, 3).map((b) => b.days), [0, 0, 0]);
+  assert.ok(y24.batteries[3].days >= 364);
+  assert.equal(y24.fossilDays, 366);
+  // 2025 sits on the floor: nothing above it, so even the smallest fleet covers every day.
+  assert.ok(Math.abs(y25.aboveDayMin) < 1e-9);
+  assert.deepEqual(y25.batteries.map((b) => b.days), BATTERIES.map(() => 365));
+  assert.equal(y25.fossilDays, 0);
+  // May to August is 123 of 365 days of a flat year.
+  assert.ok(Math.abs(y25.winterShare - 123 / 365) < 1e-9);
+  // Coal is off from the last 2024 evening onward: a spell longer than a year,
+  // three hours longer than the fossil-under-250 MW spell that starts at New Year.
+  assert.ok(f.coalSpell.end - f.coalSpell.start > 365 * 48);
+  assert.equal((f.coalSpell.end - f.coalSpell.start) - (f.spells[0.25].end - f.spells[0.25].start), 6);
+  assert.ok(Math.abs(f.peaks.wind.gw - 0.9) < 1e-9);
+  assert.equal(f.peaks.battery, null);
+
+  // The lakes: 2024 held 1,000 GWh, 2025 held 4,000 GWh.
+  const days = 366 + 365;
+  const lakes = { first: '2024-01-01', days, storage: Array.from({ length: days }, (_, k) => (k < 366 ? 1000 : 4000)) };
+  const s = storageFigures({ startMs, length, stepMinutes: 30, columns }, length, lakes, 2024);
+  assert.equal(s.from, 2024);
+  assert.equal(s.to, 2025);
+  assert.ok(Math.abs(s.bands[0].fossil - (0.4 + 0.2 * 4 / 24)) < 1e-9);
+  assert.equal(s.bands[1].hours, 0);
+  assert.ok(Math.abs(s.bands[3].fossil - 0.1) < 1e-9);
+  assert.equal(s.bands[3].hours, 365 * 24);
+  assert.equal(storageFigures({ startMs, length, stepMinutes: 30, columns }, length, null), null);
+  // Fuel and carbon: gas at $14/GJ, 7.5 GJ/MWh, 0.0531 t/GJ and $39.25/t, plus $5.
+  assert.ok(Math.abs(THERMAL_COST.gas - (7.5 * (14 + 0.0531 * 39.25) + 5)) < 1e-9);
+  assert.ok(THERMAL_COST.coalFloor > THERMAL_COST.coal && THERMAL_COST.lng > THERMAL_COST.gas);
+});
