@@ -80,6 +80,19 @@ jobs:
         with:
           path: .cache-au
           key: au-${{ github.run_id }}
+      # Poland, likewise.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-pl
+          key: pl-${{ github.run_id }}
+          restore-keys: pl-
+      - run: node pipeline/build-pl.mjs --budget-minutes 3
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-pl
+          key: pl-${{ github.run_id }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

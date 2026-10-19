@@ -41,8 +41,12 @@ export function isStale(entry, year, nowMs) {
   return false;
 }
 
-/** Lays cached years onto one 15-minute grid, trimming trailing slots with no data at all. */
-export function mergeYears(entries) {
+/**
+ * Lays cached years onto one 15-minute grid, trimming trailing slots with no
+ * data at all. Poland (pipeline/build-pl.mjs) shares it: same source, same
+ * time zone.
+ */
+export function mergeYears(entries, columns = DE_COLUMNS) {
   const present = entries.filter((e) => e && e.length);
   if (!present.length) return null;
   // Energy-Charts starts at midnight UTC on 1 January 2015, an hour after New
@@ -51,11 +55,11 @@ export function mergeYears(entries) {
   const first = Math.min(...present.map((e) => e.startMs));
   const newYear = Date.UTC(new Date(first).getUTCFullYear(), 0, 1) - 3600000;
   const pad = first - newYear > 0 && first - newYear <= 3600000 ? [{ startMs: newYear, length: 1, columns: {} }] : [];
-  const merged = stitch([...pad, ...present], { stepMinutes: STEP_MINUTES, columns: DE_COLUMNS });
+  const merged = stitch([...pad, ...present], { stepMinutes: STEP_MINUTES, columns });
   if (!merged) return null;
   let end = merged.length;
-  while (end > 0 && DE_COLUMNS.every((c) => Number.isNaN(merged.columns[c][end - 1]))) end--;
-  for (const c of DE_COLUMNS) merged.columns[c] = merged.columns[c].subarray(0, end);
+  while (end > 0 && columns.every((c) => Number.isNaN(merged.columns[c][end - 1]))) end--;
+  for (const c of columns) merged.columns[c] = merged.columns[c].subarray(0, end);
   return { ...merged, length: end };
 }
 
