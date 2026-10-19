@@ -97,7 +97,7 @@ export default {
 1. `setTimeZone(country.timeZone)`; `const records = createRecordsTool({ host: $('records'), country })` after `startAnalytics()`.
 2. `const data = await loadData(country.dataPath)`; `records.setData(data, { end: dataEnd(data, country) })`.
 3. The story: country-specific chapters in `site/js/<cc>/`, answer first (Alex's pyramid style). This is the part that should differ per country.
-4. Add the flag to `site/flags/` and the country to the switch on every page.
+4. Add the flag to `site/flags/` and one entry to `site/js/countries/index.js` (its page, data path, flag, and `nav` if the switch label should differ from the config's name), then run `npm run nav`. That stamps the country switch onto every page, this one included, so never edit a page's `<nav class="region-nav">` by hand: `pipeline/nav.mjs` rewrites it from the list, `test/nav.test.mjs` fails while any page is out of date, and the deploy stamps it again before building. The switch stays plain HTML, so it shows with no layout shift and without scripts.
 
 ## 5. Live data
 
