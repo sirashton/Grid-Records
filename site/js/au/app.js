@@ -6,7 +6,7 @@ import au, { AREAS } from '../countries/au.js';
 import { loadData, dataEnd, metricSeries, generationTotal, fuelsWhere, windowPoints as corePoints } from '../core/dataset.js';
 import { createRecordsTool } from '../core/records-tool.js';
 import { recentRecords } from '../recent.js';
-import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
+import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, setupNowWindows, windowSlots, agoText, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
 import { startAnalytics } from '../analytics.js';
 import { renderStory as drawStory } from './story.js';
 
@@ -91,21 +91,15 @@ function factsHtml(big, sub, rest) {
     <ul class="fact-list">${rest.map(([c, label, v, when]) => `<li><span class="swatch" style="background:var(${c})"></span><span><b>${label}</b> <span class="v">${v}</span> <span class="sub">${when}</span></span></li>`).join('')}</ul>`;
 }
 
-// The latest data panel, the same as the GB page's Right now panel. The data
-// arrives a few weeks late, so there is no live view: each time frame ends at
-// the latest half hour of data.
+// The Right now panel, as on the GB page. AEMO's rolling reports keep the
+// data within the hour, so Live is the latest half hour.
 const fuel = (k) => ({ label: FUELS[k].label, cols: [k], color: FUELS[k].color });
 const NOW_GROUPS = [
   { label: 'Renewables', color: '--lowcarbon', fuels: ['wind', 'solar_utility', 'solar_rooftop', 'hydro', 'biomass'].map(fuel) },
   { label: 'Fossil fuels', color: '--fossil', fuels: ['coal', 'lignite', 'gas', 'oil'].map(fuel) },
 ];
-const NOW_WINDOWS = {
-  day: { slots: 48, span: 'Latest 24 hours', sub: '24h average' },
-  week: { slots: 48 * 7, span: 'Latest 7 days', sub: '7d average' },
-  month: { slots: 48 * 30, span: 'Latest 30 days', sub: '30d average' },
-  year: { slots: 48 * 365, span: 'Latest 365 days', sub: '365d average' },
-};
-let nowWindow = 'day';
+let NOW_WINDOWS;
+let nowWindow;
 const INFO = {
   Renewables: 'Wind, solar farms, rooftop solar, hydro and bioenergy.',
   Wind: 'Wind farms, most of them in Victoria, South Australia and New South Wales.',
@@ -186,9 +180,10 @@ function drawFigures(figs) {
 function renderNow(animate = false) {
   const i = end - 1;
   const win = NOW_WINDOWS[nowWindow];
-  const figs = groupFigures(NOW_GROUPS, data.columns, i, win.slots);
-  const dis = windowFigures((k) => data.columns.battery[k], i, win.slots);
-  const chg = windowFigures((k) => -data.columns.battery_charge[k], i, win.slots);
+  const slots = windowSlots(win, 30);
+  const figs = groupFigures(NOW_GROUPS, data.columns, i, slots);
+  const dis = windowFigures((k) => data.columns.battery[k], i, slots);
+  const chg = windowFigures((k) => -data.columns.battery_charge[k], i, slots);
   figs.bat = { dis: dis.value, chg: chg.value, disSeries: dis.series, chgSeries: chg.series };
   nowFigures = hoverFigures(figs, win.sub, win.span);
   if (!nowRecords) {
@@ -230,7 +225,8 @@ async function loadArea() {
   nowRecords = null;
   story = null;
   const pending = data.meta.months?.toFetch ? ` ${data.meta.months.toFetch} more months are still being fetched.` : '';
-  $('updated').textContent = `${where === 'the whole NEM' ? 'The whole NEM' : where}: data from ${fmtDate(data.startMs)} to ${fmtDateTime(slotTime(end - 1, data.startMs))}, NEM time (AEST). AEMO publishes each month a few weeks after it ends.${pending}`;
+  const latest = slotTime(end, data.startMs);
+  $('updated').textContent = `${where === 'the whole NEM' ? 'The whole NEM' : where}: data from ${fmtDate(data.startMs)} to ${fmtDateTime(latest)} NEM time (AEST), ${agoText(latest)}. Updated every 30 minutes from AEMO's 5-minute reports.${pending}`;
   renderNow();
   renderStory();
   records.setData(data, { end });
@@ -241,13 +237,12 @@ async function main() {
   startAnalytics();
   readArea();
   setupControls();
-  renderNowPlaceholder();
-  setupNowHover(() => nowFigures);
-  document.querySelectorAll('[data-now-window]').forEach((b) => b.addEventListener('click', () => {
-    nowWindow = b.dataset.nowWindow;
-    document.querySelectorAll('[data-now-window]').forEach((x) => x.setAttribute('aria-checked', x === b));
+  ({ windows: NOW_WINDOWS, first: nowWindow } = setupNowWindows(au, (key) => {
+    nowWindow = key;
     if (data) renderNow(true);
   }));
+  renderNowPlaceholder();
+  setupNowHover(() => nowFigures);
   await loadArea();
 }
 

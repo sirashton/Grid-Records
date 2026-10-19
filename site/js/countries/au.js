@@ -13,8 +13,8 @@ export default {
   // NEM time: AEST all year.
   timeZone: 'Australia/Brisbane',
   dataPath: '../data/au/nem',
-  // Each month arrives a few weeks after it ends.
-  live: false,
+  // AEMO's 5-minute reports fill in the weeks since the last monthly archive.
+  live: true,
   endColumn: 'coal',
   smallInMw: true,
   fuels: {

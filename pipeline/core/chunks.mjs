@@ -17,7 +17,7 @@ export async function runQueue(items, fn, { concurrency = 4, deadline = Infinity
         await fn(item);
         done++;
       } catch (err) {
-        log(`${item}: failed: ${err.message}`);
+        log(`${item?.name ?? item}: failed: ${err.message}`);
       }
     }
   };
