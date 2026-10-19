@@ -4,10 +4,20 @@ permissions: { contents: write }
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - run: bash -x probe.sh
-        working-directory: ${{ github.workspace }}
-        shell: bash
-        env: { GH_TOKEN: "${{ github.token }}" }
+        with: { ref: claude/project-thread-8she63 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/cache/restore@v4
+        with: { path: .cache-au, key: "au-${{ github.run_id }}", restore-keys: au- }
+      - run: node pipeline/build-au.mjs --budget-minutes 40 --concurrency 4 2>&1 | tee au.log
+      - uses: actions/cache/save@v4
+        if: always()
+        with: { path: .cache-au, key: "au-${{ github.run_id }}" }
+      - if: always()
+        run: |
+          mkdir -p /tmp/out && cp -r site/data/au /tmp/out/ 2>/dev/null; cp au.log /tmp/out/; cd /tmp/out
+          git init -q -b probe-au-out && git add -A && git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm data
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" probe-au-out
