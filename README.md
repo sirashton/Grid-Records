@@ -25,6 +25,14 @@ every grid-connected plant, since August 1997) and writes `site/data/nz/`. Parse
 The page's last chapter (`site/js/nz/firming.js`) estimates when a 100% renewable grid costs less than keeping fossil backup
 for dry years.
 
+## Adding a country
+
+Every country page shares one framework. A pipeline adapter (`pipeline/build-<cc>.mjs`) writes the country's data in one
+format with `pipeline/core/dataset.mjs`, at the source's own time step (5 to 60 minutes). A config in
+`site/js/countries/<cc>.js` names its fuels, groups and time zone. The record engine (`site/js/records.js`), the series and
+yearly figures (`site/js/core/dataset.js`) and the whole Records card (`site/js/core/records-tool.js`) are shared, so each
+page only adds its own story. `test/framework.test.mjs` shows a 15-minute country end to end. The full guide is [docs/adding-a-country.md](docs/adding-a-country.md).
+
 ## Data sources
 
 | Source | Used for | Delay |

@@ -25,7 +25,8 @@
   --f-nuclear: #b48cf2; --f-hydro: #3b7dd8; --f-wind: #3ec1d3; --f-solar: #ffc93c;
   --f-hydro-2: #7fb3ec;
   --f-geo: #c7604a; --f-diesel: #8b6f5c; --f-battery: #7a5bd6;
-  --f-brown: #8a5a3c; --f-rooftop: #ffe39a;
+  --f-rooftop: #ffe39a;
+  --f-lignite: #8a5a3c; --f-wind-off: #1f8fa8;
   --fossil: #ef7d3c;
   --fossil-ink: #b8460f; --lowcarbon: #2fb56b;
 }

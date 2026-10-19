@@ -1,9 +1,9 @@
-// The New Zealand page: the latest data, the records tool and the story.
-// The records tool works as on the GB page, on NZ's fuels and thresholds.
-import { loadData } from '../data.js';
-import { summarise, formatDuration, slotTime, STEP_MINUTES, meets } from '../records.js';
-import { lineChart, heatmap, barChart, niceTicks, fmtDate, fmtDateTime, setTimeZone } from '../charts.js';
-import { envelopes, windowEnvelopes } from '../envelope.js';
+// The New Zealand page: the latest data, the shared Records card and the story.
+import { summarise, formatDuration, slotTime } from '../records.js';
+import { lineChart, barChart, fmtDate, fmtDateTime, setTimeZone } from '../charts.js';
+import nz from '../countries/nz.js';
+import { loadData, dataEnd, windowPoints as corePoints } from '../core/dataset.js';
+import { createRecordsTool } from '../core/records-tool.js';
 import { FUELS, FOSSIL, RENEWABLE, metricSeries, generationTotal, yearlyEnergy, yearlyHoursBelow, dailyEnergy } from './data.js';
 import { LAKE, fleetFromDays, simulate, lakeSizes, minimumBuild, dryYearWeather, solarSeason } from './lakes.js';
 import { recentRecords } from '../recent.js';
@@ -11,138 +11,20 @@ import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, liveFavicon
 import { startAnalytics } from '../analytics.js';
 import { ASSUMPTIONS as A, needs, projection, yearCosts, fuelCost, crf, SOURCES } from './firming.js';
 
-setTimeZone('Pacific/Auckland');
+setTimeZone(nz.timeZone);
 
-const PRESETS = {
-  fossil: { label: 'Fossil fuels', members: FOSSIL, mode: 'below', gw: [1, 0.5, 0.25, 0.1, 0.05, 0.02, 0], pct: [20, 10, 5, 2, 1, 0.5, 0] },
-  renewables: { label: 'Renewables', members: RENEWABLE, mode: 'above', gw: [3, 4, 5, 6], pct: [80, 90, 95, 98, 99, 99.5], editable: true },
-  gas: { label: 'Gas', members: ['gas'], mode: 'below', gw: [1, 0.5, 0.2, 0.1, 0.05, 0], pct: [20, 10, 5, 2, 1, 0] },
-  coal: { label: 'Coal', members: ['coal'], mode: 'below', gw: [0.5, 0.25, 0.1, 0], pct: [10, 5, 2, 0] },
-  hydro: { label: 'Hydro', members: ['hydro'], mode: 'below', gw: [3, 2.5, 2, 1.5], pct: [60, 50, 40, 30] },
-  geothermal: { label: 'Geothermal', members: ['geothermal'], mode: 'above', gw: [0.6, 0.8, 1, 1.2], pct: [15, 20, 25, 30] },
-  wind: { label: 'Wind', members: ['wind'], mode: 'above', gw: [0.25, 0.5, 0.75, 1], pct: [5, 10, 15, 20] },
-  solar: { label: 'Solar', members: ['solar'], mode: 'above', gw: [0.05, 0.1, 0.2, 0.3], pct: [1, 2, 5, 10] },
-  battery: { label: 'Battery discharge', members: ['battery'], mode: 'above', gw: [0.05, 0.1, 0.2, 0.3], pct: [1, 2, 5] },
-  custom: { label: 'Custom group…', members: ['wind', 'solar', 'geothermal'], mode: 'above', gw: [1, 1.5, 2], pct: [20, 30, 40], editable: true },
-};
-
-const RAMP = ['--r1', '--r2', '--r3', '--r4', '--r5', '--r6', '--r7', '--r8'];
-const MAX_THRESHOLDS = RAMP.length;
-const SPELL_BANDS = [
-  { max: 6, label: 'Under 3 hours', color: '#ffec8f' },
-  { max: 24, label: '3 to 12 hours', color: '#ffc94a' },
-  { max: 48, label: '12 hours to a day', color: '#b9de6e' },
-  { max: 144, label: '1 to 3 days', color: '#64c587' },
-  { max: 336, label: '3 days to a week', color: '#25ad9f' },
-  { max: 1440, label: '1 week to a month', color: '#2a90c8' },
-  { max: 4380, label: '1 to 3 months', color: '#3a68d0' },
-  { max: 8760, label: '3 to 6 months', color: '#5b48bd' },
-  { max: Infinity, label: 'Over 6 months', color: '#3b2380' },
-];
-const bandFor = (slots) => SPELL_BANDS.find((b) => slots < b.max);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const $ = (id) => document.getElementById(id);
 const nzNum = (v) => v.toLocaleString('en-NZ');
 
-const state = { preset: 'fossil', mode: 'below', unit: 'gw', thresholds: PRESETS.fossil.gw, members: PRESETS.fossil.members, range: 'all', membersOpen: false, scale: 'linear' };
 let data;
+let records;
 let lakeInputs = null; // site/nz/lakes.json, or null if it didn't load
 let end; // one past the last slot with data
 
-function readHash() {
-  const p = new URLSearchParams(location.hash.slice(1));
-  if (PRESETS[p.get('m')]) state.preset = p.get('m');
-  const preset = PRESETS[state.preset];
-  state.mode = ['below', 'above'].includes(p.get('d')) ? p.get('d') : preset.mode;
-  state.unit = ['gw', 'pct'].includes(p.get('u')) ? p.get('u') : 'gw';
-  const t = parseThresholds(p.get('t') ?? '');
-  state.thresholds = t.length ? t : preset[state.unit];
-  const g = (p.get('g') ?? '').split(',').filter((m) => FUELS[m]);
-  state.members = preset.editable && g.length ? g : preset.members;
-  state.scale = p.get('s') === 'log' ? 'log' : 'linear';
-}
-
-function writeHash() {
-  const p = new URLSearchParams({ m: state.preset, d: state.mode, u: state.unit, t: state.thresholds.join(',') });
-  if (PRESETS[state.preset].editable) p.set('g', state.members.join(','));
-  if (state.scale === 'log') p.set('s', 'log');
-  history.replaceState(null, '', `#${p}`);
-}
-
-function parseThresholds(s) {
-  return [...new Set(s.split(/[\s,]+/).filter(Boolean).map(Number).filter((v) => Number.isFinite(v) && v >= 0))].slice(0, MAX_THRESHOLDS);
-}
-
-const fmtValue = (v) => (state.unit === 'gw' ? (v < 1 ? `${Math.round(v * 1000)} MW` : `${+v.toFixed(2)} GW`) : `${+v.toFixed(v < 1 ? 1 : 0)}%`);
-const fmtThreshold = (v) => (state.unit === 'gw' ? (v < 1 && v > 0 ? `${Math.round(v * 1000)} MW` : `${v} GW`) : `${v}%`);
-const thresholdLabel = (t) => (state.mode === 'below' ? (t === 0 ? 'Zero' : `< ${fmtThreshold(t)}`) : `≥ ${fmtThreshold(t)}`);
-
-function orderedThresholds() {
-  const t = [...state.thresholds].sort((a, b) => a - b);
-  return state.mode === 'below' ? t.reverse() : t;
-}
-const thresholdColor = (i, n) => css(RAMP[n <= 1 ? 3 : Math.round((i * (RAMP.length - 1)) / (n - 1))]);
+const windowPoints = (values, days) => corePoints(data, values, days, end);
 
 function setupControls() {
-  const preset = $('preset');
-  for (const [key, p] of Object.entries(PRESETS)) preset.add(new Option(p.label, key));
-  preset.addEventListener('change', () => {
-    state.preset = preset.value;
-    const p = PRESETS[state.preset];
-    state.mode = p.mode;
-    state.members = [...p.members];
-    state.thresholds = p[state.unit];
-    state.membersOpen = state.preset === 'custom';
-    update();
-  });
-  document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
-    if (state.mode === b.dataset.mode) return;
-    state.mode = b.dataset.mode;
-    update();
-  }));
-  document.querySelectorAll('[data-unit]').forEach((b) => b.addEventListener('click', () => {
-    if (state.unit === b.dataset.unit) return;
-    state.unit = b.dataset.unit;
-    state.thresholds = PRESETS[state.preset][state.unit];
-    update();
-  }));
-  $('thresholds').addEventListener('change', (e) => {
-    const t = parseThresholds(e.target.value);
-    if (t.length) state.thresholds = t;
-    update();
-  });
-  $('members-toggle').addEventListener('click', () => {
-    state.membersOpen = !state.membersOpen;
-    syncControls();
-  });
-  const members = $('members');
-  for (const [key, f] of Object.entries(FUELS)) {
-    const label = document.createElement('label');
-    label.className = 'chip';
-    label.innerHTML = `<input type="checkbox" value="${key}"> ${f.label}`;
-    members.appendChild(label);
-  }
-  members.addEventListener('change', () => {
-    const picked = [...members.querySelectorAll('input:checked')].map((i) => i.value);
-    if (picked.length) state.members = picked;
-    update();
-  });
-  document.querySelectorAll('[data-prog-scale]').forEach((b) => b.addEventListener('click', () => {
-    progScale = b.dataset.progScale;
-    document.querySelectorAll('[data-prog-scale]').forEach((x) => x.setAttribute('aria-checked', x === b));
-    if (lastSummaries) renderProgression(lastSummaries);
-  }));
-  document.querySelectorAll('[data-scale]').forEach((b) => b.addEventListener('click', () => {
-    state.scale = b.dataset.scale;
-    syncControls();
-    writeHash();
-    renderTimeline(currentSeries());
-  }));
-  document.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => {
-    state.range = b.dataset.range;
-    syncControls();
-    renderTimeline(currentSeries());
-  }));
   let resize;
   addEventListener('resize', () => {
     clearTimeout(resize);
@@ -172,228 +54,10 @@ function setupControls() {
   });
 }
 
-function syncControls() {
-  $('preset').value = state.preset;
-  document.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-checked', b.dataset.mode === state.mode));
-  document.querySelectorAll('[data-unit]').forEach((b) => b.setAttribute('aria-checked', b.dataset.unit === state.unit));
-  document.querySelectorAll('#range [data-range]').forEach((b) => b.setAttribute('aria-checked', b.dataset.range === state.range));
-  document.querySelectorAll('[data-scale]').forEach((b) => b.setAttribute('aria-checked', b.dataset.scale === state.scale));
-  $('thresholds').value = state.thresholds.join(', ');
-  const members = $('members');
-  const editable = !!PRESETS[state.preset].editable;
-  $('members-field').hidden = !editable;
-  members.hidden = !(editable && state.membersOpen);
-  const toggle = $('members-toggle');
-  toggle.setAttribute('aria-expanded', !members.hidden);
-  toggle.textContent = members.hidden ? `Edit (${state.members.length})` : 'Done';
-  members.querySelectorAll('input').forEach((i) => { i.checked = state.members.includes(i.value); });
-}
-
-let seriesCache = null;
-function currentSeries() {
-  const key = JSON.stringify([state.members, state.unit]);
-  if (seriesCache?.key !== key) seriesCache = { key, values: metricSeries(data, state.members, { unit: state.unit }).subarray(0, end) };
-  return seriesCache.values;
-}
-
-function groupName() {
-  if (!PRESETS[state.preset].editable) return PRESETS[state.preset].label.toLowerCase();
-  const names = state.members.map((m) => FUELS[m].label.toLowerCase());
-  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
-}
-
 function redrawAll() {
   if (!data) return;
   renderStory();
-  update();
-}
-
-function update() {
-  syncControls();
-  writeHash();
-  const values = currentSeries();
-  const summaries = orderedThresholds().map((t) => summarise(values, t, state.mode, { startMs: data.startMs, maxGap: 2 }));
-  renderQuestion();
-  renderTable(summaries);
-  renderProgression(summaries);
-  renderByYear(summaries);
-  renderTimeline(values);
-}
-
-function renderQuestion() {
-  const verb = state.mode === 'below' ? 'below' : 'at or above';
-  const what = state.unit === 'pct' ? `${groupName()} as a share of generation` : groupName();
-  $('question').textContent = `What is the longest the grid has run with ${what} ${verb} each threshold?`;
-}
-
-const pct = (a, b) => `${b ? ((a / b) * 100).toFixed(a / b < 0.01 ? 2 : 1) : 0}%`;
-
-function renderTable(summaries) {
-  const n = summaries.length;
-  const yearSlots = (365 * 24 * 60) / STEP_MINUTES;
-  const values = currentSeries();
-  const rows = summaries.map((s, i) => {
-    const r = s.record;
-    const c = s.current;
-    const ongoing = r && c && c.start === r.start;
-    const longest = r ? `<td class="big">${formatDuration(r.end - r.start)}<span class="when">${fmtDateTime(slotTime(r.start, data.startMs))} ${ongoing ? 'and still going' : `to ${fmtDateTime(slotTime(r.end, data.startMs))}`}</span></td>` : '<td>Never</td>';
-    // The data runs a few weeks behind, so a spell running at the end of it is "at the latest data", not live.
-    const cur = c ? `<td class="big">${formatDuration(c.end - c.start)}${ongoing ? '<span class="live record-live">Record</span>' : ''}<span class="when">since ${fmtDateTime(slotTime(c.start, data.startMs))}</span></td>` : '<td>—</td>';
-    let q = 0;
-    for (let k = Math.max(0, values.length - yearSlots); k < values.length; k++) if (!Number.isNaN(values[k]) && meets(values[k], s.threshold, state.mode)) q++;
-    return `<tr><td><span class="swatch" style="background:${thresholdColor(i, n)}"></span><b>${thresholdLabel(s.threshold).replace('<', '&lt;')}</b></td>${longest}${cur}
-      <td class="big">${pct(q, yearSlots)}</td><td>${nzNum(s.count)}</td></tr>`;
-  });
-  $('records-table').innerHTML = `<thead><tr><th>Threshold</th><th>Longest spell</th><th>At the latest data</th><th>Share of the latest 365 days</th><th>Spells</th></tr></thead><tbody>${rows.join('')}</tbody>`;
-}
-
-let progScale = 'log';
-let lastSummaries = null;
-
-function linearHourTicks(series) {
-  const max = Math.max(1, ...series.flatMap((s) => s.points.map((p) => p[1])));
-  const days = max > 72;
-  const ticks = niceTicks(0, days ? max / 24 : max);
-  const step = ticks[1] - ticks[0];
-  if (ticks[ticks.length - 1] < (days ? max / 24 : max)) ticks.push(Number((ticks[ticks.length - 1] + step).toPrecision(10)));
-  return days ? ticks.map((d) => d * 24) : ticks;
-}
-
-function renderProgression(summaries) {
-  lastSummaries = summaries;
-  const log = progScale === 'log';
-  const n = summaries.length;
-  const now = slotTime(end, data.startMs);
-  const series = summaries.map((s, i) => ({
-    name: thresholdLabel(s.threshold),
-    color: thresholdColor(i, n),
-    step: true,
-    extendTo: now,
-    points: s.progression.map((r) => [slotTime(r.end, data.startMs), ((r.end - r.start) * STEP_MINUTES) / 60]),
-    records: s.progression,
-  }));
-  series.forEach((s) => { s.markers = s.points; });
-  const linTicks = log ? null : linearHourTicks(series);
-  lineChart($('progression'), {
-    series,
-    yLog: log,
-    yMin: log ? 0.5 : 0,
-    xMin: data.startMs,
-    xMax: now,
-    stepLookup: true,
-    yFormat: (h) => formatDuration(Math.round((h * 60) / STEP_MINUTES)),
-    yTickFormat: log
-      ? (h) => (h >= 8760 ? `${+(h / 8760).toFixed(0)}y` : h >= 48 ? `${+(h / 24).toFixed(0)}d` : `${h}h`)
-      : (h) => (linTicks[linTicks.length - 1] > 72 ? `${+(h / 24).toFixed(1)}d` : `${h}h`),
-    yTicks: log ? [0.5, 1, 3, 6, 12, 24, 72, 168, 720, 2160, 8760, 17520, 43800] : linTicks,
-    yMax: log ? undefined : linTicks[linTicks.length - 1],
-    tooltip: (t, vals) => `<strong>Records as of ${fmtDate(t)}</strong>${vals.map((v) => {
-      const rec = v.point ? v.series.records[v.series.points.indexOf(v.point)] : null;
-      return `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${rec ? formatDuration(rec.end - rec.start) : 'none yet'}</b>${rec ? ` <span class="when">set ${fmtDate(slotTime(rec.start, data.startMs))}</span>` : ''}</div>`;
-    }).join('')}`,
-  });
-  $('progression-legend').innerHTML = series.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
-}
-
-// Columns for the per-year heatmap: each complete calendar year, then the past
-// 365 days in place of the unfinished one, as in the story charts.
-function yearColumns(lastSlot) {
-  const y0 = new Date(data.startMs).getUTCFullYear();
-  const y1 = new Date(slotTime(lastSlot, data.startMs)).getUTCFullYear();
-  const slotsIn = (y) => (Date.UTC(y + 1, 0, 1) - Date.UTC(y, 0, 1)) / (STEP_MINUTES * 60000);
-  const cols = [];
-  for (let y = y0; y < y1; y++) cols.push({ label: String(y), title: String(y), slots: slotsIn(y), pick: (s) => new Map(s.perYear).get(y) ?? null });
-  cols.push({ label: '365d', title: 'Past 365 days', slots: 365 * 48, pick: (s) => s.pastYear });
-  return cols;
-}
-
-function renderByYear(summaries) {
-  const cols = yearColumns(end - 1);
-  const values = summaries.map((s) => cols.map((c) => c.pick(s)));
-  const full = (sp, ci) => !!sp && sp.end - sp.start >= cols[ci].slots;
-  $('by-year-legend').innerHTML = SPELL_BANDS.map((b) => `<span><span class="swatch" style="background:${b.color}"></span>${b.label}</span>`).join('');
-  heatmap($('by-year'), {
-    rows: summaries.map((s) => thresholdLabel(s.threshold)),
-    cols: cols.map((c) => c.label),
-    values: values.map((r) => r.map((sp) => (sp ? sp.end - sp.start : null))),
-    color: (v) => bandFor(v).color,
-    mark: (ri, ci) => full(values[ri][ci], ci),
-    format: formatDuration,
-    title: (r, c, v) => {
-      const ci = cols.findIndex((col) => col.label === c);
-      const name = cols[ci].title;
-      const sp = values[summaries.findIndex((s) => thresholdLabel(s.threshold) === r)][ci];
-      return sp ? `<strong>${name}, ${r}</strong><div>Longest in ${ci === cols.length - 1 ? 'the past 365 days' : name}: <b>${full(sp, ci) ? 'the whole time ✓' : formatDuration(v)}</b></div><div>${fmtDateTime(slotTime(sp.start, data.startMs))} to ${fmtDateTime(slotTime(sp.end, data.startMs))}</div>`
-        : `<strong>${name}, ${r}</strong><div>No spells</div>`;
-    },
-  });
-}
-
-/** Daily means for long ranges, raw half hours for short ones. */
-function windowPoints(values, days) {
-  const start = days === 'all' ? 0 : Math.max(0, end - Number(days) * 48);
-  const pts = [];
-  if (days === 'all' || Number(days) > 60) {
-    for (let d = start - (start % 48); d < end; d += 48) {
-      let sum = 0;
-      let n = 0;
-      for (let i = d; i < Math.min(end, d + 48); i++) if (!Number.isNaN(values[i])) { sum += values[i]; n++; }
-      pts.push([slotTime(d, data.startMs), n ? sum / n : NaN]);
-    }
-  } else {
-    for (let i = start; i < end; i++) pts.push([slotTime(i, data.startMs), values[i]]);
-  }
-  return pts;
-}
-
-const ENVELOPE_POINTS = { 7: 48, 30: 144, 365: 14, all: 365 };
-const ENVELOPE_LABEL = { 7: '24-hour', 30: '3-day', 365: '14-day', all: '365-day' };
-let envelopeCache = null;
-
-function envelopeLayers(raw, env, name) {
-  const edge = (arr) => raw.map(([t], i) => [t, arr[i]]);
-  const [min, max, lo, hi] = ['min', 'max', 'lo', 'hi'].map((k) => edge(env[k]));
-  const color = css('--s2');
-  const ink = css('--fossil-ink');
-  return {
-    series: [
-      { name, color, points: raw, width: 1.2, opacity: 0.35 },
-      { name: '100% band, high', color: ink, points: max, width: 1, opacity: 0.55 },
-      { name: '99% band, high', color: ink, points: hi, width: 2 },
-      { name: '99% band, low', color: ink, points: lo, width: 2 },
-      { name: '100% band, low', color: ink, points: min, width: 1, opacity: 0.55 },
-    ],
-    bands: [
-      { lower: min, upper: max, color, opacity: 0.12 },
-      { lower: lo, upper: hi, color, opacity: 0.2 },
-    ],
-  };
-}
-
-function renderTimeline(values) {
-  const thresholds = orderedThresholds();
-  const daily = state.range === 'all' || Number(state.range) > 60;
-  const raw = windowPoints(values, state.range);
-  const key = `${seriesCache.key}|${state.range}`;
-  if (envelopeCache?.key !== key) {
-    const w = ENVELOPE_POINTS[state.range] ?? 48;
-    envelopeCache = { key, ...(daily
-      ? windowEnvelopes(values, raw.map(([t]) => Math.round((t - data.startMs) / 1800000) + 24), Math.floor((w * 48) / 2))
-      : envelopes(raw.map(([, v]) => v), w)) };
-  }
-  const span = ENVELOPE_LABEL[state.range] ?? '24-hour';
-  $('timeline-note').textContent = `Over each rolling ${span} window, the light band spans every half-hour value and the darker band the middle 99%, leaving out the rarest spikes.`;
-  lineChart($('timeline'), {
-    ...envelopeLayers(raw, envelopeCache, `${groupName()}${daily ? ' (daily mean)' : ''}`),
-    refLines: thresholds.map((t, i) => ({ value: t, color: thresholdColor(i, thresholds.length) })),
-    yLog: state.scale === 'log',
-    fitData: state.scale !== 'log',
-    yMin: state.scale === 'log' ? (state.unit === 'pct' ? 0.5 : 0.01) : undefined,
-    yTicks: state.scale === 'log' ? [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100] : undefined,
-    yFormat: fmtValue,
-    yTickFormat: (v) => `${v}${state.unit === 'pct' ? '%' : ''}`,
-    tooltip: (t, vals) => `<strong>${daily ? fmtDate(t) : fmtDateTime(t)}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? fmtValue(v.value) : '—'}</b></div>`).join('')}`,
-  });
+  records.update();
 }
 
 // One headline figure set large, with the other highlights as a list beside it.
@@ -862,11 +526,10 @@ function renderBatteryStory() {
 }
 
 async function main() {
+  // Before the Records card rewrites the URL, so a link that arrived with settings is still visible.
   startAnalytics();
-  readHash();
+  records = createRecordsTool({ host: $('records'), country: nz });
   setupControls();
-  syncControls();
-  renderQuestion();
   renderNowPlaceholder();
   setupNowHover(() => nowFigures);
   document.querySelectorAll('[data-now-window]').forEach((b) => b.addEventListener('click', () => {
@@ -876,19 +539,18 @@ async function main() {
   }));
   const lakes = fetch('lakes.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
   try {
-    data = await loadData('../data/nz');
+    data = await loadData(nz.dataPath);
     lakeInputs = await lakes;
   } catch (err) {
     $('updated').textContent = 'The data could not be loaded. Please try again shortly.';
     console.error(err);
     return;
   }
-  end = data.length;
-  while (end > 0 && Number.isNaN(data.columns.hydro[end - 1])) end--;
+  end = dataEnd(data, nz);
   $('updated').textContent = `Data from ${fmtDate(data.startMs)} to ${fmtDateTime(slotTime(end - 1, data.startMs))}, NZ time. Each month arrives a few weeks after it ends.`;
   renderNow();
   renderStory();
-  update();
+  records.setData(data, { end });
 }
 
 main();

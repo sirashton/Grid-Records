@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { csvRows, buildRegistry, unitFlows, nemTime, slotOf, fuelColumn, tableLinks, PARSE_VERSION } from '../pipeline/sources/aemo-mms.mjs';
-import { nemColumns, isStale } from '../pipeline/build-au.mjs';
+import { nemColumns, isStale, outputColumns } from '../pipeline/build-au.mjs';
 
 test('reads NEM time as UTC+10 and puts interval ends in the half hour before', () => {
   const t = nemTime('2026/08/01 00:05:00');
@@ -76,7 +76,19 @@ test('sums regions for the whole market and weights price by demand', () => {
 
 test('rechecks recent months but keeps old ones', () => {
   const now = Date.parse('2026-10-19T00:00:00Z');
-  assert.equal(isStale({ fetched: '2026-10-18T00:00:00Z', missing: true }, 0, now), true);
-  assert.equal(isStale({ fetched: '2026-10-18T00:00:00Z', version: PARSE_VERSION }, 1, now), false);
+  assert.equal(isStale({ fetched: '2026-10-17T00:00:00Z', missing: true }, 0, now), true);
+  assert.equal(isStale({ fetched: '2026-10-18T12:00:00Z', version: PARSE_VERSION }, 1, now), false);
   assert.equal(isStale({ fetched: '2020-01-01T00:00:00Z', version: PARSE_VERSION }, 40, now), false);
+});
+
+test('writes the shared column names, with charging as negative MW', () => {
+  const cols = {};
+  for (const k of ['black_coal', 'brown_coal', 'gas', 'liquid', 'hydro', 'wind', 'solar', 'rooftop', 'bioenergy', 'other', 'battery', 'battery_charge', 'pumping', 'demand', 'price']) cols[k] = Float64Array.from([5, NaN]);
+  const out = outputColumns(cols);
+  assert.equal(out.coal[0], 5);
+  assert.equal(out.lignite[0], 5);
+  assert.equal(out.solar_rooftop[0], 5);
+  assert.equal(out.battery_charge[0], -5);
+  assert.equal(out.pumped_storage_charge[0], -5);
+  assert.ok(Number.isNaN(out.battery_charge[1]));
 });

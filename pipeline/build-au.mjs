@@ -1,19 +1,23 @@
 // Builds the Australian (NEM) data files from AEMO's monthly MMS archive and
-// writes site/data/au/<region>/ for the whole market and each state.
+// writes site/data/au/<area>/ for the whole market and each state.
 //
 // Each month is a few hundred MB of unit output, so each parsed month is kept
 // in the Actions cache (.cache-au/). A run fetches months it has never seen,
-// newest first, within a time budget, and checks the latest month once a day
-// until AEMO publishes the next one.
+// newest first, within a time budget, and checks the latest months once a
+// day until AEMO publishes the next one.
+//
+// AEMO's unit data is 5-minute, but rooftop solar and the archive's prices
+// are half-hourly, so the files are half-hourly too: six times smaller, and
+// spells are counted in half hours like the GB and NZ pages.
 //
 // Usage: node pipeline/build-au.mjs [--budget-minutes N] [--from YYYY-MM] [--concurrency N]
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { fetchMonth, fetchRegistryTables, AU_COLUMNS, AU_FUELS, REGIONS, PARSE_VERSION } from './sources/aemo-mms.mjs';
-import { encodeColumns } from './encode.mjs';
-import { SLOT_MS, DAY_MS, log } from './lib.mjs';
-import { monthList } from './build-nz.mjs';
+import { writeDataset } from './core/dataset.mjs';
+import { runQueue, stitch, monthList, isStale as isStaleEntry } from './core/chunks.mjs';
+import { log } from './lib.mjs';
 
 const { values: args } = parseArgs({
   options: {
@@ -29,19 +33,23 @@ const { values: args } = parseArgs({
 const started = Date.now();
 const deadline = started + Number(args['budget-minutes']) * 60000;
 const MONTHS = `${args.cache}/months`;
-// AEMO posts each month two to six weeks after it ends, so the latest few
-// months are checked once a day; older ones are kept for good.
-const RECENT_MONTHS = 3;
+// AEMO posts each month two to six weeks after it ends, and rarely revises it.
+const RECENT_MONTHS = 2;
 
-export const REGION_FILES = { nem: null, nsw: 'NSW1', qld: 'QLD1', vic: 'VIC1', sa: 'SA1', tas: 'TAS1' };
+// The whole market, then each state's file, by AEMO region.
+export const AREAS = { nem: null, nsw: 'NSW1', qld: 'QLD1', vic: 'VIC1', sa: 'SA1', tas: 'TAS1' };
+
+// Cached months keep AEMO-flavoured names; the files use the shared names
+// (docs/adding-a-country.md), with charging as negative MW.
+export const OUTPUT = {
+  black_coal: 'coal', brown_coal: 'lignite', gas: 'gas', liquid: 'oil', hydro: 'hydro', wind: 'wind',
+  solar: 'solar_utility', rooftop: 'solar_rooftop', bioenergy: 'biomass', other: 'other',
+  battery: 'battery', battery_charge: 'battery_charge', pumping: 'pumped_storage_charge', demand: 'demand', price: 'price',
+};
+const NEGATED = new Set(['battery_charge', 'pumping']);
 
 /** Whether a cached month (or a cached "not published yet") should be fetched again. */
-export function isStale(entry, index, nowMs) {
-  if (!entry || (!entry.missing && entry.version !== PARSE_VERSION)) return true;
-  const age = nowMs - Date.parse(entry.fetched);
-  if (index < RECENT_MONTHS) return age > (entry.missing ? DAY_MS / 4 : 7 * DAY_MS);
-  return entry.missing ? age > 30 * DAY_MS : false;
-}
+export const isStale = (entry, index, nowMs) => isStaleEntry(entry, index, nowMs, { version: PARSE_VERSION, recent: RECENT_MONTHS });
 
 /** The whole market: regions summed, with price weighted by each region's demand. */
 export function nemColumns(regionCols, length) {
@@ -70,6 +78,11 @@ export function nemColumns(regionCols, length) {
   return out;
 }
 
+/** Renames cached columns to the shared names, charging as negative MW. */
+export function outputColumns(cols) {
+  return Object.fromEntries(Object.entries(OUTPUT).map(([from, to]) => [to, NEGATED.has(from) ? cols[from].map((v) => (v ? -v : v)) : cols[from]]));
+}
+
 async function readMonth(month) {
   const file = `${MONTHS}/${month}.json`;
   return existsSync(file) ? JSON.parse(await readFile(file, 'utf8')) : null;
@@ -85,37 +98,25 @@ async function main() {
   }
   log(`AU: ${cached.size} months in cache`);
 
-  const queue = months.map((m, i) => [m, i]).filter(([m, i]) => isStale(cached.get(m), i, now));
+  const queue = months.map((m, i) => [m, i]).filter(([m, i]) => isStale(cached.get(m), i, now)).map(([m]) => m);
   // The newest month's registration tables, for units older months don't give a fuel for.
   let latest = null;
   if (queue.length) {
-    for (const m of months.slice(0, RECENT_MONTHS + 1)) {
+    for (const m of months.slice(0, 4)) {
       latest = await fetchRegistryTables(m).catch((err) => log(`AU: registry ${m} failed: ${err.message}`));
       if (latest) { log(`AU: registration tables from ${m}`); break; }
     }
   }
-  let fetched = 0;
-  let next = 0;
-  const worker = async () => {
-    while (next < queue.length && Date.now() < deadline) {
-      const [month] = queue[next++];
-      const t0 = Date.now();
-      try {
-        const parsed = await fetchMonth(month, { log, latest });
-        const entry = parsed
-          ? { fetched: new Date().toISOString(), version: PARSE_VERSION, ...parsed }
-          : { fetched: new Date().toISOString(), missing: true };
-        cached.set(month, entry);
-        await writeFile(`${MONTHS}/${month}.json`, JSON.stringify(entry));
-        fetched++;
-        log(`AU: ${month} ${parsed ? 'parsed' : 'not published'} in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
-      } catch (err) {
-        log(`AU: ${month} failed: ${err.message}`);
-      }
-    }
-  };
-  await Promise.all(Array.from({ length: Math.max(1, Number(args.concurrency)) }, worker));
-  const left = queue.length - fetched;
+  const { done: fetched, left } = await runQueue(queue, async (month) => {
+    const t0 = Date.now();
+    const parsed = await fetchMonth(month, { log, latest });
+    const entry = parsed
+      ? { fetched: new Date().toISOString(), version: PARSE_VERSION, ...parsed }
+      : { fetched: new Date().toISOString(), missing: true };
+    cached.set(month, entry);
+    await writeFile(`${MONTHS}/${month}.json`, JSON.stringify(entry));
+    log(`AU: ${month} ${parsed ? 'parsed' : 'not published yet'} in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  }, { concurrency: Number(args.concurrency), deadline, log });
   log(`AU: fetched ${fetched} months, ${left} still to fetch`);
 
   const present = [...cached.entries()].filter(([, e]) => e && !e.missing && e.length).sort(([a], [b]) => a.localeCompare(b));
@@ -123,38 +124,26 @@ async function main() {
     log('AU: no months yet, nothing written');
     return;
   }
-  const startMs = present[0][1].startMs;
-  const last = present.at(-1)[1];
-  const length = Math.round((last.startMs - startMs) / SLOT_MS) + last.length;
-  const regionCols = Object.fromEntries(REGIONS.map((r) => [r, Object.fromEntries(AU_COLUMNS.map((c) => [c, new Float64Array(length).fill(NaN)]))]));
-  for (const [, e] of present) {
-    const base = Math.round((e.startMs - startMs) / SLOT_MS);
-    for (const r of REGIONS) {
-      for (const c of AU_COLUMNS) {
-        const src = e.regions[r]?.[c] ?? [];
-        for (let i = 0; i < e.length; i++) if (src[i] != null) regionCols[r][c][base + i] = src[i];
-      }
-    }
+  const regionCols = {};
+  let grid;
+  for (const r of REGIONS) {
+    grid = stitch(present.map(([, e]) => ({ startMs: e.startMs, length: e.length, columns: e.regions[r] })), { stepMinutes: 30, columns: AU_COLUMNS });
+    regionCols[r] = grid.columns;
   }
+  const { startMs, length } = grid;
   const missingMonths = months.filter((m) => cached.get(m)?.missing && m >= present[0][0] && m <= present.at(-1)[0]).sort();
-  for (const [name, region] of Object.entries(REGION_FILES)) {
+  for (const [area, region] of Object.entries(AREAS)) {
     const cols = region ? regionCols[region] : nemColumns(regionCols, length);
-    const { names, missing, gz } = encodeColumns(cols, length);
-    const dir = `${args.out}/${name}`;
-    await mkdir(dir, { recursive: true });
-    await writeFile(`${dir}/series.bin.gz`, gz);
-    const meta = {
-      generated: new Date().toISOString(),
-      region: name,
-      startMs,
+    const { bytes } = await writeDataset(`${args.out}/${area}`, {
+      region: 'au',
+      timeZone: 'Australia/Brisbane',
       stepMinutes: 30,
+      startMs,
       length,
-      columns: names,
-      missing,
-      months: { first: present[0][0], last: present.at(-1)[0], count: present.length, missing: missingMonths, toFetch: left },
-    };
-    await writeFile(`${dir}/meta.json`, JSON.stringify(meta));
-    log(`AU: wrote ${dir} (${(gz.length / 1e6).toFixed(2)} MB)`);
+      columns: outputColumns(cols),
+      extra: { area, months: { first: present[0][0], last: present.at(-1)[0], count: present.length, missing: missingMonths, toFetch: left } },
+    }, { log });
+    log(`AU: wrote ${args.out}/${area} (${(bytes / 1e6).toFixed(2)} MB)`);
   }
   log(`AU: ${present[0][0]} to ${present.at(-1)[0]}, ${length} slots, in ${((Date.now() - started) / 1000).toFixed(0)} s`);
 }

@@ -21,8 +21,6 @@ export const PEAKS = [
   { label: 'Greenest half hour', members: ['wind', 'solar', 'nuclear', 'hydro', 'storage'], unit: 'pct', best: 'max' },
 ];
 
-const DAY = 48;
-
 /**
  * Records set within `days` (spells still running count), newest first.
  * Each: { kind: 'spell'|'peak', label, threshold?, mode?, slots?, value? (GW or %), unit?, start, end, live }.
@@ -32,6 +30,8 @@ export function recentRecords(data, {
   // Another country's page passes its own groups, series and total.
   watch = WATCH, peaks = PEAKS, series = metricSeries, total = generationTotal(data), greenFloor = 10000,
 } = {}) {
+  const step = data.stepMinutes ?? 30;
+  const DAY = 1440 / step;
   const end = data.length;
   const since = end - days * DAY;
   const out = [];
@@ -40,7 +40,7 @@ export function recentRecords(data, {
     // The most demanding threshold whose record was set recently.
     const ordered = w.mode === 'below' ? [...w.gw].sort((a, b) => a - b) : [...w.gw].sort((a, b) => b - a);
     for (const t of ordered) {
-      const s = summarise(values, t, w.mode, { startMs: data.startMs, maxGap: 2 });
+      const s = summarise(values, t, w.mode, { startMs: data.startMs, stepMinutes: step });
       const r = s.record;
       if (!r || r.end < since) continue;
       out.push({ kind: 'spell', label: w.label, threshold: t, mode: w.mode, slots: r.end - r.start, start: r.start, end: r.end, live: !!s.current && s.current.start === r.start });
@@ -63,5 +63,5 @@ export function recentRecords(data, {
     if (best >= end - peakDays * DAY) out.push({ kind: 'peak', label: p.label, value: values[best], unit: p.unit, start: best, end: best + 1, live: false });
   }
   out.sort((a, b) => (b.live - a.live) || (b.end - a.end));
-  return out.slice(0, limit).map((r) => ({ ...r, startMs: slotTime(r.start, data.startMs), endMs: slotTime(r.end, data.startMs) }));
+  return out.slice(0, limit).map((r) => ({ ...r, startMs: slotTime(r.start, data.startMs, step), endMs: slotTime(r.end, data.startMs, step) }));
 }

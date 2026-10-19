@@ -101,3 +101,26 @@ export function windowEnvelopes(values, centres, half, q = 0.005, bins = 4000) {
   }
   return out;
 }
+
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/** The line, its two envelope bands and their edges, as lineChart series and bands. */
+export function envelopeLayers(raw, env, name) {
+  const edge = (arr) => raw.map(([t], i) => [t, arr[i]]);
+  const [min, max, lo, hi] = ['min', 'max', 'lo', 'hi'].map((k) => edge(env[k]));
+  const color = css('--s2');
+  const ink = css('--fossil-ink');
+  return {
+    series: [
+      { name, color, points: raw, width: 1.2, opacity: 0.35 },
+      { name: '100% band, high', color: ink, points: max, width: 1, opacity: 0.55 },
+      { name: '99% band, high', color: ink, points: hi, width: 2 },
+      { name: '99% band, low', color: ink, points: lo, width: 2 },
+      { name: '100% band, low', color: ink, points: min, width: 1, opacity: 0.55 },
+    ],
+    bands: [
+      { lower: min, upper: max, color, opacity: 0.12 },
+      { lower: lo, upper: hi, color, opacity: 0.2 },
+    ],
+  };
+}
