@@ -1,0 +1,22 @@
+name: Probe NZ duck
+on:
+  push:
+    branches: [probe-nz-duck]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node pipeline/nz-duck/probe.mjs
+      - run: node pipeline/build-nz.mjs --budget-minutes 20 --concurrency 6 --from 2008-01 --out probe-out/nz
+      - name: Commit results
+        if: always()
+        run: |
+          git add -f probe-out
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Probe results" || exit 0
+          git push -q origin HEAD:probe-nz-duck
