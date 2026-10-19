@@ -64,7 +64,7 @@ jobs:
           path: .cache-wa
           key: wa-${{ github.run_id }}
           restore-keys: wa-
-      - run: node pipeline/build-wa.mjs --budget-minutes 8
+      - run: node pipeline/build-wa.mjs --budget-minutes 25 --concurrency 6
       - uses: actions/cache/save@v4
         if: always()
         with:
