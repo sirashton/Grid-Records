@@ -48,13 +48,18 @@ export const isCurrent = (entry, file) => Boolean(entry && entry.etag === file.e
 /**
  * Puts the pieces of every dataset on one grid, ending at the last hour with
  * generation. Rooftop solar counts from ONS's first estimate, not as zero
- * before it.
+ * before it, and load far below its usual level is missing.
  */
 export function mergeBrazil(pieces) {
   const merged = stitch(pieces, { stepMinutes: 60, columns: BR_COLUMNS });
   if (!merged) return null;
   let end = merged.length;
   while (end > 0 && GEN_COLUMNS.every((c) => Number.isNaN(merged.columns[c][end - 1]))) end--;
+  // Load reads near zero on the same missing days as generation (2013 to 2015).
+  const demand = merged.columns.demand;
+  const loads = [...demand.subarray(0, end)].filter((v) => !Number.isNaN(v)).sort((a, b) => a - b);
+  const floor = (loads[Math.floor(loads.length / 2)] ?? 0) / 4;
+  for (let i = 0; i < end; i++) if (demand[i] < floor) demand[i] = NaN;
   const roof = merged.columns.solar_rooftop;
   const first = roof.findIndex((v) => v > 0);
   for (let i = 0; i < (first < 0 ? end : first); i++) roof[i] = NaN;

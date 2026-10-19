@@ -89,12 +89,46 @@ test('merge ends at the last hour with generation and leaves rooftop solar missi
   const cols = (o) => Object.fromEntries(BR_COLUMNS.map((c) => [c, o[c] ?? [0, 0, 0, 0]]));
   const gen = { startMs, length: 4, columns: cols({ hydro: [1, 2, 3, null], wind_curtailed: [], solar_curtailed: [], demand: [], solar_rooftop: [0, 0, 5, null] }) };
   for (const c of ['nuclear', 'coal', 'gas', 'oil', 'other', 'biomass', 'wind', 'solar_utility']) gen.columns[c] = [0, 0, 0, null];
-  const load = { startMs: startMs + H, length: 4, columns: { demand: [9, 9, 9, 9] } };
+  const load = { startMs: startMs + H, length: 4, columns: { demand: [9, 1, 9, 9] } };
   const m = mergeBrazil([gen, load]);
   assert.equal(m.length, 3);
   assert.ok(Number.isNaN(m.columns.solar_rooftop[0]));
   assert.equal(m.columns.solar_rooftop[2], 5);
   assert.ok(Number.isNaN(m.columns.demand[0]));
   assert.equal(m.columns.demand[1], 9);
+  assert.ok(Number.isNaN(m.columns.demand[2]));
   assert.ok(Number.isNaN(m.columns.wind_curtailed[0]));
+});
+
+test('story figures: held back shares, when hydro is low, and the fossil floor', async () => {
+  const { storyFigures } = await import('../site/js/br/story.js');
+  // Two years and a month of hours from New Year 2023 in Brasília (UTC-3, no saving since 2019).
+  const startMs = Date.UTC(2023, 0, 1, 3);
+  const length = 24 * (365 + 366 + 30);
+  const columns = Object.fromEntries(BR_COLUMNS.map((c) => [c, new Float64Array(length)]));
+  for (let i = 0; i < length; i++) {
+    const hour = i % 24;
+    columns.hydro[i] = hour >= 10 && hour < 14 ? 25000 : 40000;
+    columns.gas[i] = 4000;
+    columns.wind[i] = 10000;
+    columns.wind_curtailed[i] = hour === 10 ? 5000 : 0;
+    columns.solar_curtailed[i] = NaN;
+    columns.solar_rooftop[i] = hour === 11 ? 20000 : 0;
+    columns.demand[i] = 50000;
+  }
+  const data = { startMs, length, stepMinutes: 60, columns };
+  const f = storyFigures(data, length);
+  assert.deepEqual(f.rows.map((r) => r.year), [2023, 2024, 'past365']);
+  const [y23] = f.rows;
+  assert.equal(y23.hydroLow, 365 * 4);
+  assert.equal(y23.hydroLowByHour[10], 365);
+  assert.equal(y23.hydroLowByHour[2], 0);
+  assert.equal(y23.fossilMin, 4);
+  assert.equal(y23.heldMax, 5);
+  assert.ok(Math.abs(y23.windHeldPct - (5000 / (10000 * 24 + 5000)) * 100) < 1e-9);
+  assert.ok(Number.isNaN(y23.solarHeldPct));
+  assert.equal(y23.byHour[10].wind, 5);
+  assert.equal(y23.byHour[11].roof, 20);
+  assert.equal(f.monthly[0].month, '2023-01');
+  assert.equal(f.heldSpell.record, null);
 });
