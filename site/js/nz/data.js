@@ -11,6 +11,8 @@ export const RENEWABLE = core.fuelsWhere(nz, 'renewable');
 export const generationTotal = (data) => core.generationTotal(data, nz);
 /** A metric series in GW, or as a percentage of generation. Missing slots are NaN. */
 export const metricSeries = (data, members, opts) => core.metricSeries(data, nz, members, opts);
+/** Groups slots by NZ calendar year, plus the latest 365 days. */
+export const byYear = (data, init, add) => core.byYear(data, nz, init, add);
 /** TWh by fuel for each NZ calendar year, with the renewable share. */
 export const yearlyEnergy = (data) => core.yearlyEnergy(data, nz);
 /** Hours in each year with fossil generation below each threshold (MW). */

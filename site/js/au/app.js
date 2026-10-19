@@ -8,7 +8,7 @@ import { createRecordsTool } from '../core/records-tool.js';
 import { recentRecords } from '../recent.js';
 import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, setupNowWindows, windowSlots, agoText, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
 import { startAnalytics } from '../analytics.js';
-import { renderStory as drawStory, drawStoryCharts } from './story.js';
+import { renderStory as drawStory, drawStoryCharts, storyFigures, LEVELS } from './story.js';
 
 setTimeZone(au.timeZone);
 
@@ -54,7 +54,7 @@ function setupControls() {
   });
   document.addEventListener('toggle', (e) => {
     // Charts in a closed chapter have no width, so draw them once it opens.
-    if (e.target.matches?.('details.chapter') && e.target.open && data) drawStoryCharts(story, data);
+    if (e.target.matches?.('details.chapter') && e.target.open && data) drawStoryCharts(story, data, saStory);
   }, true);
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.next-ch');
@@ -82,7 +82,7 @@ function setupControls() {
 
 function redrawAll() {
   if (!data) return;
-  drawStoryCharts(story, data);
+  drawStoryCharts(story, data, saStory);
   records.update();
 }
 
@@ -204,10 +204,19 @@ function renderNowPlaceholder() {
   $('now-right').innerHTML = nowRightHtml(null, {}, 0);
 }
 
-// The story is worked out once per area, and drawn by story.js.
+// The story is worked out once per area, and drawn by story.js. Its chapter
+// on South Australia needs that state's figures whichever area is shown, so
+// they are worked out once and kept.
 let story = null;
+let saStory = null;
+async function loadSaStory() {
+  if (saStory) return saStory;
+  const sa = area === 'sa' ? data : await loadData('../data/au/sa');
+  saStory = storyFigures(sa, dataEnd(sa, au), au, LEVELS.sa);
+  return saStory;
+}
 function renderStory() {
-  story = drawStory({ data, end, country: au, area, areaName: AREAS[area], cache: story, factsHtml, windowPoints });
+  story = drawStory({ data, end, country: au, area, areaName: AREAS[area], cache: area === 'sa' && saStory ? { area, f: saStory } : story, factsHtml, sa: saStory });
 }
 
 async function loadArea() {
@@ -229,8 +238,13 @@ async function loadArea() {
   const latest = slotTime(end, data.startMs);
   $('updated').textContent = `${where === 'the whole NEM' ? 'The whole NEM' : where}: data from ${fmtDate(data.startMs)} to ${fmtDateTime(latest)} NEM time (AEST), ${agoText(latest)}. Updated every 30 minutes from AEMO's 5-minute reports.${pending}`;
   renderNow();
-  renderStory();
   records.setData(data, { end });
+  try {
+    await loadSaStory();
+  } catch (err) {
+    console.error(err);
+  }
+  renderStory();
 }
 
 async function main() {
