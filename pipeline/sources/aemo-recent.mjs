@@ -55,24 +55,26 @@ export function listFiles(html, feed) {
 
 /**
  * Which files to fetch, given each feed's listing: everything from fromMs
- * that isn't in state.files, taking the daily and weekly archives only for
- * the time the rolling feeds no longer cover.
+ * that isn't in state.files. The daily and weekly archives come first, since
+ * one of their files stands for hundreds of small ones; the rolling feeds
+ * only fill in after the archives' last file. AEMO turns a runner away
+ * (HTTP 403) after a burst of requests, so fewer files matters.
  */
 export function plan(listings, state, fromMs) {
   const want = [];
-  const pick = (key, files, beforeMs = Infinity) => {
+  const pick = (key, files, afterMs = -Infinity) => {
     const span = FEEDS[key].span;
     for (const f of files ?? []) {
       // A 5-minute name marks the end of its interval; daily and weekly ones the start of their period.
       const end = span === FIVE_MIN ? f.t : f.t + span;
-      if (end <= fromMs || f.t >= beforeMs || state.files[f.name]) continue;
+      if (end <= fromMs || f.t < afterMs || state.files[f.name]) continue;
       want.push({ ...f, feed: key });
     }
   };
-  const first = (files) => (files?.length ? files[0].t : Infinity);
-  for (const [live, daily, tail] of [['scada', 'scadaDaily', FIVE_MIN], ['dispatch', 'pricesDaily', FIVE_MIN], ['rooftop', 'rooftopWeekly', SLOT_MS]]) {
-    pick(live, listings[live]);
-    pick(daily, listings[daily], first(listings[live]) - tail);
+  for (const [live, archive] of [['scada', 'scadaDaily'], ['dispatch', 'pricesDaily'], ['rooftop', 'rooftopWeekly']]) {
+    const files = listings[archive] ?? [];
+    pick(archive, files);
+    pick(live, listings[live], files.length ? files.at(-1).t + FEEDS[archive].span : -Infinity);
   }
   return want;
 }

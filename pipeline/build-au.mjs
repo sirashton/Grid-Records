@@ -121,7 +121,20 @@ async function updateRecent(archiveEndMs, now, months) {
   // Newest first, so a short budget still brings the page up to date.
   const want = plan(listings, state, fromMs).sort((a, b) => b.t - a.t);
   const until = Math.min(Date.now() + Number(args['recent-minutes']) * 60000, deadline);
-  const { done, left } = await runQueue(want, (f) => fetchFile(state, f, units), { concurrency: 6, deadline: until, log });
+  // AEMO's web server refuses a runner (HTTP 403) after a burst of requests,
+  // so go gently, and stop at the first refusal; the next run carries on.
+  let refused = false;
+  const fetchOne = async (f) => {
+    try {
+      await fetchFile(state, f, units);
+    } catch (err) {
+      if (/\b403\b/.test(err.message)) refused = true;
+      throw err;
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  };
+  const { done, left } = await runQueue(want, fetchOne, { concurrency: 3, deadline: until, stop: () => refused, log });
+  if (refused) log('AU recent: NEMWEB refused a request, so the rest waits for the next run');
   await saveState(file, state);
   const piece = halfHours(state, fromMs);
   log(`AU recent: fetched ${done} files, ${left} left, ${piece?.length ?? 0} half hours from ${new Date(fromMs).toISOString()}`);

@@ -42,13 +42,15 @@ test('reads NEMWEB file names as NEM time', () => {
   assert.equal(rooftop[0].t, nemTime('2026/10/17 22:30:00'));
 });
 
-test('plans new files, and daily archives only before the 5-minute feed starts', () => {
+test('plans new files: the daily archive first, then 5-minute files after its last day', () => {
   const day = (d) => ({ name: `D${d}`, url: '', t: nemTime(`2026/10/${d} 00:00:00`) });
   const five = (d, hm) => ({ name: `F${d}${hm}`, url: '', t: nemTime(`2026/10/${d} ${hm}:00`) });
-  const listings = { scadaDaily: [day(14), day(15), day(16), day(17)], scada: [five(17, '12:45'), five(17, '12:50')] };
-  const state = { files: { 'F1712:50': { t: 0 } }, rows: {} };
+  const listings = { scadaDaily: [day(14), day(15), day(16)], scada: [five(16, '12:45'), five(17, '00:00'), five(17, '00:05'), five(17, '00:10')] };
+  const state = { files: { D16: { t: 0 }, 'F1700:10': { t: 0 } }, rows: {} };
   const want = plan(listings, state, nemTime('2026/10/15 06:00:00'));
-  assert.deepEqual(want.map((f) => f.name), ['F1712:45', 'D15', 'D16', 'D17']);
+  assert.deepEqual(want.map((f) => f.name), ['D15', 'F1700:00', 'F1700:05']);
+  // With no daily listing, the 5-minute files cover what they can.
+  assert.deepEqual(plan({ scada: listings.scada }, { files: {} }, 0).map((f) => f.name), ['F1612:45', 'F1700:00', 'F1700:05', 'F1700:10']);
 });
 
 test('turns 5-minute unit output, prices and rooftop solar into half hours', async () => {
