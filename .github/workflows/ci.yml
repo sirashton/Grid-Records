@@ -73,6 +73,18 @@ jobs:
         with:
           path: .cache-br
           key: br-${{ github.run_id }}
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-wa
+          key: wa-${{ github.run_id }}
+          restore-keys: wa-
+      - run: node pipeline/build-wa.mjs --budget-minutes 8 --concurrency 6
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-wa
+          key: wa-${{ github.run_id }}
+      - run: ls -la site/data/wa && node -e "const m=require('./site/data/wa/meta.json'); console.log(m.length, m.columns, m.files, 'from', new Date(m.startMs).toISOString(), 'to', new Date(m.startMs + (Math.max(...Object.values(m.lastSlot)) + 1) * 1800000).toISOString())"
       - run: ls -la site/data/br && node -e "const m=require('./site/data/br/meta.json'); console.log(m.length, m.columns, m.files)"
       - run: ls -la site/data/pl && node -e "const m=require('./site/data/pl/meta.json'); console.log(m.length, m.columns, m.years)"
       - run: ls -la site/data/de && node -e "const m=require('./site/data/de/meta.json'); console.log(m.length, m.columns, m.years)"
