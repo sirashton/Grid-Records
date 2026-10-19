@@ -19,6 +19,9 @@ export const CANONICAL_COLUMNS = [
 ];
 // Columns that take power off the grid, and so are zero or below.
 const NEGATIVE = /(_charge|_chg|^exports)$/;
+// Columns that may take either sign: a spot price in $/MWh, and operational
+// demand, which goes below zero when rooftop solar outruns it (South Australia).
+const SIGNED = /^(price|demand)$/;
 
 /** A column of `length` slots, all missing. */
 export const emptyColumn = (length) => new Float64Array(length).fill(NaN);
@@ -45,7 +48,7 @@ export function checkDataset({ region, timeZone, stepMinutes, startMs, length, c
       if (Number.isNaN(v)) continue;
       if (!Number.isFinite(v)) fail(`column ${name} has a non-finite value at slot ${i}`);
       present++;
-      if (NEGATIVE.test(name) ? v > 0.5 : v < -0.5) wrongSign++;
+      if (!SIGNED.test(name) && (NEGATIVE.test(name) ? v > 0.5 : v < -0.5)) wrongSign++;
     }
     if (!present) warnings.push(`column ${name} has no data`);
     if (wrongSign) warnings.push(`column ${name} has ${wrongSign} slots with the wrong sign (${NEGATIVE.test(name) ? 'charging and exports are 0 or below' : 'generation is 0 or more'})`);
