@@ -26,7 +26,7 @@ export const AWST_MS = 8 * 3600000;
 export const SLOT_MS = 30 * 60000;
 
 // Bump when parsing changes, so cached files are parsed again.
-export const PARSE_VERSION = 1;
+export const PARSE_VERSION = 2;
 
 export const GEN_COLUMNS = ['coal', 'gas', 'oil', 'biomass', 'wind', 'solar_utility', 'other', 'battery', 'battery_charge'];
 export const WA_COLUMNS = [...GEN_COLUMNS, 'solar_rooftop', 'demand'];
@@ -46,7 +46,7 @@ export const OLD_SCADA_END = '2023-09';
 // (C could also burn gas), stage B oil then gas.
 const COAL = ['COLLIE_G1', 'BW1_BLUEWATERS_G2', 'BW2_BLUEWATERS_G1', 'KWINANA_G1', 'KWINANA_G2', 'KWINANA_G5', 'KWINANA_G6',
   'MUJA_G1', 'MUJA_G2', 'MUJA_G3', 'MUJA_G4', 'MUJA_G5', 'MUJA_G6', 'MUJA_G7', 'MUJA_G8'];
-const GAS = ['ALINTA_PNJ_U1', 'ALINTA_PNJ_U2', 'ALINTA_WGP_GT', 'ALINTA_WGP_U2', 'ALCOA_WGP', 'ALCOA_KWI', 'ALCOA_PNJ',
+const GAS = ['ALINTA_PNJ_U1', 'ALINTA_PNJ_U2', 'ALINTA_WGP_GT', 'ALINTA_WGP_U2', 'ALINTA_WGP_AGG', 'ALCOA_WGP', 'ALCOA_KWI', 'ALCOA_PNJ',
   'COCKBURN_CCG1', 'KEMERTON_GT11', 'KEMERTON_GT12', 'KWINANA_G3', 'KWINANA_G4', 'KWINANA_GT1', 'KWINANA_GT2', 'KWINANA_GT3',
   'NEWGEN_KWINANA_CCG1', 'NEWGEN_NEERABUP_GT1', 'PERTHENERGY_KWINANA_GT1', 'PPP_KCP_EG1', 'SWCJV_WORSLEY_COGEN_COG1',
   'TIWEST_COG1', 'STHRNCRS_EG', 'PRK_AG', 'MUNGARRA_GT1', 'MUNGARRA_GT2', 'MUNGARRA_GT3',

@@ -35,7 +35,7 @@ export default {
     battery_charge: { label: 'Battery charging', color: '--f-battery', abs: true, inTotal: false, notGeneration: true },
   },
   presets: {
-    fossil: { label: 'Fossil fuels', members: FOSSIL, mode: 'below', gw: [2.5, 2, 1.5, 1.25, 1, 0.75, 0.5], pct: [80, 70, 60, 50, 40, 30, 20] },
+    fossil: { label: 'Fossil fuels', members: FOSSIL, mode: 'below', gw: [2, 1.5, 1.25, 1, 0.75, 0.5], pct: [70, 60, 50, 40, 30, 20] },
     coal: { label: 'Coal', members: ['coal'], mode: 'below', gw: [1.5, 1.25, 1, 0.75, 0.5, 0.25, 0], pct: [50, 40, 30, 20, 10, 0] },
     gas: { label: 'Gas', members: ['gas'], mode: 'below', gw: [1.5, 1, 0.75, 0.5, 0.25], pct: [40, 30, 20, 10] },
     renewables: { label: 'Renewables', members: RENEWABLE, mode: 'above', gw: [1, 1.5, 2, 2.5, 3], pct: [40, 50, 60, 70, 80, 90], editable: true },
