@@ -108,6 +108,21 @@ jobs:
         with:
           path: .cache-br
           key: br-${{ github.run_id }}
+      # Western Australia, likewise: the first runs backfill 20 years of
+      # facility files from AEMO's slow server; after that a run fetches
+      # only the current month's files, which AEMO rewrites each morning.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-wa
+          key: wa-${{ github.run_id }}
+          restore-keys: wa-
+      - run: node pipeline/build-wa.mjs --budget-minutes 4
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-wa
+          key: wa-${{ github.run_id }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
