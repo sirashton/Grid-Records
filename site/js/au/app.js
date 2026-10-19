@@ -8,7 +8,7 @@ import { createRecordsTool } from '../core/records-tool.js';
 import { recentRecords } from '../recent.js';
 import { sparkTile, donut, nowLeftHtml, fitDonutText, setupNowHover, liveFavicon, windowFigures, groupFigures, hoverFigures, tweenFigures, infoButton, fmtGw, num } from '../now-panel.js';
 import { startAnalytics } from '../analytics.js';
-import { renderStory as drawStory } from './story.js';
+import { renderStory as drawStory, drawStoryCharts } from './story.js';
 
 setTimeZone(au.timeZone);
 
@@ -53,7 +53,8 @@ function setupControls() {
     resize = setTimeout(redrawAll, 150);
   });
   document.addEventListener('toggle', (e) => {
-    if (e.target.matches?.('details.chapter') && e.target.open && data) renderStory();
+    // Charts in a closed chapter have no width, so draw them once it opens.
+    if (e.target.matches?.('details.chapter') && e.target.open && data) drawStoryCharts(story, data);
   }, true);
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.next-ch');
@@ -81,7 +82,7 @@ function setupControls() {
 
 function redrawAll() {
   if (!data) return;
-  renderStory();
+  drawStoryCharts(story, data);
   records.update();
 }
 
