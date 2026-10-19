@@ -3,31 +3,36 @@
 // storyFigures(), which the tests also run; renderStory() draws the page.
 import { summarise, formatDuration, slotTime } from '../records.js';
 import { barChart, lineChart, fmtDate } from '../charts.js';
+import { stepOf } from '../core/dataset.js';
+import { localDate } from '../core/calendar.js';
+import de from '../countries/de.js';
 import { FOSSIL, WIND, GENERATION, metricSeries, yearlyEnergy, byYear } from './data.js';
 
-const SLOT_H = 0.5;
 const WS = ['solar', ...WIND];
 // The 2012 solar record that made the news, in GW.
 export const RECORD_2012_GW = 22;
-const TOP_N = 100;
+// The tightest hours of each year: the most demand left after wind and solar.
+const TOP_HOURS = 50;
 
 /** Demand met in Germany at each slot, in GW: generation plus net imports, less pumping. */
 export function demandSeries(data) {
   const { columns, length } = data;
   const out = new Float64Array(length);
   for (let i = 0; i < length; i++) {
-    let v = columns.imports[i] - columns.exports[i] - columns.pumped_chg[i];
+    // Exports and pumping are stored as negative MW.
+    let v = columns.imports[i] + columns.exports[i] + columns.pumped_storage_charge[i];
     for (const k of GENERATION) v += columns[k][i];
     out[i] = v / 1000;
   }
   return out;
 }
 
-const spellH = (s) => (s ? ((s.end - s.start) * SLOT_H) : 0);
 
 /** Longest spell in each calendar year, and in the latest 365 days, in hours. */
-function spellsByYear(values, threshold, mode, startMs, years) {
-  const s = summarise(values, threshold, mode, { startMs, maxGap: 2 });
+function spellsByYear(values, threshold, mode, data, years) {
+  const step = stepOf(data);
+  const spellH = (sp) => (sp ? ((sp.end - sp.start) * step) / 60 : 0);
+  const s = summarise(values, threshold, mode, { startMs: data.startMs, stepMinutes: step, timeZone: de.timeZone });
   const per = new Map(s.perYear);
   return {
     record: s.record,
@@ -42,6 +47,7 @@ function spellsByYear(values, threshold, mode, startMs, years) {
  */
 export function storyFigures(data, end) {
   const d = { ...data, length: end };
+  const slotH = stepOf(data) / 60;
   const energy = yearlyEnergy(d);
   const years = energy.map((r) => r.year);
   const fossil = metricSeries(d, FOSSIL);
@@ -57,16 +63,15 @@ export function storyFigures(data, end) {
     if (Number.isNaN(f) || Number.isNaN(demand[i])) return;
     if (f < row.min) row.min = f;
     if (f > row.max) row.max = f;
-    if (solar[i] >= RECORD_2012_GW) row.solar22 += SLOT_H;
-    if (f < 10) row.fossil10 += SLOT_H;
-    // German calendar day, near enough for counting days: UTC plus an hour.
-    if (solar[i] >= demand[i] / 2) row.halfDays.add(Math.floor((data.startMs + i * 18e5 + 36e5) / 864e5));
+    if (solar[i] >= RECORD_2012_GW) row.solar22 += slotH;
+    if (f < 10) row.fossil10 += slotH;
+    if (solar[i] >= demand[i] / 2) row.halfDays.add(localDate(data.startMs + i * slotH * 36e5, de.timeZone));
     row.slots.push(i);
   });
-  // The tightest half hours: highest demand left after wind and solar.
+  // The tightest hours: highest demand left after wind and solar.
   const residual = (i) => demand[i] - ws[i];
   const top = yearly.map((row) => {
-    const idx = row.slots.sort((a, b) => residual(b) - residual(a)).slice(0, TOP_N);
+    const idx = row.slots.sort((a, b) => residual(b) - residual(a)).slice(0, Math.round(TOP_HOURS / slotH));
     const mean = (s) => idx.reduce((a, i) => a + s[i], 0) / idx.length;
     const parts = { ws: mean(ws), nuclear: mean(nuclear), fossil: mean(fossil), imports: mean(imports), demand: mean(demand) };
     parts.other = Math.max(0, parts.demand - parts.ws - parts.nuclear - parts.fossil - parts.imports);
@@ -81,15 +86,14 @@ export function storyFigures(data, end) {
     halfDays: row.halfDays.size,
     top: top[k],
   }));
-  const startMs = data.startMs;
   return {
     energy,
     years,
     rows,
-    wsLull: spellsByYear(ws, 10, 'below', startMs, years),
-    fossil10: spellsByYear(fossil, 10, 'below', startMs, years),
-    fossil35: spellsByYear(fossil, 35, 'above', startMs, years),
-    importRun: spellsByYear(imports, 0.001, 'above', startMs, years),
+    wsLull: spellsByYear(ws, 10, 'below', data, years),
+    fossil10: spellsByYear(fossil, 10, 'below', data, years),
+    fossil35: spellsByYear(fossil, 35, 'above', data, years),
+    importRun: spellsByYear(imports, 0.001, 'above', data, years),
   };
 }
 
@@ -128,8 +132,10 @@ export function renderStory(data, end, installed, figs) {
   const at = (y) => rows.findIndex((r) => r.year === y);
   const en = (y) => energy.find((r) => r.year === y);
   const ix = { first: at(first.year), last: at(last.year) };
-  const when = (span) => (span ? fmtDate(slotTime(span.start, data.startMs)) : '');
-  const record = (s) => (s.record ? (s.record.end - s.record.start) * SLOT_H : 0);
+  const when = (span) => (span ? fmtDate(slotAt(span.start, data.startMs)) : '');
+  const step = stepOf(data);
+  const slotAt = (i, startMs) => slotTime(i, startMs, step);
+  const record = (s) => (s.record ? ((s.record.end - s.record.start) * step) / 60 : 0);
   const thisYear = installed ? Math.max(...installed.years.filter((y, k) => installed.types['Solar DC'][k] != null)) : null;
   const solarNow = cap(installed, 'Solar DC', thisYear);
 
@@ -142,16 +148,16 @@ export function renderStory(data, end, installed, figs) {
   const t2 = last.top;
   $('answer-points').innerHTML = [
     `<b>Parity was a price, and the price got cut the same year.</b> Rooftop solar undercut the household tariff in early 2012, and that year Germany cut the feed-in tariff by up to 30%. Capacity went from ${Math.round(c12)} GW at the end of 2012 to ${Math.round(c18)} GW at the end of 2018${c18 - c12 < lastAdd ? `, less than Germany added in ${thisYear - 1} alone (${Math.round(lastAdd)} GW)` : ''}. ${link(1, 'Chapter 1')}`,
-    `<b>The grid's fossil floor fell from ${Math.round(first.fossilMin)} GW to ${Math.round(last.fossilMin)} GW, but the ceiling only fell from ${Math.round(first.fossilMax)} GW to ${Math.round(last.fossilMax)} GW.</b> The longest spell with fossil plants under 10 GW ${fossil10.hours[ix.first] ? `was ${h(fossil10.hours[ix.first])} in ${first.year}` : `did not exist in ${first.year}`} and reached ${h(record(fossil10))} in ${new Date(slotTime(fossil10.record.start, data.startMs)).getUTCFullYear()}. On the coldest, calmest evenings Germany still burns nearly ${Math.round(last.fossilMax / 5) * 5} GW of fossil fuel. ${link(3, 'Chapter 3')}`,
-    `<b>Winter evenings are now covered by neighbours, and the dark lulls have got shorter.</b> In the hundred tightest half hours of ${first.year}, fossil plants supplied ${gw(t1.fossil)} and imports ${gw(t1.imports)}; in ${last.year} it was ${gw(t2.fossil)} and ${gw(t2.imports)}. The longest spell with wind and solar together under 10 GW was ${h(wsLull.hours[ix.first])} in ${first.year} and ${h(wsLull.hours[ix.last])} in ${last.year}. ${link(4, 'Chapters 4')} and ${link(5, '5')}`,
+    `<b>The grid's fossil floor fell from ${Math.round(first.fossilMin)} GW to ${Math.round(last.fossilMin)} GW, but the ceiling only fell from ${Math.round(first.fossilMax)} GW to ${Math.round(last.fossilMax)} GW.</b> The longest spell with fossil plants under 10 GW ${fossil10.hours[ix.first] ? `was ${h(fossil10.hours[ix.first])} in ${first.year}` : `did not exist in ${first.year}`} and reached ${h(record(fossil10))} in ${new Date(slotAt(fossil10.record.start, data.startMs)).getUTCFullYear()}. On the coldest, calmest evenings Germany still burns nearly ${Math.round(last.fossilMax / 5) * 5} GW of fossil fuel. ${link(3, 'Chapter 3')}`,
+    `<b>Winter evenings are now covered by neighbours, and the dark lulls have got shorter.</b> In the fifty tightest hours of ${first.year}, fossil plants supplied ${gw(t1.fossil)} and imports ${gw(t1.imports)}; in ${last.year} it was ${gw(t2.fossil)} and ${gw(t2.imports)}. The longest spell with wind and solar together under 10 GW was ${h(wsLull.hours[ix.first])} in ${first.year} and ${h(wsLull.hours[ix.last])} in ${last.year}. ${link(4, 'Chapters 4')} and ${link(5, '5')}`,
   ].map((x) => `<li>${x}</li>`).join('');
 
   // Headline facts.
   const facts = [
     ['--f-solar', 'Solar capacity', `${Math.round(solarNow)} GW`, `against ${Math.round(c12)} GW at parity in 2012`],
-    ['--fossil', 'Lowest fossil output', gw(Math.min(...rows.map((r) => r.fossilMin))), 'in any half hour since 2015'],
+    ['--fossil', 'Lowest fossil output', gw(Math.min(...rows.map((r) => r.fossilMin))), 'in any quarter hour since 2015'],
     ['--fossil', 'Highest fossil output, latest year', gw(rows.at(-1).fossilMax), 'still needed on winter evenings'],
-    ['--f-imports', 'Longest run of net imports', h(record(importRun)), `from ${fmtDate(slotTime(importRun.record.start, data.startMs))}`],
+    ['--f-imports', 'Longest run of net imports', h(record(importRun)), `from ${fmtDate(slotAt(importRun.record.start, data.startMs))}`],
   ];
   $('facts').innerHTML = `<div class="headline"><div class="big">${h(rows.at(-1).solar22)}</div><div class="sub">with solar above ${RECORD_2012_GW} GW in the latest 365 days. In ${first.year} it was ${h(first.solar22)}. ${RECORD_2012_GW} GW was the record that made world news in May 2012.</div></div>
     <ul class="fact-list">${facts.map(([c, l, v, w]) => `<li><span class="swatch" style="background:var(${c})"></span><span><b>${l}</b> <span class="v">${v}</span> <span class="sub">${w}</span></span></li>`).join('')}</ul>`;
@@ -192,12 +198,12 @@ export function renderStory(data, end, installed, figs) {
   // Chapter 3: floor and ceiling.
   $('take-3').textContent = `Fossil plants now spend summer days almost off, but a winter evening still needs nearly ${Math.round(last.fossilMax / 5) * 5} GW of them.`;
   const lastYear35 = fossil35.hours[ix.last];
-  $('body-3').innerHTML = `The lowest fossil output in a year fell from ${gw(first.fossilMin)} in ${first.year} to ${gw(last.fossilMin)} in ${last.year}, most of it after 2019 as lignite plants stopped running round the clock and the last reactors closed. Hours with fossil under 10 GW went from ${h(first.fossil10)} to ${h(last.fossil10)}, and the longest spell reached ${h(record(fossil10))} from ${fmtDate(slotTime(fossil10.record.start, data.startMs))}. The yearly peak fell only from ${gw(first.fossilMax)} to ${gw(last.fossilMax)}. The longest spell above 35 GW was ${h(record(fossil35))} from ${fmtDate(slotTime(fossil35.record.start, data.startMs))}${lastYear35 ? `, and ${h(lastYear35)} in ${last.year}` : `, and none in ${last.year}`}.`;
-  const yearMs = (y) => (y === 'past365' ? slotTime(end, data.startMs) : Date.UTC(y, 6, 1));
+  $('body-3').innerHTML = `The lowest fossil output in a year fell from ${gw(first.fossilMin)} in ${first.year} to ${gw(last.fossilMin)} in ${last.year}, most of it after 2019 as lignite plants stopped running round the clock and the last reactors closed. Hours with fossil under 10 GW went from ${h(first.fossil10)} to ${h(last.fossil10)}, and the longest spell reached ${h(record(fossil10))} from ${fmtDate(slotAt(fossil10.record.start, data.startMs))}. The yearly peak fell only from ${gw(first.fossilMax)} to ${gw(last.fossilMax)}. The longest spell above 35 GW was ${h(record(fossil35))} from ${fmtDate(slotAt(fossil35.record.start, data.startMs))}${lastYear35 ? `, and ${h(lastYear35)} in ${last.year}` : `, and none in ${last.year}`}.`;
+  const yearMs = (y) => (y === 'past365' ? slotAt(end, data.startMs) : Date.UTC(y, 6, 1));
   const xs = rows.map((r) => yearMs(r.year));
   const floorSeries = [
-    { name: 'Highest half hour', color: css('--fossil-ink'), points: rows.map((r, k) => [xs[k], r.fossilMax]), width: 2.5 },
-    { name: 'Lowest half hour', color: css('--fossil'), points: rows.map((r, k) => [xs[k], r.fossilMin]), width: 2.5 },
+    { name: 'Highest quarter hour', color: css('--fossil-ink'), points: rows.map((r, k) => [xs[k], r.fossilMax]), width: 2.5 },
+    { name: 'Lowest quarter hour', color: css('--fossil'), points: rows.map((r, k) => [xs[k], r.fossilMin]), width: 2.5 },
   ];
   floorSeries.forEach((s) => { s.markers = s.points; });
   lineChart($('story-floor'), {
@@ -214,18 +220,18 @@ export function renderStory(data, end, installed, figs) {
   const lullYear = (y) => wsLull.hours[at(y)] ?? 0;
   const ws0 = cap(installed, 'Solar DC', first.year) + cap(installed, 'Wind onshore', first.year) + cap(installed, 'Wind offshore', first.year);
   const ws1 = cap(installed, 'Solar DC', thisYear) + cap(installed, 'Wind onshore', thisYear) + cap(installed, 'Wind offshore', thisYear);
-  $('take-4').textContent = `The longest lull in the data is from ${new Date(slotTime(rec.start, data.startMs)).getUTCFullYear()}, when there was well under half as much wind and solar.`;
-  $('body-4').innerHTML = `The longest spell with wind and solar together under 10 GW was ${h(record(wsLull))}, from ${fmtDate(slotTime(rec.start, data.startMs))}. In 2024, the year of the November and December lulls that pushed prices above 900 euros a megawatt hour (${src(SOURCES.bnetza, 'Bundesnetzagentur')}), the longest was ${h(lullYear(2024))}${at(2025) >= 0 ? `, and in 2025 ${h(lullYear(2025))}` : ''}. Wind and solar capacity grew from ${Math.round(ws0)} GW to ${Math.round(ws1)} GW, so the same grey, still weather now makes more. The lulls still hurt because of the ceiling in chapter 3: they no longer last as long, but fossil plants still have to cover them.`;
+  $('take-4').textContent = `The longest lull in the data is from ${new Date(slotAt(rec.start, data.startMs)).getUTCFullYear()}, when there was well under half as much wind and solar.`;
+  $('body-4').innerHTML = `The longest spell with wind and solar together under 10 GW was ${h(record(wsLull))}, from ${fmtDate(slotAt(rec.start, data.startMs))}. In 2024, the year of the November and December lulls that pushed prices above 900 euros a megawatt hour (${src(SOURCES.bnetza, 'Bundesnetzagentur')}), the longest was ${h(lullYear(2024))}${at(2025) >= 0 ? `, and in 2025 ${h(lullYear(2025))}` : ''}. Wind and solar capacity grew from ${Math.round(ws0)} GW to ${Math.round(ws1)} GW, so the same grey, still weather now makes more. The lulls still hurt because of the ceiling in chapter 3: they no longer last as long, but fossil plants still have to cover them.`;
   barChart($('story-lull'), {
     cats: rows.map((r) => label(r.year)),
     stacks: [{ name: 'Longest spell with wind and solar under 10 GW', color: css('--f-wind'), values: wsLull.hours }],
     yFormat: (v) => `${n0(v)} h`,
     yTickFormat: (v) => n0(v),
     highlight: (ci) => rows[ci].year === 'past365',
-    tooltip: (ci) => `<strong>${title(rows[ci].year)}</strong><div>Longest lull: <b>${wsLull.hours[ci] ? formatDuration(wsLull.spans[ci].end - wsLull.spans[ci].start) : 'none'}</b></div>${wsLull.spans[ci] ? `<div>from ${when(wsLull.spans[ci])}</div>` : ''}`,
+    tooltip: (ci) => `<strong>${title(rows[ci].year)}</strong><div>Longest lull: <b>${wsLull.hours[ci] ? formatDuration(wsLull.spans[ci].end - wsLull.spans[ci].start, step) : 'none'}</b></div>${wsLull.spans[ci] ? `<div>from ${when(wsLull.spans[ci])}</div>` : ''}`,
   });
 
-  // Chapter 5: the tightest half hours.
+  // Chapter 5: the tightest hours.
   const pick = [first.year, 2019, 2022, last.year].filter((y, k, a) => at(y) >= 0 && a.indexOf(y) === k);
   const parts = [['fossil', 'Fossil', '--fossil'], ['nuclear', 'Nuclear', '--f-nuclear'], ['imports', 'Net imports', '--f-imports'], ['ws', 'Wind and solar', '--f-wind'], ['other', 'Hydro, biomass, storage and other', '--f-other']];
   const stacks = parts.map(([k, name, color]) => ({ name, color: css(color), values: pick.map((y) => rows[at(y)].top[k]) }));
@@ -233,13 +239,13 @@ export function renderStory(data, end, installed, figs) {
   const e0 = en(first.year);
   const e1 = en(last.year);
   const imp24 = en(2024);
-  $('body-5').innerHTML = `In the hundred tightest half hours of ${first.year}, demand of ${gw(t1.demand)} was met by ${gw(t1.fossil)} of fossil, ${gw(t1.nuclear)} of nuclear and ${gw(t1.imports)} of imports. In ${last.year} the same hours took ${gw(t2.fossil)} of fossil and ${gw(t2.imports)} of imports, with nuclear gone since April 2023 (${src(SOURCES.nuclear, 'World Nuclear News')}). Net imports rose from ${twh(e0.twh.imports)} in ${first.year} to ${twh((imp24 ?? e1).twh.imports)} in ${(imp24 ?? e1).year}, and the longest unbroken run of importing grew from ${h(importRun.hours[ix.first])} to ${h(record(importRun))}, from ${fmtDate(slotTime(importRun.record.start, data.startMs))}. Fossil generation still halved, from ${twh(e0.fossil)} to ${twh(e1.fossil)}.`;
+  $('body-5').innerHTML = `In the fifty tightest hours of ${first.year}, demand of ${gw(t1.demand)} was met by ${gw(t1.fossil)} of fossil, ${gw(t1.nuclear)} of nuclear and ${gw(t1.imports)} of imports. In ${last.year} the same hours took ${gw(t2.fossil)} of fossil and ${gw(t2.imports)} of imports, with nuclear gone since April 2023 (${src(SOURCES.nuclear, 'World Nuclear News')}). Net imports rose from ${twh(e0.twh.imports)} in ${first.year} to ${twh((imp24 ?? e1).twh.imports)} in ${(imp24 ?? e1).year}, and the longest unbroken run of importing grew from ${h(importRun.hours[ix.first])} to ${h(record(importRun))}, from ${fmtDate(slotAt(importRun.record.start, data.startMs))}. Fossil generation still halved, from ${twh(e0.fossil)} to ${twh(e1.fossil)}.`;
   barChart($('story-tight'), {
     cats: pick.map(String),
     stacks,
     yFormat: gw,
     yTickFormat: (v) => `${v}`,
-    tooltip: (ci) => `<strong>${pick[ci]}, tightest ${TOP_N} half hours</strong><div>Demand: <b>${gw(rows[at(pick[ci])].top.demand)}</b></div>${[...stacks].reverse().map((s) => `<div><i style="background:${s.color}"></i>${s.name}: <b>${gw(s.values[ci])}</b></div>`).join('')}`,
+    tooltip: (ci) => `<strong>${pick[ci]}, tightest ${TOP_HOURS} hours</strong><div>Demand: <b>${gw(rows[at(pick[ci])].top.demand)}</b></div>${[...stacks].reverse().map((s) => `<div><i style="background:${s.color}"></i>${s.name}: <b>${gw(s.values[ci])}</b></div>`).join('')}`,
   });
   $('story-tight-legend').innerHTML = legend([...stacks].reverse().map((s) => [s.name, s.color]));
 }

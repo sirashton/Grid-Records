@@ -9,9 +9,10 @@
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { fetchYear, fetchInstalled, DE_COLUMNS, PARSE_VERSION } from './sources/energy-charts.mjs';
-import { encodeColumns } from './encode.mjs';
-import { SLOT_MS, DAY_MS, log } from './lib.mjs';
+import { fetchYear, fetchInstalled, DE_COLUMNS, PARSE_VERSION, STEP_MINUTES } from './sources/energy-charts.mjs';
+import { writeDataset } from './core/dataset.mjs';
+import { stitch } from './core/chunks.mjs';
+import { DAY_MS, log } from './lib.mjs';
 
 const { values: args } = parseArgs({
   options: {
@@ -40,26 +41,22 @@ export function isStale(entry, year, nowMs) {
   return false;
 }
 
-/** Lays cached years onto one half-hourly grid; earlier values win where years overlap, unless missing. */
+/** Lays cached years onto one 15-minute grid, trimming trailing slots with no data at all. */
 export function mergeYears(entries) {
-  const present = entries.filter((e) => e && e.length).sort((a, b) => a.startMs - b.startMs);
+  const present = entries.filter((e) => e && e.length);
   if (!present.length) return null;
-  const startMs = present[0].startMs;
-  const last = present.at(-1);
-  const length = Math.round((last.startMs - startMs) / SLOT_MS) + last.length;
-  const columns = Object.fromEntries(DE_COLUMNS.map((c) => [c, new Float64Array(length).fill(NaN)]));
-  for (const e of present) {
-    const base = Math.round((e.startMs - startMs) / SLOT_MS);
-    for (const c of DE_COLUMNS) {
-      const src = e.columns[c] ?? [];
-      for (let i = 0; i < e.length; i++) if (src[i] != null) columns[c][base + i] = src[i];
-    }
-  }
-  // Trim trailing slots with no data at all.
-  let end = length;
-  while (end > 0 && DE_COLUMNS.every((c) => Number.isNaN(columns[c][end - 1]))) end--;
-  for (const c of DE_COLUMNS) columns[c] = columns[c].subarray(0, end);
-  return { startMs, length: end, columns };
+  // Energy-Charts starts at midnight UTC on 1 January 2015, an hour after New
+  // Year in Germany. A few missing slots in front let 2015 count as a whole
+  // German calendar year.
+  const first = Math.min(...present.map((e) => e.startMs));
+  const newYear = Date.UTC(new Date(first).getUTCFullYear(), 0, 1) - 3600000;
+  const pad = first - newYear > 0 && first - newYear <= 3600000 ? [{ startMs: newYear, length: 1, columns: {} }] : [];
+  const merged = stitch([...pad, ...present], { stepMinutes: STEP_MINUTES, columns: DE_COLUMNS });
+  if (!merged) return null;
+  let end = merged.length;
+  while (end > 0 && DE_COLUMNS.every((c) => Number.isNaN(merged.columns[c][end - 1]))) end--;
+  for (const c of DE_COLUMNS) merged.columns[c] = merged.columns[c].subarray(0, end);
+  return { ...merged, length: end };
 }
 
 async function main() {
@@ -84,7 +81,7 @@ async function main() {
         const entry = { fetched: new Date().toISOString(), version: PARSE_VERSION, ...parsed };
         cached.set(year, entry);
         await writeFile(`${YEARS}/${year}.json`, JSON.stringify(entry));
-        log(`DE: ${year}: ${parsed.length} half hours, types ${parsed.types.join('; ')}`);
+        log(`DE: ${year}: ${parsed.length} quarter hours, types ${parsed.types.join('; ')}`);
       }
       fetched++;
     } catch (err) {
@@ -101,9 +98,6 @@ async function main() {
     log('DE: no years yet, nothing written');
     return;
   }
-  const { names, missing, gz } = encodeColumns(merged.columns, merged.length);
-  await writeFile(`${args.out}/series.bin.gz`, gz);
-
   // Installed capacity, kept from the last good fetch if this one fails.
   let installed = null;
   try {
@@ -115,18 +109,16 @@ async function main() {
   if (!installed && existsSync(`${args.cache}/installed.json`)) installed = JSON.parse(await readFile(`${args.cache}/installed.json`, 'utf8'));
   if (installed) await writeFile(`${args.out}/installed.json`, JSON.stringify(installed));
 
-  const meta = {
-    generated: new Date().toISOString(),
+  const { bytes } = await writeDataset(args.out, {
     region: 'de',
+    timeZone: 'Europe/Berlin',
+    stepMinutes: STEP_MINUTES,
     startMs: merged.startMs,
-    stepMinutes: 30,
     length: merged.length,
-    columns: names,
-    missing,
-    years: { first: Math.min(...cached.keys()), last: Math.max(...cached.keys()), toFetch: left },
-  };
-  await writeFile(`${args.out}/meta.json`, JSON.stringify(meta));
-  log(`DE: wrote ${args.out}/series.bin.gz (${(gz.length / 1e6).toFixed(2)} MB, ${names.length} columns x ${merged.length} slots) in ${((Date.now() - started) / 1000).toFixed(0)} s`);
+    columns: merged.columns,
+    extra: { years: { first: Math.min(...cached.keys()), last: Math.max(...cached.keys()), toFetch: left } },
+  }, { log });
+  log(`DE: wrote ${args.out}/series.bin.gz (${(bytes / 1e6).toFixed(2)} MB, ${DE_COLUMNS.length} columns x ${merged.length} slots) in ${((Date.now() - started) / 1000).toFixed(0)} s`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
