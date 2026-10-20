@@ -121,6 +121,20 @@ jobs:
         with:
           path: .cache-fr
           key: fr-${{ github.run_id }}
+      # Czechia, likewise (Energy-Charts). Requests are spaced 31 s apart for
+      # its rate limit, so the history fills over the first few runs.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-cz
+          key: cz-${{ github.run_id }}
+          restore-keys: cz-
+      - run: node pipeline/build-cz.mjs --budget-minutes 3
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-cz
+          key: cz-${{ github.run_id }}
       # Greece, likewise. Energy-Charts allows about two requests a minute, so
       # the history fills over several runs; after that a run asks only for
       # the current year.
