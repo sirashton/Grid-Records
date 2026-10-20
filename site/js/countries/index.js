@@ -13,6 +13,7 @@ import br from './br.js';
 import fr from './fr.js';
 import wa from './wa.js';
 import cz from './cz.js';
+import jp from './jp.js';
 
 export const COUNTRIES = [
   { country: gb, page: '', data: 'data', flag: 'flags/gb.svg' },
@@ -24,4 +25,5 @@ export const COUNTRIES = [
   { country: fr, page: 'fr/', data: 'data/fr', flag: 'flags/fr.svg' },
   { country: wa, page: 'wa/', data: 'data/wa', flag: 'flags/wa.svg' },
   { country: cz, page: 'cz/', data: 'data/cz', flag: 'flags/cz.svg' },
+  { country: jp, page: 'jp/', data: 'data/jp', flag: 'flags/jp.svg', nav: 'Japan' },
 ];

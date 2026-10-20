@@ -150,6 +150,20 @@ jobs:
         with:
           path: .cache-wa
           key: wa-${{ github.run_id }}
+      # Japan, likewise: nine operators' monthly files, the current month
+      # fetched again each run; the older hourly files only once.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-jp
+          key: jp-${{ github.run_id }}
+          restore-keys: jp-
+      - run: node pipeline/build-jp.mjs --budget-minutes 4
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-jp
+          key: jp-${{ github.run_id }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
