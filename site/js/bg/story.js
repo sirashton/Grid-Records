@@ -222,6 +222,7 @@ export function storyFigures(data, end) {
     fossil15Spell: spellOf(summarise(fossil, 1.5, 'below', opts)),
     fossil1Spell: spellOf(summarise(fossil, 1, 'below', opts)),
     lignite1Spell: spellOf(summarise(ligGw, 1, 'below', opts)),
+    lignite05Spell: spellOf(summarise(ligGw, 0.5, 'below', opts)),
     battery1Spell: spellOf(summarise(batGw, 1, 'above', opts)),
   };
 }
@@ -239,6 +240,9 @@ const label = (y) => (y === 'past365' ? '365d' : String(y));
 const title = (y) => (y === 'past365' ? 'Latest 365 days' : String(y));
 const legend = (items) => items.map(([name, color]) => `<span><span class="swatch" style="background:${color}"></span>${name}</span>`).join('');
 const hh = (h) => `${String(h).padStart(2, '0')}:00`;
+const pc = (v) => `${Math.round(v * 100)}%`;
+const link = (ch, text) => `<a href="#chapter-${ch}" data-open="chapter-${ch}">${text}</a>`;
+const src = (url, text) => `<a href="${url}">${text}</a>`;
 
 /** Sets a text slot, or hides it while the words are not written yet. */
 function put(id, html, asHtml = true) {
@@ -258,7 +262,8 @@ export function renderStory(data, end, figs, installed = null) {
   const row = (y) => rows.find((r) => r.year === y) ?? full[0];
   const step = stepOf(data);
   const at = (i) => slotTime(i, data.startMs, step);
-  const ctx = { data, figs, rows, full, first: full[0], last, latest, row, at, installed, fmtDate, n0, gw, hrs, eur, twh, hh, step };
+  const spellH = (sp) => ((sp.end - sp.start) * step) / 60;
+  const ctx = { data, figs, rows, full, first: full[0], last, latest, row, at, installed, fmtDate, n0, gw, hrs, eur, twh, hh, pc, link, src, spellH, step };
   const text = (k) => (typeof TEXT[k] === 'function' ? TEXT[k](ctx) : TEXT[k]) ?? null;
 
   if (text('lede')) $('lede').textContent = text('lede');

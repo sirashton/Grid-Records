@@ -1,40 +1,106 @@
 // The words of the Bulgaria story, kept apart from the figures and charts in
 // ./story.js. Each entry is a string, or a function of the story context
 // (ctx: figs, rows, first, last, latest, row(year), at(slot), installed, and
-// the formatters n0, gw, hrs, eur, twh, hh, fmtDate) that returns one. An
-// entry left null is hidden on the page, so the charts can ship before the
-// words. Every number must come from ctx (storyFigures, tested) or from a
-// source that is linked.
-//
-// The prose is still to be written: the figures and sources for it are in
-// the project notes (five-countries/bg-story-brief.md).
+// the helpers n0, gw, hrs, eur, twh, hh, pc, link, src, spellH, fmtDate) that
+// returns one. An entry left null is hidden on the page. Every number comes
+// from ctx (storyFigures, tested) or from a linked source.
+
+const S = {
+  quota: 'https://www.economic.bg/en/a/view/tpp-maritsa-iztok-2-to-supply-households-with-energy-again-npp-kozloduy-replaces-tpp-maritsa-iztok-3',
+  me2Accounts: 'https://balkangreenenergynews.com/rs/jedina-bugarska-drzavna-termoelektrana-na-ugalj-u-gubitku-od-52-miliona-evra/',
+  me3: 'https://www.capital.bg/en/energy/2026/07/01/4930935_nomad_energy_company_to_acquire_contourglobal_maritsa/',
+  aes: 'https://www.economic.bg/en/a/view/aes-galabovo-thermal-power-plant-begins-mass-layoffs-in-stara-zagora',
+  carbon: 'https://www.spglobal.com/energy/en/news-research/latest-news/natural-gas/100526-european-carbon-prices-drop-to-7-week-low-as-market-eyes-upcoming-policy-agenda',
+  map: 'https://www.capital.bg/en/energy/2026/07/06/4932460_bulgarias_new_energy_map/',
+  mix: 'https://www.capital.bg/en/energy/2026/07/20/4937325_bulgarias_energy_mix_has_reached_a_turning_point/',
+  storage: 'https://www.iene.eu/energy-news/bulgaria-emerges-as-eu-leader-in-electricity-storage-p8681.html',
+  august: 'https://taiyangnews.info/storage/global-battery-storage-news-snippets-august-21-2026',
+  euronews: 'https://euronews.com/2026/09/24/bulgarias-battery-storage-boom-pays-off-as-summer-drought-hits-power-plants',
+  ember: 'https://www.bta.bg/en/news/1184355-bulgaria-emerges-as-global-leader-in-battery-storage-ember-analysis-shows',
+  apste: 'https://balkangreenenergynews.com/bulgarias-net-power-exports-jump-62-driven-by-solar-bess/',
+  me3Battery: 'https://www.enlit.world/library/contourglobal-opens-500mwh-bess-project-in-bulgarian-coal-power-plant',
+  coalExit: 'https://www.bta.bg/en/news/1136179',
+  enerdata: 'https://www.enerdata.net/publications/daily-energy-news/bulgaria-allows-maritza-iztok-coal-complex-operate-until-2038.html',
+  kozloduyLicence: 'https://www.world-nuclear-news.org/articles/kozloduy-unit-6-clear-to-operate-for-another-10-ye',
+  epc: 'https://www.nucnet.org/news/bulgaria-planning-to-move-kozloduy-nuclear-project-to-epc-stage-in-2027-6-4-2026',
+  ap1000: 'https://bnrnews.bg/en/post/134672/bulgaria-must-sign-the-contract-for-the-construction-of-the-kozloduy-npp-units-7-and-8-by-end-of-next-year-energy-minister-says',
+};
+
+const twh2 = (v) => `${v.toFixed(2)} TWh`;
+const monthName = (m) => ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][m];
 
 export const CHAPTERS = [
-  'Lignite and the exports',
-  'When lignite runs, and what it is paid',
-  'Batteries move noon solar to the evening',
-  'The evening peak, year by year',
+  'Lignite without a buyer at home',
+  'One plant on a fixed price, two without a contract',
+  'Batteries, mostly hidden in the data until September 2026',
+  'The evening: batteries took the imports, not the lignite',
   'What is coming, and which records it moves',
 ];
 
 export const TEXT = {
-  lede: null,
-  answerLead: null,
-  // Three supporting points, as HTML strings linking to the chapters.
-  answerPoints: null,
-  // The headline figure and fact list above the chapters, as HTML.
-  facts: null,
-  hint: null,
-  take1: null,
-  body1: null,
-  take2: null,
-  body2: null,
-  take3: null,
-  body3: null,
-  take4: null,
-  body4: null,
-  take5: null,
-  body5: null,
-  // [when, what, source url, record to watch]
-  coming: null,
+  lede: ({ first, last, twh, pc }) => `Bulgaria burnt ${twh(last.ligTwh)} of lignite in ${last.year}, down from ${twh(first.ligTwh)} in ${first.year}, and ${pc(last.ligImporting / last.ligTwh)} of it while the country was importing power.`,
+
+  answerLead: ({ last, gw }) => `Lignite still runs in Bulgaria because one state-owned plant, Maritsa East 2, is paid a fixed price to supply households, and that keeps about ${gw(last.ligAvg)} on the grid day and night whatever the market says. The two private Maritsa East plants have lost their state contracts and all but stopped. Batteries have arrived faster than almost anywhere in Europe, but so far they have turned Bulgaria's evenings from importing to exporting rather than pushing lignite below its floor. Maritsa East 2 and its mines are to run until 2038, so the records to watch are lignite under 1 GW and fossil under 1 GW.`,
+
+  answerPoints: ({ figs, last, latest, at, fmtDate, gw, hrs, eur, hh, pc, link }) => [
+    `<b>The grid does not need most of it.</b> In ${last.year}, ${pc(last.ligExportingShare)} of Bulgaria's lignite was burnt while the country was a net exporter, and for ${hrs(last.ligCovered)} the net exports were at least as large as all the lignite running. In the latest 365 days that count is ${hrs(latest.ligCovered)}. ${link(1, 'Chapter 1')}`,
+    `<b>The floor is a regulated price, not the market.</b> Lignite ran at ${gw(last.ligHour[4])} at ${hh(4)} and ${gw(last.ligHour[20])} at ${hh(20)} in ${last.year}, while the day-ahead price went from ${eur(last.priceHour[13])} at ${hh(13)} to ${eur(last.priceHour[20])} at ${hh(20)}. A plant following the price would not run like that. Maritsa East 2 sells most of its output to the regulated household market at about €141 a megawatt hour. ${link(2, 'Chapter 2')}`,
+    `<b>Batteries have replaced the evening imports so far, not the evening lignite.</b> From ${last.year} to the latest 365 days, net exports from 18:00 to 22:00 went from ${gw(last.eve.net)} to ${gw(latest.eve.net)}, while evening lignite fell only from ${gw(last.eve.lig)} to ${gw(latest.eve.lig)}. Energy-Charts lists batteries only from ${fmtDate(at(figs.batFirst))}, so the earlier part is inferred. ${link(3, 'Chapters 3')} and ${link(4, '4')}`,
+  ],
+
+  facts: ({ figs, first, last, latest, row, at, fmtDate, gw, hrs, eur, twh, hh, spellH }) => {
+    const items = [
+      ['--f-lignite', `Lignite burnt in ${last.year}`, twh(last.ligTwh), `against ${twh(row(2022).ligTwh)} in 2022 and ${twh(first.ligTwh)} in ${first.year}`],
+      ['--f-imports', 'Hours when net exports covered all the lignite', hrs(latest.ligCovered), `in the latest 365 days; ${hrs(last.ligCovered)} in ${last.year}, none from ${first.year} to 2017`],
+      ['--f-solar', `Price at ${hh(13)} and ${hh(20)}`, `${eur(last.priceHour[13])} vs ${eur(last.priceHour[20])}`, `per MWh on average in ${last.year}; a Bulgarian lignite plant breaks even at about €143`],
+      ['--f-lignite', 'Longest spell with lignite under 1 GW', figs.lignite1Spell ? hrs(spellH(figs.lignite1Spell)) : 'None', figs.lignite1Spell ? `from ${fmtDate(at(figs.lignite1Spell.start))}: the record to beat` : ''],
+    ];
+    return `<div class="headline"><div class="big">${gw(last.ligAvg)}</div><div class="sub">Lignite's average output in ${last.year}, against ${gw(first.ligAvg)} in ${first.year} and ${gw(row(2022).ligAvg)} in 2022, the year Bulgaria exported a record ${twh(row(2022).netExpTwh)}. It barely changes through the day, which is the shape of a contract, not a market.</div></div>
+    <ul class="fact-list">${items.map(([c, l, v, w]) => `<li><span class="swatch" style="background:var(${c})"></span><span><b>${l}</b> <span class="v">${v}</span> <span class="sub">${w}</span></span></li>`).join('')}</ul>`;
+  },
+
+  hint: 'Five chapters: lignite that runs while the power goes abroad, who pays each Maritsa East plant, the batteries the data hid until September 2026, what they have changed in the evening, and what is coming, with the record each item should move.',
+
+  take1: ({ first, last, twh }) => `Lignite fell from ${twh(first.ligTwh)} in ${first.year} to ${twh(last.ligTwh)} in ${last.year}, and what is left is burnt about as often while Bulgaria imports as while it exports.`,
+
+  body1: ({ first, last, latest, row, twh, gw, hrs, eur, pc, src }) => `Bulgaria used to burn lignite for its neighbours. In ${first.year} it made ${twh(first.ligTwh)} of lignite and exported ${twh(first.netExpTwh)} net, and ${pc(first.ligExportingShare)} of the lignite was burnt while the country was a net exporter. The peak was 2022, the year of the gas crisis: ${twh(row(2022).ligTwh)} of lignite, a record ${twh(row(2022).netExpTwh)} of net exports and an average price of ${eur(row(2022).price)} a megawatt hour, with lignite still at ${gw(row(2022).ligMin)} in its lowest hour. Coal was nearly half of Bulgaria's electricity that year (${src(S.map, 'Capital')}). Then the price fell and the lignite went with it: ${twh(row(2023).ligTwh)} in 2023, ${twh(row(2024).ligTwh)} in 2024 and ${twh(last.ligTwh)} in ${last.year}, about a quarter of generation (${src(S.map, 'Capital')}). Solar rose from ${twh(row(2022).solTwh)} to ${twh(last.solTwh)} over the same years, and Kozloduy's two reactors kept making about ${twh(last.nucTwh)}. What is left runs in a different way. In ${last.year}, ${twh(last.ligImporting)} of the lignite was burnt in hours when Bulgaria was importing, and for ${hrs(last.ligCovered)} the net exports were larger than all the lignite on the grid, so on a net view every lignite megawatt went abroad. In the latest 365 days that is ${hrs(latest.ligCovered)}. The lignite that remains is not there because the grid is short. The next chapter says who pays for it.`,
+
+  take2: ({ last, gw, eur, hh }) => `Lignite ran at ${gw(last.ligHour[4])} at ${hh(4)} and ${gw(last.ligHour[20])} at ${hh(20)} in ${last.year}, through a price that went from ${eur(last.priceHour[13])} to ${eur(last.priceHour[20])}, because Maritsa East 2 sells to households at a fixed price and the private plants that sold to the market have stopped.`,
+
+  body2: ({ last, row, gw, eur, hh, src }) => `A lignite plant that followed the price would run in the evening and stop at noon. Bulgaria's does neither. In ${last.year} lignite averaged ${gw(last.ligHour[4])} at ${hh(4)}, ${gw(last.ligHour[13])} at ${hh(13)} and ${gw(last.ligHour[20])} at ${hh(20)}, while the day-ahead price averaged ${eur(last.priceHour[13])} at ${hh(13)} and ${eur(last.priceHour[20])} at ${hh(20)}. In 2022 the same flat line ran from ${gw(row(2022).ligHour[4])} to ${gw(row(2022).ligHour[20])}. The level fell; the shape did not. The reason is who pays. Three plants make up the Maritsa East complex. Maritsa East 2 is state-owned, through Bulgarian Energy Holding, and sells under a quota to NEK, the public supplier, for the regulated household market. For July 2024 to June 2025 that quota was 2.628 TWh at BGN 275.98 a megawatt hour, about €141, while Kozloduy's price was about €33 and the regulator set the annual market price at €88.50. The quota rests on a 31 January 2020 National Assembly decision that governments keep the coal plants running (${src(S.quota, 'Economic.bg')}). In 2024 the plant sold 3.23 TWh on the regulated market and 605 GWh on the open market, about 86% regulated, and still lost 101 million leva, with its liabilities, mainly for carbon permits, up from 248 to 700 million leva (${src(S.me2Accounts, 'Balkan Green Energy News')}). The two private plants sold on different terms. ContourGlobal's Maritsa East 3, 908 MW, had a 15-year fixed-price and availability contract with NEK that ended on 20 February 2024; its output fell from 3.6 TWh in 2023 to 561 GWh in 2024, and it now runs only when the price allows. Capital puts a Bulgarian lignite plant's break-even at about €143 a megawatt hour, against an exchange average of €96 in June 2026 (${src(S.me3, 'Capital')}). The carbon permit alone was €82 a tonne in early October 2026 (${src(S.carbon, 'S&P Global')}). AES Galabovo ran on a fixed-price contract with the state until it expired, and stopped on 8 May 2026 (${src(S.aes, 'Economic.bg')}). Our inference from the data is that the flat ${gw(last.ligAvg)} is Maritsa East 2's quota plus what the smaller plants add, and that the market pays for lignite only in the evening, when the price is above the break-even and the plant is running anyway. The 2026-27 quota and price were set in July 2026; we have not found them in an English source and will add them when we do.`,
+
+  take3: ({ figs, latest, at, fmtDate, gw, hh }) => `Energy-Charts lists Bulgarian batteries only from ${fmtDate(at(figs.batFirst))}. Before that they show as solar after dark and as a gap between load and everything listed: in the latest 365 days, ${gw(-latest.gapHour[13])} of charging at ${hh(13)} and ${gw(latest.gapHour[21])} of discharge at ${hh(21)}.`,
+
+  body3: ({ figs, last, latest, row, at, fmtDate, gw, hrs, twh, hh, spellH, src }) => {
+    const solPeak = latest.solHour.indexOf(Math.max(...latest.solHour));
+    const chgPeak = latest.chgHour.indexOf(Math.max(...latest.chgHour));
+    return `Bulgaria went from about 200 MWh of batteries in 2024 to 3,432 MW by May 2026 by ESO's count, and about 4,800 MW and 14 GWh by mid-June (${src(S.storage, 'Novinite')}); 5.4 GW by 17 August (${src(S.august, 'Capital, via TaiyangNews')}); and about 5.7 GW across some 100 sites by September, according to the energy ministry (${src(S.euronews, 'Euronews')}). Much of it was built against a recovery-plan deadline of 31 July 2026. The data did not see it. Energy-Charts carries "Battery" and "Battery Consumption" for Bulgaria only from ${fmtDate(at(figs.batFirst))}, so for most of the build-out the fleet is visible only indirectly, and the figures in this chapter are inferred from that. First, batteries at solar parks discharge through the park's meter, so they appear as solar at night. Solar between 22:00 and 05:00 was ${row(2024).solDarkTwh < 0.005 ? 'nothing' : twh2(row(2024).solDarkTwh)} in every year to 2024, ${twh2(last.solDarkTwh)} in ${last.year} and ${twh2(latest.solDarkTwh)} in the latest 365 days; in those days "solar" averages ${gw(latest.solHour[20])} at ${hh(20)} and ${gw(latest.solHour[21])} at ${hh(21)}. Second, standalone batteries show as a gap between load and everything listed, which is how Ember estimated them (${src(S.ember, 'BTA')}). In 2019 that gap had no daily shape and stayed within about 0.3 GW. In ${last.year} it was a flat ${gw(Math.min(...last.gapHour))} to ${gw(Math.max(...last.gapHour))}, an offset that appears from September 2024 and is probably not batteries. In the latest 365 days it has the shape of a battery: ${gw(-latest.gapHour[13])} of unlisted charging at ${hh(13)} and ${gw(latest.gapHour[21])} of unlisted discharge at ${hh(21)}, on top of the listed fleet. Since ${fmtDate(at(figs.batFirst))} the listed fleet has peaked at ${gw(latest.batMax)} of discharge and ${gw(latest.chgMax)} of charging, and discharged ${twh2(latest.batTwh)} against ${twh2(latest.chgTwh)} charged.${figs.battery1Spell ? ` Its longest spell above 1 GW is ${hrs(spellH(figs.battery1Spell))}, on ${fmtDate(at(figs.battery1Spell.start))}.` : ''} The chart shows the average day of the latest 365 days: solar peaks at ${gw(latest.solHour[solPeak])} at ${hh(solPeak)} and listed charging at ${gw(latest.chgHour[chgPeak])} at ${hh(chgPeak)}. Bulgaria now imports a little from 11:00 to 15:00 (${gw(-latest.mid.net)} net, against ${gw(last.mid.net)} of exports in ${last.year}) while the batteries fill, then exports ${gw(latest.netExpHour[20])} at ${hh(20)}. Ember's estimate from the same ENTSO-E data is that solar plus batteries met 24% of demand from 19:00 to 21:00 in the first half of 2026, from almost nothing in the first half of 2023 (${src(S.ember, 'BTA')}). Lignite through all of this: ${gw(latest.ligHour[13])} at ${hh(13)} and ${gw(latest.ligHour[20])} at ${hh(20)}.`;
+  },
+
+  take4: ({ last, latest, gw }) => `From 18:00 to 22:00, Bulgaria's net exports went from ${gw(last.eve.net)} in ${last.year} to ${gw(latest.eve.net)} in the latest 365 days. Evening lignite went from ${gw(last.eve.lig)} to ${gw(latest.eve.lig)}.`,
+
+  body4: ({ last, latest, row, gw, eur, hh, src }) => `The evening is where batteries should hurt lignite most, because the evening price is the only one that covers it. In 2022 lignite ran at ${gw(row(2022).eve.lig)} from 18:00 to 22:00, Bulgaria exported ${gw(row(2022).eve.net)} and the evening price was ${eur(row(2022).eve.price)}. By 2024 the evening had turned: lignite ${gw(row(2024).eve.lig)}, net imports of ${gw(-row(2024).eve.net)}, price ${eur(row(2024).eve.price)}. In ${last.year} trade was balanced, ${gw(last.eve.net)} net, with lignite at ${gw(last.eve.lig)} and demand at ${gw(last.eve.dem)}. In the latest 365 days demand is ${gw(latest.eve.dem)}, the price is ${eur(latest.eve.price)}, and Bulgaria exports ${gw(latest.eve.net)} on average in those hours, ${gw(latest.netExpHour[20])} at ${hh(20)}. Listed battery discharge adds ${gw(latest.eve.bat)} to the average, from six weeks of data; the inferred gap and the after-dark solar add more. So about ${gw(latest.eve.net - last.eve.net)} of new evening supply arrived between ${last.year} and now, and it went abroad. Evening lignite fell ${gw(last.eve.lig - latest.eve.lig)}. That is what a regulated quota looks like from the outside: the plant has a buyer at a fixed price, so a lower market price moves the exports, not the plant. ESO data cited by APSTE shows the same at the scale of a year: net exports from January to early October 2026 were 3.5 TWh, up 62%, with battery deliveries of 1,720 GWh to 4 October against 190 GWh a year earlier (${src(S.apste, 'Balkan Green Energy News')}). Romania took nearly half of July's exports (${src(S.euronews, 'Euronews')}). The one plant that has changed its evening is Maritsa East 3, which put a 202 MW, 500 MWh battery on its grid connection in October 2025 and keeps its remaining coal units for peak demand (${src(S.me3Battery, 'Enlit')}). ContourGlobal's Vassil Shtonov put it plainly: "We decided to disconnect one coal unit and connect batteries" (${src(S.euronews, 'Euronews')}).`,
+
+  take5: ({ figs, at, fmtDate, hrs, spellH }) => `AES Galabovo stopped in May 2026 and ContourGlobal wants out of coal in 2027, but Maritsa East 2 has a quota and a 2038 end date, so the floor stays until a government decides otherwise.${figs.lignite1Spell ? ` Lignite was under 1 GW for ${hrs(spellH(figs.lignite1Spell))} from ${fmtDate(at(figs.lignite1Spell.start))}; that is the record to beat.` : ''}`,
+
+  body5: ({ figs, last, latest, row, at, fmtDate, twh, hrs, spellH, src }) => {
+    const spring = last.ligMonth.slice(2, 9);
+    const lowM = latest.ligMonth.indexOf(Math.min(...latest.ligMonth));
+    const sp = (s) => (s ? `${hrs(spellH(s))} from ${fmtDate(at(s.start))}` : 'not yet');
+    return `Lignite's year now has two seasons. In ${last.year} it burnt ${twh(last.ligMonth[0])} in January and ${twh(last.ligMonth[1])} in February, then ${twh(Math.min(...spring))} to ${twh(Math.max(...spring))} a month from March to September, and ${twh(last.ligMonth[11])} in December. In the latest 365 days the lowest month was ${monthName(lowM)}, at ${twh(latest.ligMonth[lowM])}. The winter months are the ones where Bulgaria's own demand needs the plant: Kozloduy's two reactors give about ${twh(last.nucTwh)} a year, but one of them is off or turned down for about ${hrs(last.nucLowHours)} a year, there is little sun, and Chaira, the 864 MW pumped-storage plant, has been out since April 2022 (${src(S.storage, 'Novinite')}). Spring and summer are where the records fall. 2026 set three: lignite under 1 GW for ${sp(figs.lignite1Spell)}, all fossil fuels under 1.5 GW for ${sp(figs.fossil15Spell)}, and all fossil under 1 GW for ${sp(figs.fossil1Spell)}, the day AES Galabovo stopped. Hours a year with fossil under 1 GW went from ${hrs(row(2022).fosLow[1])} in 2022 to ${hrs(last.fosLow[1])} in ${last.year}. The dated items are below, each with the record it should move. Three matter most. The EU recovery plan of 2022 carried a coal exit by 2038 to 2040 and a 40% cut in power-sector emissions by 2025; parliament removed both in 2023 (${src(S.enerdata, 'Enerdata')}), and in May 2026 the Commission accepted Bulgaria's reforms with Maritsa East 2 and the mines running to 2038 (${src(S.coalExit, 'BTA')}). Kozloduy 7 and 8, two Westinghouse AP1000s, go to the EPC stage in 2027 (${src(S.epc, 'NucNet')}), with the first unit due no later than 2034 and the second about two years after (${src(S.ap1000, 'BNR')}); they would cover winter hours that lignite fills now. And about 1.3 GW more solar is expected within a year of July 2026, with wind near 715 MW (${src(S.mix, 'Capital')}), which lengthens the spring spells and raises the midday charging peak. Nothing on the list ends the quota before 2038. The floor will fall when a government stops buying from Maritsa East 2, and the record that shows it will be lignite under 0.5 GW, whose longest spell so far is ${sp(figs.lignite05Spell)}.`;
+  },
+
+  coming: [
+    ['Since 8 May 2026', 'AES Galabovo stopped when its fixed-price contract with the state expired.', S.aes, 'Fossil under 1 GW: the spell that started that day is the record; the next one should be longer.'],
+    ['Since 10 Sep 2026', 'Energy-Charts lists battery discharge and charging for Bulgaria; about 5.7 GW were running by then. Before this date the battery records read zero.', S.euronews, 'Battery discharge above 2 GW and 3 GW; battery charging above 3 GW and 4 GW.'],
+    ['Winter 2026-27', 'The first winter with the full battery fleet and without AES Galabovo. The 2026-27 regulated quota for Maritsa East 2, set in July 2026, decides the floor; we have not found it in an English source.', S.quota, 'Fossil fuels, high output, above 2 GW: how many winter hours still need it. Net imports above 1 GW.'],
+    ['2027', 'ContourGlobal\'s target to leave coal entirely; the sale of Maritsa East 3 to Nomad Energy awaits NEK and competition approval.', S.me3, 'Lignite under 1 GW in winter; lignite under 0.5 GW.'],
+    ['2027', 'Kozloduy 5\'s licence, extended in 2017, runs to 2027.', S.kozloduyLicence, 'Nuclear, low output, under 1.5 GW: the hours a year with one unit off.'],
+    ['2027', 'Kozloduy 7 and 8 (two AP1000s) move to the EPC stage after a 14-month extension of the engineering contract.', S.epc, 'None yet: the date to hold the project to.'],
+    ['By early 2027', 'About 1.3 GW more solar within 6 to 12 months of July 2026, taking Bulgaria near 8 GW; about 260 MW of wind possible in 2027.', S.mix, 'Solar above 5 GW; battery charging above 4 GW; fossil under 1.5 GW through a whole spring.'],
+    ['By mid-2027', 'Chaira pumped storage (864 MW), offline since April 2022, fully restored.', S.storage, 'Evening lignite in winter; net exports above 2 GW.'],
+    ['October 2029', 'Kozloduy 6\'s licence ends; renewal expected.', S.kozloduyLicence, 'Nuclear, low output, under 1.5 GW.'],
+    ['2034, then about 2036', 'Kozloduy 7, then 8: the energy minister said in 2025 that the first unit should run by 2034 at the latest, and the second about two years later.', S.ap1000, 'Lignite under 0.5 GW in winter; net exports above 3 GW.'],
+    ['2038', 'Maritsa East 2 and the Maritsa Iztok mines\' stated end date, accepted by the Commission in May 2026.', S.coalExit, 'Lignite at zero; fossil under 0.5 GW.'],
+  ],
 };
