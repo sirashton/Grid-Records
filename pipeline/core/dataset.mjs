@@ -19,9 +19,10 @@ export const CANONICAL_COLUMNS = [
 ];
 // Columns that take power off the grid, and so are zero or below.
 const NEGATIVE = /(_charge|_chg|^exports)$/;
-// Columns that may take either sign: a spot price in $/MWh, and operational
-// demand, which goes below zero when rooftop solar outruns it (South Australia).
-const SIGNED = /^(price|demand)$/;
+// Columns that may take either sign: a spot price in $/MWh, operational
+// demand, which goes below zero when rooftop solar outruns it (South Australia),
+// and net_<code>, the net flow on one border, positive into the country (Denmark).
+const SIGNED = /^(price|demand|net_[a-z]+)$/;
 
 /** A column of `length` slots, all missing. */
 export const emptyColumn = (length) => new Float64Array(length).fill(NaN);
