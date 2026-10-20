@@ -1,4 +1,4 @@
-// Temporary: the shape of ERCOT's fuel mix workbooks.
+// Temporary: details of ERCOT's fuel mix workbooks.
 import { writeFile, mkdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { readWorkbook } from '../sources/xlsx.mjs';
@@ -6,22 +6,28 @@ const UA = { 'user-agent': 'Mozilla/5.0 (grid-records; github.com/sirashton/Grid
 await mkdir('/tmp/tx', { recursive: true });
 const dl = async (url, file) => { const r = await fetch(url, { headers: UA }); await writeFile(file, Buffer.from(await r.arrayBuffer())); return file; };
 await dl('https://www.ercot.com/files/docs/2021/03/10/FuelMixReport_PreviousYears.zip', '/tmp/tx/prev.zip');
-console.log(execFileSync('unzip', ['-l', '/tmp/tx/prev.zip']).toString());
 execFileSync('unzip', ['-qq', '-o', '/tmp/tx/prev.zip', '-d', '/tmp/tx/prev']);
-console.log(execFileSync('find', ['/tmp/tx/prev', '-type', 'f']).toString());
 await dl('https://www.ercot.com/files/docs/2026/02/09/IntGenbyFuel2026.xlsx', '/tmp/tx/2026.xlsx');
-const files = execFileSync('find', ['/tmp/tx', '-type', 'f', '-name', '*.xls*']).toString().trim().split('\n').sort();
-for (const f of files) {
-  console.log('=====', f, execFileSync('file', [f]).toString().trim());
-  if (!f.endsWith('.xlsx')) continue;
+await dl('https://www.ercot.com/files/docs/2025/02/07/IntGenbyFuel2025.xlsx', '/tmp/tx/2025.xlsx');
+const show = (s, pred, n = 12) => {
+  for (const r of s.rows.filter(pred).slice(0, n)) console.log(s.name, JSON.stringify(r.slice(0, 4)), 'cells', r.filter((x) => x != null).length - 4, 'h0-3', r.slice(4, 16).map((x) => (typeof x === 'number' ? Math.round(x) : x)).join(','), '| h17-22', r.slice(4 + 68, 4 + 92).map((x) => (typeof x === 'number' ? Math.round(x) : x)).join(','), '| tail', JSON.stringify(r.slice(96)));
+};
+for (const f of ['/tmp/tx/2026.xlsx', '/tmp/tx/2025.xlsx', '/tmp/tx/prev/IntGenbyFuel2024.xlsx']) {
   const wb = await readWorkbook(f);
-  console.log('sheets', wb.map((s) => `${s.name}(${s.rows.length})`).join(' '));
-  const s = wb.find((x) => /jan/i.test(x.name)) ?? wb[1] ?? wb[0];
-  if (!s) continue;
-  for (const r of s.rows.slice(0, 4)) console.log(JSON.stringify(r.slice(0, 8)), '... len', r.length, JSON.stringify(r.slice(-3)));
-  const fuels = new Map();
-  for (const r of s.rows.slice(1)) { const k = `${r[1]}|${r[2]}`; fuels.set(k, (fuels.get(k) ?? 0) + 1); }
-  console.log('fuel|type', JSON.stringify([...fuels]));
-  const dates = s.rows.slice(1).map((r) => r[0]).filter((x) => x != null);
-  console.log('first/last date', dates[0], dates.at(-1), typeof dates[0]);
+  const by = Object.fromEntries(wb.map((s) => [s.name, s]));
+  console.log('=====', f);
+  for (const s of wb.slice(0, 4)) for (const r of s.rows.slice(0, 20)) console.log(s.name, JSON.stringify(r).slice(0, 300));
+  // A summer day: every fuel's profile.
+  show(by.Jul, (r) => r[0] === by.Jul.rows[1 + 10 * 10]?.[0], 12);
+  // Clock changes: March and November.
+  for (const m of ['Mar', 'Nov']) {
+    const s = by[m]; if (!s) continue;
+    const lens = new Map();
+    for (const r of s.rows.slice(1)) { const k = r[0]; const c = r.filter((x) => x != null).length - 4; if (c !== 96) lens.set(k, c); }
+    console.log(m, 'days with other than 96 cells', JSON.stringify([...lens]));
+    const odd = [...lens.keys()][0];
+    if (odd != null) show(s, (r) => r[0] === odd && r[1] === 'Coal', 2);
+  }
+  const last = by.Sep?.rows.at(-1); console.log('Sep last row', JSON.stringify(last?.slice(0, 6)));
+  const oct = by.Oct?.rows.slice(0, 3); console.log('Oct rows', JSON.stringify(oct));
 }

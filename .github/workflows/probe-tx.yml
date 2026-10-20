@@ -11,3 +11,5 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: node pipeline/probe/tx.mjs
+      - run: pip install xlrd==2.0.1 && python3 pipeline/probe/xls.py
+      - run: which soffice libreoffice || echo no-libreoffice
