@@ -28,12 +28,13 @@ test('Czechia: Energy-Charts types map to the dataset columns', () => {
 
 test('Czechia: blank nuclear, lignite and load readings are missing, not zero', () => {
   const t = Date.UTC(2024, 5, 1);
-  const power = { startMs: t, length: 3, columns: { nuclear: [3900, 0, 3800], lignite: [4000, 0, 3900], demand: [7000, 0, 7100], solar: [0, 0, 0] } };
+  const power = { startMs: t, length: 3, columns: { nuclear: [3900, 0, 3800], lignite: [4000, 0, 250], demand: [7000, 0, 7100], solar: [0, 0, 0] } };
   const prices = { startMs: t, length: 4, columns: { price: [80, 81, 82, 83] } };
   const m = mergeCzechia([power], [prices]);
   assert.equal(m.length, 3);
   for (const c of ['nuclear', 'lignite', 'demand']) assert.ok(Number.isNaN(m.columns[c][1]), c);
-  assert.equal(m.columns.lignite[2], 3900);
+  // Lignite really does fall to a few hundred MW now.
+  assert.equal(m.columns.lignite[2], 250);
   assert.equal(m.columns.solar[1], 0);
   assert.deepEqual([...m.columns.price], [80, 81, 82]);
 });

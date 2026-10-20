@@ -36,9 +36,11 @@ const REQUEST_GAP_MS = Number(args.gap) * 1000;
 const COLUMNS = [...CZ_COLUMNS, 'price'];
 // Readings below these (MW) are ones Energy-Charts left blank, which the
 // parser counts as zero: Czech nuclear (six units at two sites) has never all
-// been off since 2015, lignite plants with heat contracts always run, and
-// load has never been under 4 GW.
-export const FLOOR_MW = { nuclear: 300, lignite: 300, demand: 2000 };
+// been off since 2015 and load has never been under 4 GW. Lignite really
+// does fall to a few hundred MW on sunny summer weekends now (about 0.3 GW
+// in September 2025), but plants with heat contracts keep it above zero, so
+// only an exact zero is a blank.
+export const FLOOR_MW = { nuclear: 300, lignite: 1, demand: 2000 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Merges generation and price years, ending at the last slot with generation. */
