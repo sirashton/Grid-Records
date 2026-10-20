@@ -173,7 +173,25 @@ jobs:
       - run: ls -la site/data/au/nem && node -e "const m=require('./site/data/au/nem/meta.json'); console.log(m.length, m.columns, m.months, m.recent, 'data to', new Date(m.startMs + (Math.max(...Object.values(m.lastSlot)) + 1) * 1800000).toISOString())"
       - run: ls -la site/data site/data/nz && node -e "const m=require('./site/data/nz/meta.json'); console.log(m.length, m.columns, m.months)"
       - run: ls -la site/data && node -e "const m=require('./site/data/meta.json'); console.log(m.length, m.columns, m.battery.coverage, m.battery.units.length)"
-      # Texas (ERCOT): a year's workbook a run at most, the .xls years through xlrd.
+      # Snapshot the built site, data included, on a throwaway branch for previews.
+      - name: Publish preview branch
+        if: github.event_name == 'push'
+        run: |
+          cp -r site /tmp/preview
+          cd /tmp/preview
+          git init -q -b preview
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Preview of ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" preview
+  # Texas in its own job, alongside the others, so its downloads don't wait
+  # on every other country's.
+  texas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # The years before 2016 are .xls files, read with xlrd.
       - uses: actions/cache/restore@v4
         with:
           path: .cache-tx
@@ -194,13 +212,3 @@ jobs:
           name: data-tx
           path: site/data/tx
           if-no-files-found: ignore
-      # Snapshot the built site, data included, on a throwaway branch for previews.
-      - name: Publish preview branch
-        if: github.event_name == 'push'
-        run: |
-          cp -r site /tmp/preview
-          cd /tmp/preview
-          git init -q -b preview
-          git add -A
-          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Preview of ${GITHUB_SHA::7}"
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" preview
