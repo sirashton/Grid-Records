@@ -76,6 +76,17 @@ jobs:
           key: bg-${{ github.run_id }}
       - run: ls -la site/data/bg && node -e "const m=require('./site/data/bg/meta.json'); console.log(m.length, m.columns, m.years, 'to', new Date(m.startMs + (Math.max(...Object.values(m.lastSlot)) + 1) * 900000).toISOString())"
         continue-on-error: true
+      # TEMPORARY while building the Bulgaria page: its data on its own branch.
+      - name: Publish BG data (temporary)
+        if: github.event_name == 'push'
+        continue-on-error: true
+        run: |
+          cp -r site/data/bg /tmp/bgdata
+          cd /tmp/bgdata
+          git init -q -b preview-bg
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "BG data of ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" preview-bg
       - uses: actions/cache/restore@v4
         with:
           path: .cache-br
