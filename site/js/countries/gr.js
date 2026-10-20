@@ -1,8 +1,7 @@
 // Greece: Fraunhofer ISE's Energy-Charts public net generation for the
-// interconnected system (hourly from 2015, every 15 minutes in recent years,
-// stored at 15 minutes). Built by pipeline/build-gr.mjs into site/data/gr/,
-// with day-ahead prices as `price`. Energy-Charts runs a few hours behind
-// IPTO's real time.
+// interconnected system (hourly since 2015, stored at 15 minutes). Built by
+// pipeline/build-gr.mjs into site/data/gr/, with day-ahead prices as
+// `price`. Energy-Charts runs one to a few hours behind IPTO's real time.
 
 const RENEWABLE = ['solar', 'wind', 'hydro', 'biomass'];
 const FOSSIL = ['lignite', 'gas', 'oil'];

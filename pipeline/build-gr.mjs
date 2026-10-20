@@ -1,8 +1,9 @@
 // Builds the Greece data files from Energy-Charts, and writes site/data/gr/.
 //
 // Same source as Germany, Poland and France (pipeline/build-fr.mjs), with its
-// year cache and merge. Greece's readings are hourly in the early years and
-// every 15 minutes later; hourly ones fill their four quarter hours.
+// year cache and merge. Greece's generation readings are hourly (so far, to
+// October 2026) and fill their four quarter hours; prices are every 15
+// minutes from October 2025.
 // Day-ahead prices for the GR bidding zone ride along as `price` (EUR/MWh).
 //
 // Energy-Charts allows about two requests a minute from one address, and the
@@ -22,9 +23,11 @@ import { writeDataset } from './core/dataset.mjs';
 import { fetchText, log, DAY_MS } from './lib.mjs';
 
 const COLUMNS = [...GR_COLUMNS, 'price'];
-// Greek load has never been near this low; a reading below it is one
-// Energy-Charts didn't have (a single blank type is read as zero).
-export const FLOOR_MW = { demand: 1500 };
+// Greek load has never been near this low, and the gas fleet has not been
+// fully off in the data (its lowest real readings are a few hundred MW); a
+// reading below these is one Energy-Charts didn't have (the parser reads a
+// single blank type as zero).
+export const FLOOR_MW = { demand: 1500, gas: 50 };
 // Time between two requests to Energy-Charts.
 export const GAP_MS = 32000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

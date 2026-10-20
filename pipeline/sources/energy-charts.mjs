@@ -88,8 +88,8 @@ export const FR_SOURCES = {
 };
 export const FR_COLUMNS = columnsOf(FR_SOURCES);
 
-// Greece (the interconnected system, which Crete joined in 2025). Hourly in
-// the early years, 15 minutes later. No nuclear or offshore wind; Greece has
+// Greece (the interconnected system, which Crete joined in 2025). Hourly so
+// far, filled to 15 minutes. No nuclear or offshore wind; Greece has
 // burnt no hard coal, so any listed would count with lignite. Batteries are
 // listed only in recent years and count as zero before.
 export const GR_SOURCES = {

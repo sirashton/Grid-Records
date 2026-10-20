@@ -79,7 +79,7 @@ export function storyFigures(data, end) {
     ligTwh: 0, gasTwh: 0, oilTwh: 0, fosTwh: 0, solTwh: 0, windTwh: 0, renTwh: 0, genTwh: 0, demTwh: 0,
     expTwh: 0, impTwh: 0, impHours: 0, expHours: 0,
     ligMax: 0, ligOff: 0, ligDays: new Set(), ligMonth: zeros(12),
-    gasMin: Infinity, gasMax: 0, gasMonth: zeros(12), gasHour: zeros(24), gasHourN: zeros(24), gasLow: 0,
+    gasMin: Infinity, gasMax: 0, gasMonth: zeros(12), gasHour: zeros(24), gasHourN: zeros(24), ligHour: zeros(24), expHour: zeros(24), gasLow: 0,
     gasEvening: 0, gasExporting: 0, gasImporting: 0,
     fosMin: Infinity, fosU1: 0, fosU2: 0, solMax: 0,
     priceSum: 0, priceN: 0, priceHour: zeros(24), priceHourN: zeros(24), solarHour: zeros(24), solarHourN: zeros(24),
@@ -125,6 +125,8 @@ export function storyFigures(data, end) {
     r.gasMonth[month[i] - 1] += twh(g);
     r.gasHour[h] += gw;
     r.gasHourN[h]++;
+    r.ligHour[h] += lg / 1000;
+    r.expHour[h] += (ex - im) / 1000;
     if (gw < GAS_FLOOR) r.gasLow += slotH;
     if (h >= EVENING[0] && h <= EVENING[1]) r.gasEvening += twh(g);
     if (ex > 0) r.gasExporting += twh(g);
@@ -184,6 +186,9 @@ export function storyFigures(data, end) {
       gasMax: r.gasMax,
       gasMonth: [...r.gasMonth],
       gasHour: [...r.gasHour].map((v, k) => mean(v, r.gasHourN[k])),
+      ligHour: [...r.ligHour].map((v, k) => mean(v, r.gasHourN[k])),
+      // Net exports by hour (GW; negative is net imports).
+      expHour: [...r.expHour].map((v, k) => mean(v, r.gasHourN[k])),
       gasLow: r.gasLow,
       gasEveningShare: r.gasEvening / r.gasTwh,
       gasExportingShare: r.gasExporting / r.gasTwh,

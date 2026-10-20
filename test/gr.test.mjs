@@ -26,9 +26,9 @@ test('Greece: types map to columns, hourly readings fill four quarter hours', ()
   assert.equal(m.columns.solar[0], 0);
 });
 
-test('Greece: a blank load is missing, and the first year starts at Athens New Year', () => {
+test('Greece: a blank load or gas reading is missing, and the first year starts at Athens New Year', () => {
   const start = Date.UTC(2015, 0, 1);
-  const power = { startMs: start, length: 3, columns: { demand: [6000, 0, 6100], gas: [1000, 1000, 1000] } };
+  const power = { startMs: start, length: 3, columns: { demand: [6000, 0, 6100], gas: [1000, 0, 1000] } };
   const m = mergeGreece([power], []);
   // Two hours of missing slots in front: New Year in Athens is 22:00 UTC.
   assert.equal(m.startMs, start - 2 * 3600000);
@@ -37,6 +37,7 @@ test('Greece: a blank load is missing, and the first year starts at Athens New Y
   assert.ok(Number.isNaN(m.columns.demand[9]));
   assert.equal(m.columns.demand[10], 6100);
   assert.equal(m.columns.gas[8], 1000);
+  assert.ok(Number.isNaN(m.columns.gas[9]));
 });
 
 test('Greece: the current year comes first, then missing years newest first', () => {
@@ -96,6 +97,9 @@ test('Greece story: lignite off, gas floor, zero prices and battery days', async
   assert.ok(Math.abs(y25.cheapExport - 2) < 1e-9);
   assert.equal(Math.round(y25.priceHour[12]), -1);
   assert.equal(Math.round(y25.priceHour[20]), 120);
+  assert.equal(y24.ligHour[3], 1);
+  assert.equal(y25.ligHour[3], 0);
+  assert.ok(Math.abs(y25.expHour[12] - 2) < 1e-9 && Math.abs(y25.expHour[3] + 0.5) < 1e-9);
   // Evening gas: 4 h x 3 GW of a day's 5 x 0.5 + 4 x 3 + 15 x 1.5 = 37 GWh.
   assert.ok(Math.abs(y25.gasEveningShare - 12 / 37) < 1e-9);
   assert.ok(Math.abs(y25.gasImportingShare - 34.5 / 37) < 1e-9);
