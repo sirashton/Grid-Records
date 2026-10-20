@@ -260,6 +260,10 @@ test('Japan story: fuel shares, the fossil floor, curtailment and batteries', as
   assert.ok(Math.abs(y25.twh.thermal - 365 * (5 * 32 + 19 * 50) / 1000) < 1e-6);
   assert.ok(Math.abs(y25.twh.curtailed - 365 * 5 * 2 / 1000) < 1e-6);
   assert.ok(Math.abs(y25.curtH1 - 181 * 5 * 2 / 1000) < 1e-6);
+  // First halves: 2024 (a leap year) and 2025; January 2026 alone is not a first half.
+  assert.deepEqual(f.firstHalves.map((x) => x.year), [2024, 2025]);
+  assert.ok(Math.abs(f.firstHalves[0].twh - 182 * 5 * 2 / 1000) < 1e-6);
+  assert.ok(Math.abs(f.firstHalves[1].twh - 181 * 5 * 2 / 1000) < 1e-6);
   assert.equal(y25.fossilMin, 32);
   assert.equal(y25.gasMin, 12);
   assert.equal(y25.coalMin, 20);
@@ -314,4 +318,27 @@ test('areaStats totals an area and averages it while curtailing', () => {
   assert.equal(s.whileCurtailing.gas, 1);
   assert.equal(s.whileCurtailing.pumping, 1);
   assert.equal(s.thermalMin, 6);
+});
+
+test('areaFigures reads the per-area figures in meta, and areaYear picks the year', async () => {
+  const { areaFigures, areaYear } = await import('../site/js/jp/story.js');
+  const s = (gas, coal, thermal, wc) => ({ hours: 8760, curtHours: wc ? 100 : 0, twh: { demand: 100, thermal, gas, coal, nuclear: 0, solar: 5, wind: 1, curtailed: wc ? 0.5 : 0, pumping: 0, batteryCharge: 0 }, whileCurtailing: { thermal: wc, gas: wc ? 1 : null, coal: wc ? 2 : null, nuclear: wc ? 3 : null, solar: wc ? 4 : null, demand: wc ? 9 : null, pumping: wc ? 0 : null }, thermalMin: 1 });
+  const meta = {
+    areas: { tepco: { name: 'Tokyo' }, kyushu: { name: 'Kyushu' } },
+    areaStats: {
+      tepco: { 2025: s(135, 47, 198, null), past365: s(122.8, 48.5, 185.7, 10) },
+      kyushu: { 2025: s(8.9, 28.8, 42.1, 2.1), past365: s(8.4, 27, 40.2, 2.27) },
+    },
+  };
+  assert.equal(areaYear(meta, 2025), '2025');
+  assert.equal(areaYear(meta, 2026), '2025');
+  assert.equal(areaYear({}, 2025), null);
+  const a = areaFigures(meta, '2025');
+  assert.deepEqual(a.map((x) => [x.name, x.lngLed]), [['Tokyo', true], ['Kyushu', false]]);
+  assert.ok(Math.abs(a[0].fossilGw - (198 * 1000) / 8760) < 1e-9);
+  // Tokyo did not curtail in 2025: its averages while curtailing are NaN, not null.
+  assert.ok(Number.isNaN(a[0].whileCurtailing.gas));
+  assert.equal(areaFigures(meta, 'past365')[1].whileCurtailing.coal, 2);
+  // A period one area lacks gives nothing rather than a partial list.
+  assert.equal(areaFigures(meta, '2024'), null);
 });
