@@ -19,7 +19,7 @@
 // dashboard used for the latest days doesn't split it.
 export const TX_TZ = 'America/Chicago';
 export const STEP_MINUTES = 15;
-export const PARSE_VERSION = 2;
+export const PARSE_VERSION = 3;
 export const TX_COLUMNS = ['coal', 'gas', 'nuclear', 'wind', 'solar', 'hydro', 'biomass', 'other'];
 export const PAGE_URL = 'https://www.ercot.com/gridinfo/generation';
 export const DASHBOARD_URL = 'https://www.ercot.com/api/1/services/read/dashboards/fuel-mix.json';
@@ -145,6 +145,15 @@ export function parseWorkbook(sheets, year) {
       if (i < 0 || i >= length) continue;
       if (TX_COLUMNS.some((c) => columns[c][i] != null)) for (const c of TX_COLUMNS) columns[c][i] ??= 0;
     }
+  }
+  for (let i = 0; i < length; i++) {
+    // "Other" dips a little below zero in 2017 to 2022 (to -0.2 GW), where
+    // plant use outweighs it; it counts as zero.
+    if (columns.other[i] < 0) columns.other[i] = 0;
+    // A quarter hour with nothing generating is a blank in the report (some
+    // older files put zeros in the spring-forward day's missing hour), not
+    // a blackout.
+    if (TX_COLUMNS.every((c) => !columns[c][i])) for (const c of TX_COLUMNS) columns[c][i] = null;
   }
   return { startMs, length, columns, days: days.size, unknown: [...unknown] };
 }
