@@ -135,6 +135,20 @@ jobs:
         with:
           path: .cache-cz
           key: cz-${{ github.run_id }}
+      # Denmark, likewise (Energinet's Energi Data Service): the current
+      # month is fetched every run, so the page stays an hour or two behind.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-dk
+          key: dk-${{ github.run_id }}
+          restore-keys: dk-
+      - run: node pipeline/build-dk.mjs --budget-minutes 3
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-dk
+          key: dk-${{ github.run_id }}
       # Greece, likewise. Energy-Charts allows about two requests a minute, so
       # the history fills over several runs; after that a run asks only for
       # the current year.

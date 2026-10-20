@@ -81,22 +81,12 @@ a { color: var(--primary); font-weight: 600; }
 }
 h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 8px; line-height: 1.05; }
 .lede { font-size: 1.125rem; color: var(--ink-2); max-width: 40em; margin: 0 0 10px; }
-.region-nav { display: inline-flex; margin-bottom: 14px; border: 3px solid var(--line); box-shadow: var(--shadow) var(--shadow) 0 0 var(--line); background: var(--card); }
-.region-nav a, .region-nav span { display: inline-flex; align-items: center; gap: 10px; padding: 9px 14px; font-size: 0.875rem; line-height: 1; font-weight: 700; color: var(--ink); text-decoration: none; }
-.region-nav > * + * { border-left: 3px solid var(--line); }
+/* The countries wrap onto a second row when they don't fit; the gaps are drawn as the borders. */
+.region-nav { display: inline-flex; flex-wrap: wrap; gap: 3px; max-width: 100%; box-sizing: border-box; margin-bottom: 14px; border: 3px solid var(--line); box-shadow: var(--shadow) var(--shadow) 0 0 var(--line); background: var(--line); }
+.region-nav a, .region-nav span { display: inline-flex; flex: 1 0 auto; align-items: center; gap: 10px; padding: 9px 14px; font-size: 0.875rem; line-height: 1; font-weight: 700; color: var(--ink); text-decoration: none; background: var(--card); }
 .region-nav img { display: block; flex-shrink: 0; width: 30px; height: 15px; }
 .region-nav [aria-current] { background: var(--primary); color: var(--primary-ink); }
 .region-nav a:hover { background: var(--grid); }
-/* Too many countries for one row: wrap, with the gaps drawn as the borders
-   and each row filled, so a single row looks just as before. */
-@media (min-width: 641px) {
-  .region-nav { flex-wrap: wrap; gap: 3px; max-width: 100%; box-sizing: border-box; background: var(--line); }
-  .region-nav > * + * { border-left: 0; }
-  .region-nav > * { flex-grow: 1; }
-  .region-nav a, .region-nav span { background: var(--card); }
-  .region-nav [aria-current] { background: var(--primary); }
-  .region-nav a:hover { background: var(--grid); }
-}
 /* On a phone the countries sit two to a row, with the gaps drawn as the borders. */
 @media (max-width: 600px) {
   .region-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: var(--line); }
