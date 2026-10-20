@@ -21,7 +21,6 @@
 // ElectricityProdex5MinRealtime and PowerSystemRightNow are fresher (5 and 1
 // minute), but split thermal output only by plant size, not by fuel, so the
 // page uses the hourly fuel data throughout.
-import { fetchJson } from '../lib.mjs';
 
 export const API = 'https://api.energidataservice.dk/dataset';
 export const AREAS = ['DK1', 'DK2'];
@@ -37,7 +36,7 @@ export const priceUrl = (startMs, endMs) => (startMs < PRICE_SWITCH_MS
   : `${API}/DayAheadPrices?${range(startMs, endMs)}&filter=${FILTER}&limit=0`);
 
 // Bump when parsing changes, so cached months are parsed again.
-export const PARSE_VERSION = 1;
+export const PARSE_VERSION = 2;
 export const STEP_MINUTES = 60;
 const HOUR_MS = 3600000;
 
@@ -154,18 +153,65 @@ export function parsePrices(records, startMs, endMs) {
   return { startMs, length, columns: { price } };
 }
 
-/** Fetches one month (UTC) of generation and exchange. */
-export async function fetchGeneration(startMs, endMs) {
-  const json = await fetchJson(generationUrl(startMs, endMs), { timeoutMs: 180000 });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Seconds to wait from a 429 response ("Rate limit is exceeded. Try again in
+ * 23 seconds."), or null when it doesn't say.
+ */
+export function retryAfter(text, header) {
+  const m = /try again in (\d+) seconds?/i.exec(text ?? '');
+  if (m) return Number(m[1]);
+  return header != null && header !== '' && Number.isFinite(Number(header)) ? Number(header) : null;
+}
+
+/**
+ * GETs JSON from Energi Data Service. Network failures and 5xx are tried
+ * again a few times; a 429 is waited out once if the wait fits before the
+ * deadline, and otherwise thrown, as is a 403 (the service blocks addresses
+ * that keep asking), so the caller stops.
+ */
+export async function getJson(url, { deadline = Infinity, retries = 3 } = {}) {
+  let waited = false;
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(url, { headers: { 'user-agent': 'grid-records (+https://github.com/sirashton/Grid-Records)' }, signal: AbortSignal.timeout(240000) });
+    } catch (err) {
+      if (attempt >= retries) throw err;
+      await sleep(3000 * 2 ** attempt);
+      continue;
+    }
+    if (res.ok) return res.json();
+    const text = await res.text().catch(() => '');
+    if (res.status === 429 && !waited) {
+      const wait = retryAfter(text, res.headers.get('retry-after'));
+      if (wait != null && wait <= 120 && Date.now() + (wait + 5) * 1000 < deadline) {
+        waited = true;
+        await sleep((wait + 2) * 1000);
+        continue;
+      }
+    }
+    if (res.status >= 500 && attempt < retries) {
+      await sleep(3000 * 2 ** attempt);
+      continue;
+    }
+    throw new Error(`HTTP ${res.status} for ${url}: ${text.slice(0, 120)}`);
+  }
+}
+
+/** Fetches generation and exchange for [startMs, endMs). */
+export async function fetchGeneration(startMs, endMs, opts) {
+  const json = await getJson(generationUrl(startMs, endMs), opts);
   return parseGeneration(json?.records ?? [], startMs, endMs);
 }
 
-/** Fetches one month (UTC) of prices, across the switch to 15-minute prices if needed. */
-export async function fetchPrices(startMs, endMs) {
+/** Fetches prices for [startMs, endMs), across the switch to 15-minute prices if needed. */
+export async function fetchPrices(startMs, endMs, opts) {
   const parts = startMs < PRICE_SWITCH_MS && endMs > PRICE_SWITCH_MS ? [[startMs, PRICE_SWITCH_MS], [PRICE_SWITCH_MS, endMs]] : [[startMs, endMs]];
   const records = [];
   for (const [s, e] of parts) {
-    const json = await fetchJson(priceUrl(s, e), { timeoutMs: 180000 });
+    const json = await getJson(priceUrl(s, e), opts);
     records.push(...(json?.records ?? []));
   }
   return parsePrices(records, startMs, endMs);

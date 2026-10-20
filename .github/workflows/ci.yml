@@ -74,7 +74,7 @@ jobs:
         with:
           path: .cache-dk
           key: dk-${{ github.run_id }}
-      - run: ls -la site/data/dk && node -e "const m=require('./site/data/dk/meta.json'); console.log(m.length, m.columns, m.months, 'from', new Date(m.startMs).toISOString(), 'to', new Date(m.startMs + m.length * 3600000).toISOString())"
+      - run: ls -la site/data/dk && node -e "const m=require('./site/data/dk/meta.json'); console.log('DK meta', m.length, m.chunks, m.lastRun, 'from', new Date(m.startMs).toISOString(), 'to', new Date(m.startMs + m.length * 3600000).toISOString())"
         continue-on-error: true
       - uses: actions/cache/restore@v4
         with:

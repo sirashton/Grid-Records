@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseGeneration, parsePrices, priceUrl, generationUrl, DK_COLUMNS, PRICE_SWITCH_MS } from '../pipeline/sources/energinet.mjs';
-import { mergeDenmark, isStale, monthRange } from '../pipeline/build-dk.mjs';
+import { parseGeneration, parsePrices, priceUrl, generationUrl, retryAfter, DK_COLUMNS, PRICE_SWITCH_MS, PARSE_VERSION } from '../pipeline/sources/energinet.mjs';
+import { mergeDenmark, isStale, chunkRange, chunkList } from '../pipeline/build-dk.mjs';
 import { checkDataset } from '../pipeline/core/dataset.mjs';
 
 const rec = (time, area, v = {}) => ({
@@ -82,7 +82,7 @@ test('Denmark: merge trims to the generation and passes the dataset checks', () 
 
 test('Denmark: which months are fetched again', () => {
   const now = Date.UTC(2026, 9, 20, 12);
-  const at = (ms) => ({ version: 1, fetched: new Date(ms).toISOString() });
+  const at = (ms) => ({ version: PARSE_VERSION, fetched: new Date(ms).toISOString() });
   assert.ok(isStale(null, '202610', 0, now));
   assert.ok(isStale(at(now - 30 * 60000), '202610', 0, now));
   assert.ok(!isStale(at(now - 10 * 60000), '202610', 0, now));
@@ -94,7 +94,26 @@ test('Denmark: which months are fetched again', () => {
   // Fetched after 2024's Final version came out: never again.
   assert.ok(!isStale(at(Date.UTC(2025, 6, 1)), '202403', 30, now));
   assert.ok(isStale(at(Date.UTC(2025, 4, 1)), '202403', 30, now));
-  assert.deepEqual(monthRange('202412'), [Date.UTC(2024, 11, 1), Date.UTC(2025, 0, 1)]);
+  assert.ok(isStale(at(now), '2025', 12, now) === false);
+  assert.ok(isStale({ ...at(now), version: PARSE_VERSION - 1 }, '2015', 20, now));
+});
+
+test('Denmark: chunks are Danish years and this year\'s months, newest first', () => {
+  const h = 3600000;
+  assert.deepEqual(chunkRange('2024'), [Date.UTC(2024, 0, 1) - h, Date.UTC(2025, 0, 1) - h]);
+  assert.deepEqual(chunkRange('202603'), [Date.UTC(2026, 2, 1) - h, Date.UTC(2026, 3, 1) - h]);
+  const list = chunkList(2015, Date.UTC(2026, 9, 20, 12));
+  assert.deepEqual(list.slice(0, 3), ['202610', '202609', '202608']);
+  assert.equal(list[9], '202601');
+  assert.equal(list[10], '2025');
+  assert.equal(list.at(-1), '2015');
+  // Chunks meet with no gap: the end of 2025 is the start of January 2026.
+  assert.equal(chunkRange('2025')[1], chunkRange('202601')[0]);
+  // At 23:30 UTC on New Year's Eve it is already the new year in Denmark.
+  assert.deepEqual(chunkList(2025, Date.UTC(2025, 11, 31, 23, 30)), ['202601', '2025']);
+  assert.equal(retryAfter('{"error":"Rate limit is exceeded. Try again in 23 seconds."}'), 23);
+  assert.equal(retryAfter('', '7'), 7);
+  assert.equal(retryAfter('nope', null), null);
 });
 
 test('Denmark story: winter fossil, wind bands, imports by border', async () => {
