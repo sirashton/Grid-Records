@@ -62,6 +62,21 @@ jobs:
           key: fr-${{ github.run_id }}
       - run: ls -la site/data/fr && node -e "const m=require('./site/data/fr/meta.json'); console.log(m.length, m.columns, m.years)"
         continue-on-error: true
+      # Greece (Energy-Charts, two requests a minute: the history fills over several runs).
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-gr
+          key: gr-${{ github.run_id }}
+          restore-keys: gr-
+      - run: node pipeline/build-gr.mjs --budget-minutes 4
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-gr
+          key: gr-${{ github.run_id }}
+      - run: ls -la site/data/gr && node -e "const m=require('./site/data/gr/meta.json'); console.log(m.length, m.columns, m.years, m.missing && Object.fromEntries(Object.entries(m.missing).map(([k,v])=>[k,v.length])), 'from', new Date(m.startMs).toISOString(), 'to', new Date(m.startMs + m.length * 900000).toISOString())"
+        continue-on-error: true
       - uses: actions/cache/restore@v4
         with:
           path: .cache-cz
@@ -75,6 +90,34 @@ jobs:
           path: .cache-cz
           key: cz-${{ github.run_id }}
       - run: ls -la site/data/cz && node -e "const m=require('./site/data/cz/meta.json'); console.log(m.length, m.columns, m.years, 'to', new Date(m.startMs + m.length * 900000).toISOString())"
+        continue-on-error: true
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-bg
+          key: bg-${{ github.run_id }}
+          restore-keys: bg-
+      - run: node pipeline/build-bg.mjs --budget-minutes 10
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-bg
+          key: bg-${{ github.run_id }}
+      - run: ls -la site/data/bg && node -e "const m=require('./site/data/bg/meta.json'); console.log(m.length, m.columns, m.years, 'to', new Date(m.startMs + (Math.max(...Object.values(m.lastSlot)) + 1) * 900000).toISOString())"
+        continue-on-error: true
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-dk
+          key: dk-${{ github.run_id }}
+          restore-keys: dk-
+      - run: node pipeline/build-dk.mjs --budget-minutes 4
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-dk
+          key: dk-${{ github.run_id }}
+      - run: ls -la site/data/dk && node -e "const m=require('./site/data/dk/meta.json'); console.log('DK meta', m.length, m.chunks, m.lastRun, 'from', new Date(m.startMs).toISOString(), 'to', new Date(m.startMs + m.length * 3600000).toISOString())"
         continue-on-error: true
       - uses: actions/cache/restore@v4
         with:

@@ -135,6 +135,50 @@ jobs:
         with:
           path: .cache-cz
           key: cz-${{ github.run_id }}
+      # Bulgaria, from Energy-Charts like France, at about two requests a
+      # minute: the first runs backfill the years, then a run refreshes the
+      # current year.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-bg
+          key: bg-${{ github.run_id }}
+          restore-keys: bg-
+      - run: node pipeline/build-bg.mjs --budget-minutes 3
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-bg
+          key: bg-${{ github.run_id }}
+      # Denmark, likewise (Energinet's Energi Data Service): the current
+      # month is fetched every run, so the page stays an hour or two behind.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-dk
+          key: dk-${{ github.run_id }}
+          restore-keys: dk-
+      - run: node pipeline/build-dk.mjs --budget-minutes 3
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-dk
+          key: dk-${{ github.run_id }}
+      # Greece, likewise. Energy-Charts allows about two requests a minute, so
+      # the history fills over several runs; after that a run asks only for
+      # the current year.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-gr
+          key: gr-${{ github.run_id }}
+          restore-keys: gr-
+      - run: node pipeline/build-gr.mjs --budget-minutes 3
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-gr
+          key: gr-${{ github.run_id }}
       # Western Australia, likewise: the first runs backfill 20 years of
       # facility files from AEMO's slow server; after that a run fetches
       # only the current month's files, which AEMO rewrites each morning.
