@@ -25,7 +25,7 @@ export default {
     solar: { label: 'Solar', color: '--f-solar', renewable: true, lowCarbon: true },
     hydro: { label: 'Hydro', color: '--f-hydro', renewable: true, lowCarbon: true },
     // The reports split biomass out; the dashboard folds it into "Other", so
-    // it is missing for the latest days.
+    // it reads 0 for the latest days.
     biomass: { label: 'Biomass', color: '--f-biomass', renewable: true, lowCarbon: true, optional: true },
     // ERCOT's "Other": battery discharge, nearly all of it since about 2022,
     // plus petroleum coke and oil. Battery charging is left out.

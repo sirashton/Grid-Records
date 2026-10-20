@@ -218,7 +218,8 @@ export function rowsToPiece(rows) {
   const columns = Object.fromEntries(TX_COLUMNS.map((c) => [c, new Array(length).fill(null)]));
   for (const t of times) {
     const i = Math.round((t - startMs) / Q_MS);
-    for (const c of TX_COLUMNS) columns[c][i] = rows[t][c] ?? (c === 'biomass' ? null : 0);
+    // The dashboard counts biomass in Other, so biomass is 0 here.
+    for (const c of TX_COLUMNS) columns[c][i] = rows[t][c] ?? 0;
   }
   return { startMs, length, columns };
 }

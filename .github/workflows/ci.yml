@@ -214,8 +214,6 @@ jobs:
           key: tx-${{ github.run_id }}
       - run: ls -la site/data/tx && node -e "const m=require('./site/data/tx/meta.json'); console.log(m.length, m.columns, m.years, 'from', new Date(m.startMs).toISOString(), 'to', new Date(m.startMs + m.length * 900000).toISOString())"
         continue-on-error: true
-      - run: node pipeline/probe/tx-story.mjs site/data/tx
-        continue-on-error: true
       - uses: actions/upload-artifact@v4
         with:
           name: data-tx

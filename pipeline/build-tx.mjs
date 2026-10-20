@@ -59,7 +59,7 @@ async function sheetsOf(file) {
 
 /** Lays the years and the dashboard rows on one grid, ending at the last quarter with data. */
 export function mergeTexas(years, recentRows) {
-  const fuels = TX_COLUMNS.filter((c) => c !== 'biomass');
+  const fuels = TX_COLUMNS;
   // The current year's workbook covers the whole year, so it is cut at its
   // last data before the dashboard is laid after it.
   let grid = trim(stitch(years, { stepMinutes: STEP_MINUTES, columns: TX_COLUMNS }), fuels);

@@ -124,7 +124,7 @@ test('averages the dashboard into complete quarter hours, batteries in other', (
   assert.equal(rows[q].wind, 10000);
   const piece = rowsToPiece(rows);
   assert.equal(piece.columns.coal[0], 0);
-  assert.equal(piece.columns.biomass[0], null);
+  assert.equal(piece.columns.biomass[0], 0);
 });
 
 test('lays the dashboard after the reports and ends at the last data', () => {
@@ -136,7 +136,7 @@ test('lays the dashboard after the reports and ends at the last data', () => {
   assert.equal(merged.columns.gas[3], 1);
   assert.ok(Number.isNaN(merged.columns.gas[4]));
   assert.equal(merged.columns.gas[6], 7);
-  assert.ok(Number.isNaN(merged.columns.biomass[6]));
+  assert.equal(merged.columns.biomass[6], 0);
 });
 
 test('reads xlsx sheet XML with shared strings', () => {

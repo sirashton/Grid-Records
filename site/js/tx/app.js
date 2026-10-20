@@ -73,7 +73,7 @@ const INFO = {
   Wind: 'Wind farms, most of them in West Texas and the Panhandle, plus a coastal fleet near Corpus Christi.',
   Solar: 'Utility-scale solar farms. Rooftop panels are not counted.',
   Hydro: 'Dams on the Colorado, Brazos and other rivers.',
-  Biomass: 'Wood and landfill gas. ERCOT\'s live dashboard folds it into Other, so it is blank for the latest days.',
+  Biomass: 'Wood and landfill gas. ERCOT\'s live dashboard folds it into Other, so it reads zero for the latest days.',
   Nuclear: 'Comanche Peak and the South Texas Project, four reactors.',
   'Batteries and other': 'ERCOT\'s "Other": battery discharge, nearly all of it in recent years, plus petroleum coke and oil. Battery charging is not counted.',
 };
@@ -180,7 +180,9 @@ async function main() {
   }
   end = dataEnd(data, tx);
   const latest = slotTime(end - 1, data.startMs, step());
-  $('updated').textContent = `Data from ${fmtDate(data.startMs)} to ${fmtDateTime(latest)} Central time, ${agoText(latest)}. ERCOT publishes its full reports about monthly; the latest days come from its live dashboard.`;
+  const reportsEnd = data.meta.reportsEnd;
+  const gap = reportsEnd && latest - reportsEnd > 3 * 864e5 ? ` ERCOT's monthly reports run to ${fmtDate(reportsEnd - 1)}; the days since then fill in from its live dashboard, which keeps two days, so some are missing until the next report.` : ' ERCOT publishes its full reports about monthly; the latest days come from its live dashboard.';
+  $('updated').textContent = `Data from ${fmtDate(data.startMs)} to ${fmtDateTime(latest)} Central time, ${agoText(latest)}.${gap}`;
   renderNow();
   renderStory();
   records.setData(data, { end });
