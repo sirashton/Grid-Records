@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grid Records: Bulgaria</title>
+  <meta name="description" content="Records for Bulgaria's electricity grid: lignite from Maritsa East, the batteries taking its evening hours, Kozloduy's reactors and the exports.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <script type="module" src="../js/core/hero-mark.js"></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-text">
+        <nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><a href="../nz/"><img src="../flags/nz.svg" alt="" width="30" height="15">New Zealand</a><a href="../de/"><img src="../flags/de.svg" alt="" width="30" height="15">Germany</a><a href="../au/"><img src="../flags/au.svg" alt="" width="30" height="15">Australia</a><a href="../pl/"><img src="../flags/pl.svg" alt="" width="30" height="15">Poland</a><a href="../br/"><img src="../flags/br.svg" alt="" width="30" height="15">Brazil</a><a href="../fr/"><img src="../flags/fr.svg" alt="" width="30" height="15">France</a><a href="../wa/"><img src="../flags/wa.svg" alt="" width="30" height="15">Western Australia</a><a href="../cz/"><img src="../flags/cz.svg" alt="" width="30" height="15">Czechia</a><span aria-current="page"><img src="../flags/bg.svg" alt="" width="30" height="15">Bulgaria</span><a href="../dk/"><img src="../flags/dk.svg" alt="" width="30" height="15">Denmark</a><a href="../gr/"><img src="../flags/gr.svg" alt="" width="30" height="15">Greece</a><a class="live-link" href="../live/"><i class="live-dot" aria-hidden="true"></i>Live records</a></nav>
+        <h1>Grid Records</h1>
+        <p class="lede" id="lede">Bulgaria's grid runs on Kozloduy's two reactors, lignite from Maritsa East and fast-growing solar, and since 2025 on one of the largest battery fleets for its size anywhere. This page tracks what is changing on it, one record at a time.</p>
+        <p class="updated" id="updated">Loading the generation data.</p>
+      </div>
+      <svg class="hero-art" viewBox="0 0 220 160" aria-hidden="true"></svg>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card answer" id="answer" aria-labelledby="answer-h">
+      <h2 id="answer-h">In short</h2>
+      <p class="answer-lead" id="answer-lead">Working it out from the generation data.</p>
+      <ol class="answer-points" id="answer-points"></ol>
+    </section>
+
+    <section class="card now-card" aria-labelledby="now-h">
+      <div class="now-head">
+        <h2 id="now-h">The latest data</h2>
+        <div class="segmented small" id="now-window" role="radiogroup" aria-label="Time frame"></div>
+      </div>
+      <div class="now-panel">
+        <div class="now-col now-left" id="now-groups"></div>
+        <div class="now-donut" id="now-donut"></div>
+        <div class="now-col now-right" id="now-right"></div>
+      </div>
+      <p class="hint now-note" id="now-note">Energy-Charts runs about nine hours behind ESO, the grid operator, so Live shows the latest hour it has, not this minute.</p>
+    </section>
+
+    <!-- The Records card, drawn by site/js/core/records-tool.js. -->
+    <section class="card records-card" id="records" aria-labelledby="records-h"></section>
+
+    <section class="plain story" aria-labelledby="story-h">
+      <h2 id="story-h">The story</h2>
+      <div class="facts" id="facts"></div>
+      <p class="hint" id="story-hint"></p>
+      <details class="chapter" id="chapter-1" open>
+        <summary><span class="ch-num">1</span><span class="ch-text"><span class="ch-title" id="title-1"></span><span class="ch-take" id="take-1"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-1"></p>
+      <h3 id="chart-h-1"></h3>
+      <p class="hint" id="chart-hint-1"></p>
+      <div class="chart-host" id="story-chart-1"></div>
+      <div class="legend" id="story-legend-1"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-2" id="next-1">Next</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-2">
+        <summary><span class="ch-num">2</span><span class="ch-text"><span class="ch-title" id="title-2"></span><span class="ch-take" id="take-2"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-2"></p>
+      <h3 id="chart-h-2"></h3>
+      <p class="hint" id="chart-hint-2"></p>
+      <div class="chart-host" id="story-chart-2"></div>
+      <div class="legend" id="story-legend-2"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-3" id="next-2">Next</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-3">
+        <summary><span class="ch-num">3</span><span class="ch-text"><span class="ch-title" id="title-3"></span><span class="ch-take" id="take-3"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-3"></p>
+      <h3 id="chart-h-3"></h3>
+      <p class="hint" id="chart-hint-3"></p>
+      <div class="chart-host" id="story-chart-3"></div>
+      <div class="legend" id="story-legend-3"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-4" id="next-3">Next</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-4">
+        <summary><span class="ch-num">4</span><span class="ch-text"><span class="ch-title" id="title-4"></span><span class="ch-take" id="take-4"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-4"></p>
+      <h3 id="chart-h-4"></h3>
+      <p class="hint" id="chart-hint-4"></p>
+      <div class="chart-host" id="story-chart-4"></div>
+      <div class="legend" id="story-legend-4"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-5" id="next-4">Next</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-5">
+        <summary><span class="ch-num">5</span><span class="ch-text"><span class="ch-title" id="title-5"></span><span class="ch-take" id="take-5"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-5"></p>
+      <h3 id="chart-h-5"></h3>
+      <p class="hint" id="chart-hint-5"></p>
+      <div class="chart-host" id="story-chart-5"></div>
+      <div class="legend" id="story-legend-5"></div>
+      <h3 id="coming-h">What's coming, and the record each should move</h3>
+      <ul class="fact-list" id="coming"></ul>
+        </div>
+      </details>
+    </section>
+
+    <section class="plain about" aria-labelledby="about-h">
+      <h2 id="about-h">About the data</h2>
+      <p>Generation comes from Fraunhofer ISE's <a href="https://www.energy-charts.info/?l=en&amp;c=BG">Energy-Charts</a>, through its <a href="https://api.energy-charts.info/">open API</a>, which republishes the ENTSO-E transparency data that ESO, the Bulgarian grid operator, reports. Readings are hourly from 2015; each counts for its four quarter hours. "Public" generation is what is fed into the grid, so power that industry makes and uses on site, and the solar homes use themselves, is not counted.</p>
+      <p>Batteries are in the data as "Battery" (discharge) and "Battery Consumption" (charging) only from 10 September 2026, although several gigawatts were running before that; they count as zero before. Until then, batteries at solar parks show up as "Solar" after dark (they discharge through the park's meter), and standalone ones only as a gap between load and everything listed, which is how Ember estimated them. Batteries and charging are shown on their own and are not counted in generation. Pumping at Chaira and the other pumped hydro plants is not reported, so pumped storage appears only when it generates.</p>
+      <p>Renewables here are solar, onshore wind, hydro (run-of-river and reservoirs) and biomass. Low carbon adds nuclear. Fossil fuels are lignite, hard coal and gas. Net trade is the sum of the cross-border flows.</p>
+      <p>Prices are the day-ahead prices for the Bulgarian bidding zone, from the same source, in euros per MWh: hourly, and every 15 minutes from October 2025. Installed capacity is Energy-Charts' yearly series.</p>
+      <p>A spell is a run of consecutive quarter hours that meet the threshold. Gaps in the data of up to an hour are bridged when the quarter hours either side qualify; longer gaps end the spell. Years run in Bulgarian time.</p>
+      <p>Built by <a href="https://github.com/sirashton">Alex</a>, and the source code is on <a href="https://github.com/sirashton/Grid-Records">GitHub</a>.</p>
+      <p class="small">Data: Energy-Charts, Fraunhofer ISE, CC BY 4.0, from ENTSO-E and ESO.</p>
+    </section>
+  </main>
+  <script type="module" src="../js/bg/app.js"></script>
+</body>
+</html>

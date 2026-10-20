@@ -135,6 +135,21 @@ jobs:
         with:
           path: .cache-cz
           key: cz-${{ github.run_id }}
+      # Bulgaria, from Energy-Charts like France, at about two requests a
+      # minute: the first runs backfill the years, then a run refreshes the
+      # current year.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-bg
+          key: bg-${{ github.run_id }}
+          restore-keys: bg-
+      - run: node pipeline/build-bg.mjs --budget-minutes 3
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-bg
+          key: bg-${{ github.run_id }}
       # Denmark, likewise (Energinet's Energi Data Service): the current
       # month is fetched every run, so the page stays an hour or two behind.
       - uses: actions/cache/restore@v4
