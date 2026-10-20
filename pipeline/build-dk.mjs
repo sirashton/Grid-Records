@@ -118,8 +118,11 @@ async function main() {
   chunks.forEach((key, index) => {
     for (const kind of Object.keys(kinds)) if (isStale(cached[kind].get(key), key, index, now)) queue.push({ kind, key, name: `${kind} ${key}` });
   });
-  let refused = null;
+  // Limits are per dataset, so a refusal stops only that kind of request.
+  const refusals = {};
+  let skipped = 0;
   const { done, left } = await runQueue(queue, async ({ kind, key }) => {
+    if (refusals[kind]) { skipped++; return; }
     const [s, e] = chunkRange(key);
     try {
       const piece = await kinds[kind].fetch(s, e, { deadline });
@@ -128,13 +131,14 @@ async function main() {
       await writeFile(`${kinds[kind].dir}/${key}.json`, JSON.stringify(entry));
       log(`DK: ${kind} ${key}: ${piece.length} hours`);
     } catch (err) {
-      if (/HTTP (403|429)/.test(err.message)) refused = err.message.slice(0, 200);
+      if (/HTTP (403|429)/.test(err.message)) refusals[kind] = err.message.slice(0, 400);
       throw err;
     }
     // A pause between requests, as the service asks.
     await new Promise((r) => setTimeout(r, 3000));
-  }, { concurrency: 1, deadline, stop: () => Boolean(refused), log: (m) => log(`DK: ${m}`) });
-  log(`DK: fetched ${done} chunks, ${left} still to fetch${refused ? ` (stopped: ${refused})` : ''}`);
+  }, { concurrency: 1, deadline, stop: () => Object.keys(refusals).length === Object.keys(kinds).length, log: (m) => log(`DK: ${m}`) });
+  const refused = Object.keys(refusals).length ? refusals : null;
+  log(`DK: fetched ${done - skipped} chunks, ${left + skipped} still to fetch${refused ? ` (refused: ${JSON.stringify(refused)})` : ''}`);
 
   const keep = new Set(chunks);
   const pick = (kind) => [...cached[kind].entries()].filter(([k]) => keep.has(k)).map(([, e]) => e);
@@ -152,8 +156,8 @@ async function main() {
     length: merged.length,
     columns: merged.columns,
     extra: {
-      chunks: { have: have.length, of: chunks.length, oldest: have.at(-1), toFetch: left },
-      lastRun: { at: new Date().toISOString(), fetched: done, refused },
+      chunks: { have: have.length, of: chunks.length, oldest: have.at(-1), toFetch: left + skipped },
+      lastRun: { at: new Date().toISOString(), fetched: done - skipped, refused },
       units: { price: 'EUR/MWh' },
     },
   }, { log });

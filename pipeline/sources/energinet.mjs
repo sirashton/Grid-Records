@@ -186,7 +186,7 @@ export async function getJson(url, { deadline = Infinity, retries = 3 } = {}) {
     const text = await res.text().catch(() => '');
     if (res.status === 429 && !waited) {
       const wait = retryAfter(text, res.headers.get('retry-after'));
-      if (wait != null && wait <= 120 && Date.now() + (wait + 5) * 1000 < deadline) {
+      if (wait != null && wait <= 300 && Date.now() + (wait + 5) * 1000 < deadline) {
         waited = true;
         await sleep((wait + 2) * 1000);
         continue;
@@ -196,7 +196,7 @@ export async function getJson(url, { deadline = Infinity, retries = 3 } = {}) {
       await sleep(3000 * 2 ** attempt);
       continue;
     }
-    throw new Error(`HTTP ${res.status} for ${url}: ${text.slice(0, 120)}`);
+    throw new Error(`HTTP ${res.status} for ${url}: ${text.slice(0, 300)}`);
   }
 }
 

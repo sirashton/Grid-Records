@@ -126,3 +126,4 @@ jobs:
           git add -A
           git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Preview of ${GITHUB_SHA::7}"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" preview
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" preview:preview-dk-temp
