@@ -1,6 +1,7 @@
 // Energy-Charts (Fraunhofer ISE) public net electricity generation by
 // production type: Germany every 15 minutes since 2015, and Poland hourly
-// from 2015 and every 15 minutes in recent years, and France likewise.
+// from 2015 and every 15 minutes in recent years, and France and Czechia
+// likewise.
 // https://api.energy-charts.info/ (CC BY 4.0, no key)
 //
 // Values are MW, averaged over each quarter hour, on UTC timestamps.
@@ -88,10 +89,33 @@ export const FR_SOURCES = {
 };
 export const FR_COLUMNS = columnsOf(FR_SOURCES);
 
+// Czechia. Hourly in the early years, 15 minutes later. Lignite is most of the
+// fossil output; hard coal (Dětmarovice, Třinec) and gas are small. No
+// offshore wind, so onshore wind is the `wind` column.
+export const CZ_SOURCES = {
+  nuclear: ['Nuclear'],
+  lignite: ['Fossil brown coal / lignite'],
+  coal: ['Fossil hard coal'],
+  gas: ['Fossil gas'],
+  oil: ['Fossil oil', 'Fossil coal-derived gas'],
+  wind: ['Wind onshore'],
+  solar: ['Solar'],
+  hydro: ['Hydro Run-of-River', 'Hydro water reservoir'],
+  biomass: ['Biomass', 'Other renewables', 'Geothermal'],
+  other: ['Waste', 'Others'],
+  pumped_storage: ['Hydro pumped storage'],
+  pumped_storage_charge: ['Hydro pumped storage consumption'],
+  battery: ['Battery'],
+  battery_charge: ['Battery Consumption'],
+  demand: ['Load'],
+  trade: ['Cross border electricity trading'],
+};
+export const CZ_COLUMNS = columnsOf(CZ_SOURCES);
+
 // Bulgaria. Hourly throughout. Lignite is the Maritsa East complex; hard
-// coal is a few tens of MW. Batteries are listed in recent years only and
-// count as zero before. Pumping at Chaira is not reported, so there is no
-// pumped_storage_charge column. Oil is not listed.
+// coal is a few tens of MW. Batteries are listed only from September 2026
+// and count as zero before. Pumping at Chaira is not reported, so there is
+// no pumped_storage_charge column. Oil is not listed.
 export const BG_SOURCES = {
   nuclear: ['Nuclear'],
   lignite: ['Fossil brown coal / lignite'],
