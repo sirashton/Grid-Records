@@ -113,7 +113,7 @@ Every country should be as live as its sources allow. The deploy workflow alread
 - **Set `live: true`** in the config when the data is normally within a few hours. The Right now panel then opens on Live and the Records card says "Current spell" and "past 365 days". With `live: false` it says "At the latest data".
 - **Say how fresh it is:** the line under the title gives the latest data's time and `agoText`, and the note under the panel says what Live means for that source ("usually under an hour old", "about three hours behind").
 
-Status 2026-10-19: GB live (NESO, under an hour), Australia live (AEMO 5-minute reports, under an hour), Germany live (Energy-Charts, about three hours), New Zealand not live (EMI monthly files arrive weeks late; the daily 5-minute dispatch file is about three days late, and Transpower's real-time feed needs a subscription). Western Australia not live (AEMO WA rewrites the current month's facility file each morning, so the data is up to a day old; `pipeline/build-wa.mjs`).
+Status 2026-10-19: GB live (NESO, under an hour), Australia live (AEMO 5-minute reports, under an hour), Germany live (Energy-Charts, about three hours), New Zealand not live (EMI monthly files arrive weeks late; the daily 5-minute dispatch file is about three days late, and Transpower's real-time feed needs a subscription). Western Australia not live (AEMO WA rewrites the current month's facility file each morning, so the data is up to a day old; `pipeline/build-wa.mjs`). Greece live (Energy-Charts, one to a few hours; hourly readings; `pipeline/build-gr.mjs` spaces requests 32 s apart because Energy-Charts allows about two a minute, so its history backfills over several runs).
 
 ## The story: every page answers the same three questions
 

@@ -112,4 +112,8 @@ test('Greece story: lignite off, gas floor, zero prices and battery days', async
   assert.equal(f.ligLast, 96 * 366 - 1);
   assert.ok(f.ligOffSpell && f.ligOffSpell.start === 96 * 366);
   assert.equal(f.solarMax.solar, 6);
+  // Months in Greek time: five zero-price hours a day; no batteries.
+  assert.deepEqual(f.months[0], { year: 2024, month: 1, zeroHours: 31 * 5, batGwh: 0 });
+  assert.equal(f.months.length, 25);
+  assert.equal(f.gasMin, 0.5);
 });
