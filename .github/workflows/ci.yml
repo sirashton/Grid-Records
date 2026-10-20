@@ -173,6 +173,27 @@ jobs:
       - run: ls -la site/data/au/nem && node -e "const m=require('./site/data/au/nem/meta.json'); console.log(m.length, m.columns, m.months, m.recent, 'data to', new Date(m.startMs + (Math.max(...Object.values(m.lastSlot)) + 1) * 1800000).toISOString())"
       - run: ls -la site/data site/data/nz && node -e "const m=require('./site/data/nz/meta.json'); console.log(m.length, m.columns, m.months)"
       - run: ls -la site/data && node -e "const m=require('./site/data/meta.json'); console.log(m.length, m.columns, m.battery.coverage, m.battery.units.length)"
+      # Texas (ERCOT): a year's workbook a run at most, the .xls years through xlrd.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-tx
+          key: tx-${{ github.run_id }}
+          restore-keys: tx-
+      - run: pip install xlrd==2.0.1
+      - run: node pipeline/build-tx.mjs --budget-minutes 10
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-tx
+          key: tx-${{ github.run_id }}
+      - run: ls -la site/data/tx && node -e "const m=require('./site/data/tx/meta.json'); console.log(m.length, m.columns, m.years, 'from', new Date(m.startMs).toISOString(), 'to', new Date(m.startMs + m.length * 900000).toISOString())"
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-tx
+          path: site/data/tx
+          if-no-files-found: ignore
       # Snapshot the built site, data included, on a throwaway branch for previews.
       - name: Publish preview branch
         if: github.event_name == 'push'
