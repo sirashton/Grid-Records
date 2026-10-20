@@ -67,7 +67,7 @@ jobs:
           path: .cache-dk
           key: dk-${{ github.run_id }}
           restore-keys: dk-
-      - run: node pipeline/build-dk.mjs --budget-minutes 8
+      - run: node pipeline/build-dk.mjs --budget-minutes 4
         continue-on-error: true
       - uses: actions/cache/save@v4
         if: always()
@@ -126,4 +126,3 @@ jobs:
           git add -A
           git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Preview of ${GITHUB_SHA::7}"
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" preview
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" preview:preview-dk-temp

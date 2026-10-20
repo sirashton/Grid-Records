@@ -265,7 +265,7 @@ export function renderStory(data, end, figs) {
   const facts = [
     ['--f-coal', `Coal in ${last.year}`, twh(last.twh.coal), `against ${twh(first.twh.coal)} in ${first.year}; coal ran in ${hrs(last.coalOn)} of ${last.year}`],
     ['--fossil', `Lowest fossil output in ${last.year}`, mw(last.fosMin), `${mw(latest.fosMin)} in the latest 365 days`],
-    ['--f-wind', `Fossil power burnt while wind exceeded demand, ${last.year}`, twh(last.fosWindy), `in ${hrs(last.windyHours)}`],
+    ['--f-wind', `Fossil power burnt while wind exceeded demand, ${last.year}`, `${n0(last.fosWindy * 1000)} GWh`, `in ${hrs(last.windyHours)}`],
     ['--fossil', `Longest spell with fossil under ${mw(FOSSIL_LOW)}`, fossilLowSpell ? hrs(spellH(fossilLowSpell)) : 'None yet', fossilLowSpell ? `from ${fmtDate(at(fossilLowSpell.start))}` : ''],
     ['--f-coal', 'Longest spell with no coal', coalOffSpell ? hrs(spellH(coalOffSpell)) : 'None yet', coalOffSpell ? `from ${fmtDate(at(coalOffSpell.start))}` : ''],
   ];
@@ -316,7 +316,7 @@ export function renderStory(data, end, figs) {
   $('chart-hint-2').textContent = 'TWh in each calendar month, coal, gas and oil together.';
   const monthX = (m) => Date.UTC(2001, m, 15);
   const monthLines = pick.map((y, k) => ({ name: title(y), color: css(yearColors[k]), points: row(y).fosMonth.map((v, m) => [monthX(m), v]), width: y === 'past365' ? 3 : 2 }));
-  monthLines.forEach((sr) => { sr.markers = sr.points; });
+  monthLines.forEach((sr) => { sr.markers = sr.points.filter((p) => Number.isFinite(p[1])); });
   lineChart($('story-chart-2'), {
     series: monthLines,
     yMin: 0,
@@ -334,7 +334,7 @@ export function renderStory(data, end, figs) {
   $('chart-hint-3').textContent = 'Average fossil output (GW) in the hours of each wind band. Hours in each band are in the tooltip.';
   const bandX = (k) => k * 864e5;
   const windLines = pick.map((y, k) => ({ name: title(y), year: y, color: css(yearColors[k]), points: row(y).windFos.map((v, b) => [bandX(b), v]), width: y === 'past365' ? 3 : 2 }));
-  windLines.forEach((sr) => { sr.markers = sr.points; });
+  windLines.forEach((sr) => { sr.markers = sr.points.filter((p) => Number.isFinite(p[1])); });
   lineChart($('story-chart-3'), {
     series: windLines,
     yMin: 0,
