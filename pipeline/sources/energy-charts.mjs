@@ -88,6 +88,28 @@ export const FR_SOURCES = {
 };
 export const FR_COLUMNS = columnsOf(FR_SOURCES);
 
+// Bulgaria. Hourly throughout. Lignite is the Maritsa East complex; hard
+// coal is a few tens of MW. Batteries are listed in recent years only and
+// count as zero before. Pumping at Chaira is not reported, so there is no
+// pumped_storage_charge column. Oil is not listed.
+export const BG_SOURCES = {
+  nuclear: ['Nuclear'],
+  lignite: ['Fossil brown coal / lignite'],
+  coal: ['Fossil hard coal'],
+  gas: ['Fossil gas'],
+  wind_onshore: ['Wind onshore'],
+  solar: ['Solar'],
+  hydro: ['Hydro Run-of-River', 'Hydro water reservoir'],
+  biomass: ['Biomass', 'Other renewables'],
+  other: ['Waste', 'Others'],
+  pumped_storage: ['Hydro pumped storage'],
+  battery: ['Battery'],
+  battery_charge: ['Battery Consumption'],
+  demand: ['Load'],
+  trade: ['Cross border electricity trading'],
+};
+export const BG_COLUMNS = columnsOf(BG_SOURCES);
+
 /**
  * Parses one Energy-Charts public_power response into MW on a 15-minute UTC
  * grid. Pumping, battery charging and net exports are negative, as the
