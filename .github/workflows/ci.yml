@@ -64,6 +64,20 @@ jobs:
         continue-on-error: true
       - uses: actions/cache/restore@v4
         with:
+          path: .cache-cz
+          key: cz-${{ github.run_id }}
+          restore-keys: cz-
+      - run: node pipeline/build-cz.mjs --budget-minutes 8
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-cz
+          key: cz-${{ github.run_id }}
+      - run: ls -la site/data/cz && node -e "const m=require('./site/data/cz/meta.json'); console.log(m.length, m.columns, m.years, 'to', new Date(m.startMs + m.length * 900000).toISOString())"
+        continue-on-error: true
+      - uses: actions/cache/restore@v4
+        with:
           path: .cache-br
           key: br-${{ github.run_id }}
           restore-keys: br-
