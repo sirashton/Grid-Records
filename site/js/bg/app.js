@@ -81,7 +81,7 @@ const INFO = {
   'Waste and other': 'Waste incineration and plants Energy-Charts does not assign a fuel.',
   'Net imports': 'Power flowing in from neighbouring countries, less what flows out, when that is positive.',
   'Net exports': 'Power flowing out to neighbouring countries, less what flows in, when that is positive.',
-  'Battery discharge': 'Grid batteries feeding the grid. They are not counted in generation.',
+  'Battery discharge': 'Grid batteries feeding the grid, listed by Energy-Charts only from 9 September 2026. Not counted in generation.',
   'Battery charging': 'Power taken off the grid to charge batteries.',
 };
 const info = infoButton(INFO);

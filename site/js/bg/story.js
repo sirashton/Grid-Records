@@ -9,7 +9,7 @@ import { barChart, lineChart, fmtDate } from '../charts.js';
 import { stepOf } from '../core/dataset.js';
 import { tzOffsetMs } from '../core/calendar.js';
 import bg from '../countries/bg.js';
-import { FOSSIL, metricSeries, byYear } from './data.js';
+import { FOSSIL, GENERATION, metricSeries, byYear } from './data.js';
 import { TEXT, CHAPTERS } from './text.js';
 
 // Local hours of the evening peak the story follows: 18:00 to 22:00.
@@ -20,6 +20,9 @@ export const MIDDAY = [11, 14];
 export const FOSSIL_LOW = [1.5, 1];
 // A battery output that counts as the fleet really working, in GW.
 export const BATTERY_ON = 0.1;
+// Local hours with no sun in Bulgaria in any month: 22:00 to 05:00. Solar
+// reported then is batteries at solar parks discharging through the park's meter.
+export const DARK = [22, 4];
 
 /**
  * Local hour, month and day number for every slot. The Sofia offset is looked
@@ -74,14 +77,15 @@ export function storyFigures(data, end) {
   const dem = col('demand');
   const price = c.price ?? new Float64Array(end).fill(NaN);
   const fossil = metricSeries(d, FOSSIL);
+  const genCols = GENERATION.map((k) => c[k]).filter(Boolean);
   const { hour, month } = localClock(d);
   const v0 = (x) => (Number.isFinite(x) ? x : 0);
 
   const rows = byYear(d, () => ({
-    ligTwh: 0, gasTwh: 0, coalTwh: 0, fosTwh: 0, nucTwh: 0, solTwh: 0, batTwh: 0, chgTwh: 0, expTwh: 0, impTwh: 0, demTwh: 0,
+    solDarkTwh: 0, ligTwh: 0, gasTwh: 0, coalTwh: 0, fosTwh: 0, nucTwh: 0, solTwh: 0, batTwh: 0, chgTwh: 0, expTwh: 0, impTwh: 0, demTwh: 0,
     ligMonth: new Float64Array(12), ligMin: Infinity, ligMinAt: -1, ligMax: 0,
     ligExporting: 0, ligImporting: 0, ligCovered: 0, hours: 0,
-    ligHour: hours24(), batHour: hours24(), chgHour: hours24(), solHour: hours24(), netExpHour: hours24(), demHour: hours24(), hourN: hours24(),
+    ligHour: hours24(), gapHour: hours24(), gapN: hours24(), batHour: hours24(), chgHour: hours24(), solHour: hours24(), netExpHour: hours24(), demHour: hours24(), hourN: hours24(),
     priceHour: hours24(), priceHourN: hours24(), priceSum: 0, priceN: 0,
     batMax: 0, batMaxAt: -1, chgMax: 0, batHours: 0,
     fosLow: FOSSIL_LOW.map(() => 0), nucMin: Infinity, nucLowHours: 0,
@@ -104,6 +108,7 @@ export function storyFigures(data, end) {
     r.fosTwh += (v0(fossil[i]) * slotH) / 1000;
     r.nucTwh += (v0(nuc[i]) / 1000 * slotH) / 1000;
     r.solTwh += (s * slotH) / 1000;
+    if (h >= DARK[0] || h <= DARK[1]) r.solDarkTwh += (s * slotH) / 1000;
     r.batTwh += (b * slotH) / 1000;
     r.chgTwh += (ch * slotH) / 1000;
     r.expTwh += (Math.max(0, -net) / 1000 * slotH) / 1000;
@@ -118,6 +123,15 @@ export function storyFigures(data, end) {
     // view, every lignite megawatt went abroad.
     if (-net >= l) r.ligCovered += slotH;
     r.ligHour[h] += g;
+    // Load less everything listed that meets it: generation, listed battery
+    // output and net trade. Before Energy-Charts listed batteries (September
+    // 2026) their charging and discharging show up here, as Ember found.
+    if (Number.isFinite(dm)) {
+      let gen = 0;
+      for (const gc of genCols) gen += v0(gc[i]);
+      r.gapHour[h] += dm - (gen + v0(bat[i]) + v0(chg[i]) + net) / 1000;
+      r.gapN[h]++;
+    }
     r.batHour[h] += b;
     r.chgHour[h] += ch;
     r.solHour[h] += s;
@@ -153,6 +167,7 @@ export function storyFigures(data, end) {
       fosTwh: r.fosTwh,
       nucTwh: r.nucTwh,
       solTwh: r.solTwh,
+      solDarkTwh: r.solDarkTwh,
       batTwh: r.batTwh,
       chgTwh: r.chgTwh,
       expTwh: r.expTwh,
@@ -168,6 +183,8 @@ export function storyFigures(data, end) {
       ligImporting: r.ligImporting,
       ligCovered: r.ligCovered,
       ligHour: per(r.ligHour),
+      // Average load not met by anything listed, by hour, in GW (negative: more listed than load).
+      gapHour: [...r.gapHour].map((v, k) => mean(v, r.gapN[k])),
       batHour: per(r.batHour),
       chgHour: per(r.chgHour),
       solHour: per(r.solHour),

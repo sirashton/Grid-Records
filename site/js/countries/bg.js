@@ -1,5 +1,6 @@
 // Bulgaria: Fraunhofer ISE's Energy-Charts public net generation, hourly
-// from 2015 (stored at 15 minutes), with batteries listed in recent years.
+// from 2015 (stored at 15 minutes), with batteries listed only from 9 September
+// 2026 (earlier battery output is partly in Solar, after dark, and partly unlisted).
 // Built by pipeline/build-bg.mjs into site/data/bg/, with day-ahead prices as
 // `price`. Energy-Charts runs about nine hours behind ESO's real time.
 

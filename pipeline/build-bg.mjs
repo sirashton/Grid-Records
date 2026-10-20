@@ -26,9 +26,31 @@ const COLUMNS = [...BG_COLUMNS, 'price'];
 export const TIME_ZONE = 'Europe/Sofia';
 // Load in Bulgaria has never been near 1.5 GW, so a reading below it is one
 // Energy-Charts didn't have (the parser counts a single blank type as zero).
-// Nuclear is not floored: Kozloduy runs two 1 GW units and one is often off,
-// but both together have been off for whole days, so a low reading can be real.
-export const FLOOR_MW = { demand: 1500 };
+// Kozloduy's two 1 GW units have not both been off since 2015 (its lowest
+// real hour is about 0.9 GW), so nuclear under 100 MW is missing too.
+export const FLOOR_MW = { demand: 1500, nuclear: 100 };
+// An hour with all generation under this is one where every type came back
+// zero (00:00 UTC on 29 March 2026, the clock change): missing, not zero.
+export const MIN_GENERATION_MW = 500;
+const GENERATION = BG_COLUMNS.filter((k) => !['demand', 'imports', 'exports', 'battery_charge'].includes(k));
+
+/** Marks the readings Energy-Charts didn't have as missing, in place. */
+export function cleanBulgaria(columns, end) {
+  for (let i = 0; i < end; i++) {
+    let gen = 0;
+    for (const k of GENERATION) gen += columns[k][i] || 0;
+    // Or where nuclear reads zero and generation and net trade meet under
+    // half the load: most types came back blank (three hours in October
+    // 2018). Not without the nuclear test: since July 2026, batteries that
+    // Energy-Charts doesn't list charge hard enough at noon to do the same.
+    const supply = gen + (columns.imports[i] || 0) + (columns.exports[i] || 0);
+    if (gen < MIN_GENERATION_MW || (columns.nuclear[i] < FLOOR_MW.nuclear && supply < columns.demand[i] / 2)) for (const k of BG_COLUMNS) if (k !== 'demand') columns[k][i] = NaN;
+  }
+  for (const [c, floor] of Object.entries(FLOOR_MW)) {
+    const col = columns[c];
+    for (let i = 0; i < end; i++) if (col[i] < floor) col[i] = NaN;
+  }
+}
 // Energy-Charts' rate limit: about two requests a minute.
 export const PAUSE_MS = 31000;
 // Current-year prices are fetched again only this often, to save requests.
@@ -53,10 +75,7 @@ export function mergeBulgaria(power, prices) {
   let end = merged.length;
   while (end > 0 && BG_COLUMNS.every((c) => Number.isNaN(merged.columns[c][end - 1]))) end--;
   for (const c of COLUMNS) merged.columns[c] = merged.columns[c].subarray(0, end);
-  for (const [c, floor] of Object.entries(FLOOR_MW)) {
-    const col = merged.columns[c];
-    for (let i = 0; i < end; i++) if (col[i] < floor) col[i] = NaN;
-  }
+  cleanBulgaria(merged.columns, end);
   return { ...merged, length: end };
 }
 
