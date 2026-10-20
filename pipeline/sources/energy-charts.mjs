@@ -112,6 +112,28 @@ export const CZ_SOURCES = {
 };
 export const CZ_COLUMNS = columnsOf(CZ_SOURCES);
 
+// Greece (the interconnected system, which Crete joined in 2025). Hourly so
+// far, filled to 15 minutes. No nuclear or offshore wind; Greece has
+// burnt no hard coal, so any listed would count with lignite. Batteries are
+// listed only in recent years and count as zero before.
+export const GR_SOURCES = {
+  lignite: ['Fossil brown coal / lignite', 'Fossil hard coal'],
+  gas: ['Fossil gas'],
+  oil: ['Fossil oil'],
+  wind: ['Wind onshore', 'Wind offshore'],
+  solar: ['Solar'],
+  hydro: ['Hydro Run-of-River', 'Hydro water reservoir'],
+  biomass: ['Biomass', 'Other renewables', 'Geothermal'],
+  other: ['Waste', 'Others'],
+  pumped_storage: ['Hydro pumped storage'],
+  pumped_storage_charge: ['Hydro pumped storage consumption'],
+  battery: ['Battery'],
+  battery_charge: ['Battery Consumption'],
+  demand: ['Load'],
+  trade: ['Cross border electricity trading'],
+};
+export const GR_COLUMNS = columnsOf(GR_SOURCES);
+
 // Bulgaria. Hourly throughout. Lignite is the Maritsa East complex; hard
 // coal is a few tens of MW. Batteries are listed only from September 2026
 // and count as zero before. Pumping at Chaira is not reported, so there is

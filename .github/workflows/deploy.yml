@@ -164,6 +164,21 @@ jobs:
         with:
           path: .cache-dk
           key: dk-${{ github.run_id }}
+      # Greece, likewise. Energy-Charts allows about two requests a minute, so
+      # the history fills over several runs; after that a run asks only for
+      # the current year.
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-gr
+          key: gr-${{ github.run_id }}
+          restore-keys: gr-
+      - run: node pipeline/build-gr.mjs --budget-minutes 3
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-gr
+          key: gr-${{ github.run_id }}
       # Western Australia, likewise: the first runs backfill 20 years of
       # facility files from AEMO's slow server; after that a run fetches
       # only the current month's files, which AEMO rewrites each morning.
