@@ -31,7 +31,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Merges generation and price years, ending at the last slot with generation. */
 export function mergeGreece(power, prices) {
-  const merged = mergeYears([...power, ...prices], COLUMNS);
+  // Energy-Charts years start at midnight UTC, two hours after New Year in
+  // Athens. A missing slot in front lets the first year count as a whole
+  // Greek calendar year.
+  const present = power.filter((e) => e?.length);
+  const first = present.length ? Math.min(...present.map((e) => e.startMs)) : NaN;
+  const newYear = Date.UTC(new Date(first).getUTCFullYear(), 0, 1) - 2 * 3600000;
+  const pad = first - newYear > 0 && first - newYear <= 2 * 3600000 ? [{ startMs: newYear, length: 1, columns: {} }] : [];
+  const merged = mergeYears([...pad, ...power, ...prices], COLUMNS);
   if (!merged) return null;
   let end = merged.length;
   while (end > 0 && GR_COLUMNS.every((c) => Number.isNaN(merged.columns[c][end - 1]))) end--;
