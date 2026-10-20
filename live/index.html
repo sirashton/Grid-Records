@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grid Records: Live records</title>
+  <meta name="description" content="Grid records being broken right now, in every country on Grid Records: spells with little or no fossil fuel, or plenty of wind and solar, that are already the longest ever or closing in.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-text">
+        <nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><a href="../nz/"><img src="../flags/nz.svg" alt="" width="30" height="15">New Zealand</a><a href="../de/"><img src="../flags/de.svg" alt="" width="30" height="15">Germany</a><a href="../au/"><img src="../flags/au.svg" alt="" width="30" height="15">Australia</a><a href="../pl/"><img src="../flags/pl.svg" alt="" width="30" height="15">Poland</a><a href="../br/"><img src="../flags/br.svg" alt="" width="30" height="15">Brazil</a><a href="../fr/"><img src="../flags/fr.svg" alt="" width="30" height="15">France</a><a href="../wa/"><img src="../flags/wa.svg" alt="" width="30" height="15">Western Australia</a><a href="../dk/"><img src="../flags/dk.svg" alt="" width="30" height="15">Denmark</a><span class="live-link" aria-current="page"><i class="live-dot" aria-hidden="true"></i>Live records</span></nav>
+        <h1>Live records</h1>
+        <p class="lede">Spells still running right now that are already the longest on record, or closing in on it, for every country on this site. Countries whose data arrives late show their latest data, with how far behind it is.</p>
+        <p class="updated" id="updated">Loading the generation data for every country.</p>
+      </div>
+      <svg class="hero-art" viewBox="0 0 220 160" aria-hidden="true">
+        <g class="sun"><path class="rays" d="M200.0 38.0L208.0 38.0M193.0 55.0L198.6 60.6M176.0 62.0L176.0 70.0M159.0 55.0L153.4 60.6M152.0 38.0L144.0 38.0M159.0 21.0L153.4 15.4M176.0 14.0L176.0 6.0M193.0 21.0L198.6 15.4"/><circle cx="176" cy="38" r="18"/></g>
+        <path class="hill" d="M0 160 C40 112 90 114 130 136 S200 122 220 130 V160 Z"/><path class="ridge" d="M0 160 C40 112 90 114 130 136 S200 122 220 130"/>
+        <g transform="translate(62 60)"><path class="mast" d="M-2.5 0 L2.5 0 L4.5 66 L-4.5 66 Z"/><g class="blades"><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(120)"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(240)"/></g><circle class="hub" r="4.5"/></g>
+        <g transform="translate(146 100) scale(0.6)"><path class="mast" d="M-2.5 0 L2.5 0 L4.5 66 L-4.5 66 Z"/><g class="blades slow"><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(120)"/><path d="M0 0 L-3.5 -40 Q0 -44 3.5 -40 Z" transform="rotate(240)"/></g><circle class="hub" r="4.5"/></g>
+      </svg>
+    </div>
+  </header>
+
+    <main class="wrap">
+    <section class="card answer" aria-labelledby="answer-h">
+      <h2 id="answer-h">Right now</h2>
+      <p class="answer-lead" id="answer-lead">Checking every country for records being broken.</p>
+    </section>
+
+    <div id="live-countries"></div>
+
+    <section class="plain about" aria-labelledby="about-h">
+      <h2 id="about-h">How this works</h2>
+      <p>For each country this page loads the same data as its own page and checks every measure in its Records card, at every threshold, in GW and as a share of generation. A spell counts here if it is still running at the end of the data and has lasted at least an hour.</p>
+      <p><b>Breaking a record</b> means the running spell is already longer than any before it at that threshold. <b>Closing in</b> means it has reached 80% of the record. <b>Long-running streaks</b> are records that have been running for more than 30 days, such as Britain going without coal. For each measure only one threshold is shown: the hardest one being beaten, or else the one closest to its record.</p>
+      <p>Countries marked live update through the day. The others publish their data weeks late, so their spells are as of the latest data, and may already have ended.</p>
+      <p>Built by <a href="https://github.com/sirashton">Alex</a>, and the source code is on <a href="https://github.com/sirashton/Grid-Records">GitHub</a>.</p>
+    </section>
+  </main>
+  <script type="module" src="../js/live/app.js"></script>
+</body>
+</html>
