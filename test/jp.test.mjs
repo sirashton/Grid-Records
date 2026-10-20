@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseEria, combineAreas, decodeText, csvCells, cellNumber, fiscalYear, joinPieces, lastFilled } from '../pipeline/sources/jp-areas.mjs';
+import { parseEria, combineAreas, decodeText, csvCells, cellNumber, fiscalYear, joinPieces, lastFilled, areaStats } from '../pipeline/sources/jp-areas.mjs';
 import { isStale } from '../pipeline/build-jp.mjs';
 
 const H = 3600000;
@@ -226,7 +226,7 @@ test('Japan: Kansai\'s bare CR line ends, and Hokkaido\'s daily file', () => {
 });
 
 test('Japan story: fuel shares, the fossil floor, curtailment and batteries', async () => {
-  const { storyFigures, GAS_FLOOR } = await import('../site/js/jp/story.js');
+  const { storyFigures } = await import('../site/js/jp/story.js');
   const { JP_COLUMNS } = await import('../pipeline/sources/jp-areas.mjs');
   // Two years and a month of half hours from New Year 2024 in Japan time; the fuel split starts in April 2024.
   const startMs = Date.UTC(2023, 11, 31, 15);
@@ -277,10 +277,41 @@ test('Japan story: fuel shares, the fossil floor, curtailment and batteries', as
   // 2024 has its split from April only.
   assert.equal(y24.splitHours, (366 - 91) * 24);
   assert.equal(y24.hours, 366 * 24);
-  // LNG above the floor: 19 hours a day at 20 GW over it, 380 GWh, 20 GW peak.
-  assert.equal(GAS_FLOOR, 10);
-  assert.ok(Math.abs(y25.gasAboveTwh - 365 * (19 * 20 + 5 * 2) / 1000) < 1e-6);
+  // LNG's daily swing: 19 hours a day 18 GW above the day's low of 12 GW, 342 GWh;
+  // the day's 10 GWh of curtailed solar could have covered 10 of it.
+  assert.ok(Math.abs(y25.swingTwh - 365 * 342 / 1000) < 1e-6);
+  assert.ok(Math.abs(y25.swingFromCurtailedTwh - 365 * 10 / 1000) < 1e-6);
+  assert.equal(y25.swingPeakMedian, 18);
+  assert.equal(y25.lowMedian, 12);
   assert.deepEqual(y25.batteries.map((b) => b.days), [0, 0, 0, 0]);
+  // Coal above LNG in the five sunny hours.
+  assert.equal(y25.coalOverGasHours, 365 * 5);
   assert.ok(Math.abs(y25.fossilPct - (y25.twh.thermal / y25.twh.gen) * 100) < 1e-9);
   assert.ok(f.spells[50] && f.spells[40]);
+});
+
+test('areaStats totals an area and averages it while curtailing', () => {
+  const startMs = Date.UTC(2025, 0, 1);
+  const n = 4;
+  const col = (vals) => Float64Array.from(vals);
+  const piece = {
+    startMs, length: n,
+    columns: {
+      demand: col([10000, 10000, 10000, NaN]), gas: col([3000, 1000, 2000, 0]), coal: col([4000, 4000, 4000, 0]),
+      oil: col([0, 0, 0, 0]), thermal_other: col([1000, 1000, 1000, 0]), nuclear: col([2000, 2000, 2000, 0]),
+      solar: col([0, 6000, 3000, 0]), solar_curtailed: col([0, 2000, 0, 0]), wind_curtailed: col([0, 0, 0, 0]),
+      pumped_storage_charge: col([0, -1000, 0, 0]),
+    },
+  };
+  const s = areaStats(piece, startMs, startMs + n * 1800000);
+  assert.equal(s.hours, 1.5);
+  assert.equal(s.curtHours, 0.5);
+  assert.ok(Math.abs(s.twh.gas - 6000 * 0.5 / 1e6) < 1e-12);
+  assert.ok(Math.abs(s.twh.thermal - (8000 + 6000 + 7000) * 0.5 / 1e6) < 1e-12);
+  assert.ok(Math.abs(s.twh.curtailed - 2000 * 0.5 / 1e6) < 1e-12);
+  assert.ok(Math.abs(s.twh.pumping - 1000 * 0.5 / 1e6) < 1e-12);
+  assert.equal(s.whileCurtailing.thermal, 6);
+  assert.equal(s.whileCurtailing.gas, 1);
+  assert.equal(s.whileCurtailing.pumping, 1);
+  assert.equal(s.thermalMin, 6);
 });

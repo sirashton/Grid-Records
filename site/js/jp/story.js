@@ -13,10 +13,10 @@ import jp from '../countries/jp.js';
 
 // Japan has no daylight saving: local time is UTC+9 all year.
 const JST_MS = 9 * 3600000;
-// LNG above this, in GW, is what a battery fleet would have to replace each day.
-export const GAS_FLOOR = 10;
-// Battery fleets (GW, GWh) the story tests against each day's LNG above the floor.
-export const BATTERIES = [[5, 20], [10, 40], [20, 80], [40, 160]];
+// Battery fleets (GW, GWh) the story tests against each day's LNG swing: the
+// LNG burnt above that day's own lowest half hour, which a battery charged at
+// midday could have replaced. The day's lowest level is left as it is.
+export const BATTERIES = [[5, 20], [10, 40], [20, 80], [30, 150]];
 // Fossil output levels the story counts hours under, in GW.
 export const FOSSIL_LEVELS = [50, 40, 30, 25];
 // The lowest-fossil half hours whose fuel mix shows what is left at the floor.
@@ -77,7 +77,7 @@ export function storyFigures(data, end) {
     hourSum: Object.fromEntries(hourKeys.map((k) => [k, new Float64Array(24)])), hourN: new Float64Array(24), hourSplitN: new Float64Array(24),
     monthTwh: { thermal: new Float64Array(12), gas: new Float64Array(12), coal: new Float64Array(12), curtailed: new Float64Array(12), solar: new Float64Array(12) },
     curtH1: 0, curtSlots: 0, curt: { thermal: 0, gas: 0, coal: 0, nuclear: 0, solar: 0, splitN: 0 },
-    floor: [], days: new Map(),
+    floor: [], days: new Map(), coalOverGas: 0,
   }), (r, i) => {
     const fo = fossil[i];
     if (!ok(fo) || !ok(gen[i]) || gen[i] <= 0) return;
@@ -148,18 +148,21 @@ export function storyFigures(data, end) {
       r.floor.sort((a, b) => a.fo - b.fo);
       if (r.floor.length > FLOOR_SLOTS) r.floor.pop();
     }
+    if (co > g) r.coalOverGas += slotH;
     let dd = r.days.get(day[i]);
-    if (!dd) r.days.set(day[i], (dd = { month: month[i], gasAbove: 0, gasPeak: 0, solar: 0, curtailed: 0, slots: 0 }));
-    dd.slots++;
-    dd.gasAbove += Math.max(0, g - GAS_FLOOR) * slotH;
-    if (g - GAS_FLOOR > dd.gasPeak) dd.gasPeak = g - GAS_FLOOR;
+    if (!dd) r.days.set(day[i], (dd = { month: month[i], gas: [], solar: 0, curtailed: 0 }));
+    dd.gas.push(g);
     dd.solar += so * slotH;
     dd.curtailed += (cu / 1000) * slotH;
   }).map((r) => {
     const hours = r.slots * slotH;
     const at = (i) => (i >= 0 ? slotTime(i, data.startMs, step) : null);
     const floorMix = (k) => mean(r.floor.reduce((s, x) => s + (ok(c[k]?.[x.i]) ? c[k][x.i] : 0), 0), r.floor.length) / 1000;
-    const fullDays = [...r.days.values()].filter((x) => x.slots === 1440 / step);
+    // Each full day's LNG swing above its own lowest half hour (GWh), and its peak (GW).
+    const fullDays = [...r.days.values()].filter((x) => x.gas.length === 1440 / step).map((x) => {
+      const lo = Math.min(...x.gas);
+      return { month: x.month, low: lo, swing: x.gas.reduce((s, v) => s + (v - lo) * slotH, 0), peak: Math.max(...x.gas) - lo, curtailed: x.curtailed, solar: x.solar };
+    });
     const byHour = Object.fromEntries(hourKeys.map((k) => [k, [...r.hourSum[k]].map((v, hh) => mean(v, k === 'gas' || k === 'coal' ? r.hourSplitN[hh] : r.hourN[hh]))]));
     return {
       year: r.year,
@@ -199,9 +202,16 @@ export function storyFigures(data, end) {
       // The lowest-fossil half hours: what the remaining fossil output was made of (GW).
       floor: r.floor.length ? { n: r.floor.length, fossil: mean(r.floor.reduce((s, x) => s + x.fo, 0), r.floor.length), gas: floorMix('gas'), coal: floorMix('coal'), oil: floorMix('oil'), thermal_other: floorMix('thermal_other') } : null,
       // Days with a full fuel split: LNG above the floor (GWh) and whether each battery fleet could have covered it.
+      // Hours with more coal than LNG running.
+      coalOverGasHours: r.coalOverGas,
       days: fullDays.length,
-      gasAboveTwh: fullDays.reduce((s, x) => s + x.gasAbove, 0) / 1000,
-      batteries: BATTERIES.map(([bgw, gwh]) => ({ gw: bgw, gwh, days: fullDays.filter((x) => x.gasAbove <= gwh && x.gasPeak <= bgw).length })),
+      // LNG above each day's own low (TWh), and the part of it the same day's curtailed solar and wind could have covered through an ideal battery.
+      swingTwh: fullDays.reduce((s, x) => s + x.swing, 0) / 1000,
+      swingFromCurtailedTwh: fullDays.reduce((s, x) => s + Math.min(x.swing, x.curtailed), 0) / 1000,
+      swingMedian: fullDays.length ? [...fullDays].sort((a, b) => a.swing - b.swing)[Math.floor(fullDays.length / 2)].swing : NaN,
+      swingPeakMedian: fullDays.length ? [...fullDays].sort((a, b) => a.peak - b.peak)[Math.floor(fullDays.length / 2)].peak : NaN,
+      lowMedian: fullDays.length ? [...fullDays].sort((a, b) => a.low - b.low)[Math.floor(fullDays.length / 2)].low : NaN,
+      batteries: BATTERIES.map(([bgw, gwh]) => ({ gw: bgw, gwh, days: fullDays.filter((x) => x.swing <= gwh && x.peak <= bgw).length })),
     };
   });
 

@@ -610,3 +610,45 @@ export async function fetchHistoryFile(file) {
   const bytes = await fetchBytes(file.url);
   return bytes ? parseHourly(csvRows(decodeText(bytes))) : null;
 }
+
+/**
+ * One area's figures over [fromMs, toMs), for the story: energy by source
+ * (TWh), and what the area ran in the half hours it was curtailing solar or
+ * wind (average GW). Missing slots are skipped; `hours` counts the rest.
+ */
+export function areaStats(piece, fromMs, toMs) {
+  const out = { hours: 0, curtHours: 0, twh: { demand: 0, thermal: 0, gas: 0, coal: 0, nuclear: 0, solar: 0, wind: 0, curtailed: 0, pumping: 0, batteryCharge: 0 }, whileCurtailing: { thermal: 0, gas: 0, coal: 0, nuclear: 0, solar: 0, demand: 0, pumping: 0 }, thermalMin: Infinity };
+  if (!piece?.length) return out;
+  const c = piece.columns;
+  const v = (k, i) => { const x = c[k]?.[i]; return x == null || Number.isNaN(x) ? 0 : x; };
+  const i0 = Math.max(0, Math.ceil((fromMs - piece.startMs) / SLOT_MS));
+  const i1 = Math.min(piece.length, Math.ceil((toMs - piece.startMs) / SLOT_MS));
+  const e = SLOT_MS / 3600000 / 1e6;
+  const w = out.whileCurtailing;
+  for (let i = i0; i < i1; i++) {
+    if (Number.isNaN(c.demand[i])) continue;
+    out.hours += 0.5;
+    const th = areaThermal(c, i);
+    const cu = v('solar_curtailed', i) + v('wind_curtailed', i);
+    out.twh.demand += v('demand', i) * e;
+    out.twh.thermal += (Number.isNaN(th) ? 0 : th) * e;
+    out.twh.gas += v('gas', i) * e;
+    out.twh.coal += v('coal', i) * e;
+    out.twh.nuclear += v('nuclear', i) * e;
+    out.twh.solar += v('solar', i) * e;
+    out.twh.wind += v('wind', i) * e;
+    out.twh.curtailed += cu * e;
+    out.twh.pumping -= v('pumped_storage_charge', i) * e;
+    out.twh.batteryCharge -= v('battery_charge', i) * e;
+    if (!Number.isNaN(th) && th < out.thermalMin) out.thermalMin = th;
+    if (cu > 0) {
+      out.curtHours += 0.5;
+      w.thermal += Number.isNaN(th) ? 0 : th; w.gas += v('gas', i); w.coal += v('coal', i); w.nuclear += v('nuclear', i);
+      w.solar += v('solar', i); w.demand += v('demand', i); w.pumping -= v('pumped_storage_charge', i);
+    }
+  }
+  const n = out.curtHours * 2;
+  for (const k of Object.keys(w)) w[k] = n ? w[k] / n / 1000 : NaN;
+  out.thermalMin = Number.isFinite(out.thermalMin) ? out.thermalMin / 1000 : NaN;
+  return out;
+}

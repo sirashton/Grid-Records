@@ -17,7 +17,7 @@
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { AREAS, JP_COLUMNS, FIRST_MONTH, PARSE_VERSION, STEP_MINUTES, fetchAreaMonth, historyFiles, fetchHistoryFile, joinPieces, combineAreas, lastFilled } from './sources/jp-areas.mjs';
+import { AREAS, JP_COLUMNS, FIRST_MONTH, PARSE_VERSION, STEP_MINUTES, fetchAreaMonth, historyFiles, fetchHistoryFile, joinPieces, combineAreas, lastFilled, areaStats } from './sources/jp-areas.mjs';
 import { writeDataset } from './core/dataset.mjs';
 import { runQueue, monthList } from './core/chunks.mjs';
 import { log } from './lib.mjs';
@@ -149,6 +149,18 @@ async function main() {
   for (let i = 0; i < length; i++) if (Number.isNaN(columns.demand[i])) gaps++;
   let splitFrom = 0;
   while (splitFrom < length && Number.isNaN(columns.gas[splitFrom])) splitFrom++;
+  // Per-area figures for the story, from the first full year split by fuel,
+  // by Japanese calendar year and for the latest 365 days.
+  const endMs = startMs + length * SLOT_MS;
+  const jstYear = (ms) => new Date(ms + 9 * HOUR_MS).getUTCFullYear();
+  const yearStartMs = (y) => Date.UTC(y, 0, 1) - 9 * HOUR_MS;
+  const periods = [];
+  const splitFromMs = startMs + splitFrom * SLOT_MS;
+  for (let y = jstYear(splitFromMs) + 1; yearStartMs(y + 1) <= endMs; y++) periods.push([String(y), yearStartMs(y), yearStartMs(y + 1)]);
+  periods.push(['past365', endMs - 365 * DAY_MS, endMs]);
+  const round = (o) => JSON.parse(JSON.stringify(o, (k, v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v)));
+  const stats = Object.fromEntries(AREAS.map((a) => [a.key, Object.fromEntries(periods.map(([label, from, to]) => [label, round(areaStats(areas[a.key], from, to))]))]));
+
   const { meta, bytes } = await writeDataset(args.out, {
     region: 'jp',
     timeZone: 'Asia/Tokyo',
@@ -159,7 +171,9 @@ async function main() {
     extra: {
       areas: coverage,
       // The first slot with thermal split by fuel nationally.
-      splitFromMs: startMs + splitFrom * SLOT_MS,
+      splitFromMs,
+      // Per-area totals (TWh) and averages while curtailing (GW), for the story.
+      areaStats: stats,
       excluded: { okinawa: 'Okinawa (area 10) is not connected to the other nine areas, and its operator\'s site refuses automated requests.' },
       toFetch: { months: monthsRun.left, olderFiles: historyLeft },
     },
