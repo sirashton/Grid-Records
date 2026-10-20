@@ -87,6 +87,12 @@ h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -
 .region-nav img { display: block; flex-shrink: 0; width: 30px; height: 15px; }
 .region-nav [aria-current] { background: var(--primary); color: var(--primary-ink); }
 .region-nav a:hover { background: var(--grid); }
+/* When the countries no longer fit on one row, the row wraps, each row filling
+   the width, with the gaps drawn as the borders (as on a phone). */
+.region-nav { flex-wrap: wrap; max-width: 100%; box-sizing: border-box; gap: 3px; background: var(--line); }
+.region-nav > * { flex: 1 0 auto; justify-content: center; }
+.region-nav > * + * { border-left: 0; }
+.region-nav a, .region-nav span { background: var(--card); }
 /* On a phone the countries sit two to a row, with the gaps drawn as the borders. */
 @media (max-width: 600px) {
   .region-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: var(--line); }
