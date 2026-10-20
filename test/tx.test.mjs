@@ -17,6 +17,9 @@ test('maps ERCOT fuel names to columns', () => {
   assert.equal(fuelColumn('Gas'), 'gas');
   assert.equal(fuelColumn(' Wind '), 'wind');
   assert.equal(fuelColumn('Other'), 'other');
+  assert.equal(fuelColumn('Wnd'), 'wind');
+  assert.equal(fuelColumn('Sun'), 'solar');
+  assert.equal(fuelColumn('Oth'), 'other');
   assert.equal(fuelColumn('WSL'), '');
   assert.equal(fuelColumn('Unicorn'), null);
 });

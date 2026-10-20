@@ -19,7 +19,7 @@
 // dashboard used for the latest days doesn't split it.
 export const TX_TZ = 'America/Chicago';
 export const STEP_MINUTES = 15;
-export const PARSE_VERSION = 1;
+export const PARSE_VERSION = 2;
 export const TX_COLUMNS = ['coal', 'gas', 'nuclear', 'wind', 'solar', 'hydro', 'biomass', 'other'];
 export const PAGE_URL = 'https://www.ercot.com/gridinfo/generation';
 export const DASHBOARD_URL = 'https://www.ercot.com/api/1/services/read/dashboards/fuel-mix.json';
@@ -32,11 +32,12 @@ export function fuelColumn(name) {
   if (f === 'coal') return 'coal';
   if (f === 'gas' || f === 'gas-cc' || f === 'gas-gt') return 'gas';
   if (f === 'nuclear') return 'nuclear';
-  if (f === 'wind') return 'wind';
-  if (f === 'solar') return 'solar';
+  // 2007 to 2012 abbreviate some names: Wnd, Sun, Oth.
+  if (f === 'wind' || f === 'wnd') return 'wind';
+  if (f === 'solar' || f === 'sun') return 'solar';
   if (f === 'hydro') return 'hydro';
   if (f === 'biomass') return 'biomass';
-  if (f === 'other') return 'other';
+  if (f === 'other' || f === 'oth') return 'other';
   if (f === 'wsl') return '';
   return null;
 }
