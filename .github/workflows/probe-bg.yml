@@ -1,0 +1,43 @@
+name: Probe BG
+on:
+  push:
+    branches: [claude/project-thread-lufpxf-bg]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Energy-Charts BG
+        run: |
+          cat > p.mjs <<'JS'
+          const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+          async function get(u) { const r = await fetch(u); const t = await r.text(); console.log('URL', u, r.status, t.length); return r.ok ? JSON.parse(t) : (console.log(t.slice(0,300)), null); }
+          function summary(j) {
+            if (!j) return;
+            const ts = j.unix_seconds; console.log('n', ts.length, 'first', new Date(ts[0]*1000).toISOString(), 'last', new Date(ts.at(-1)*1000).toISOString(), 'step', ts[1]-ts[0], 'step-late', ts.at(-1)-ts.at(-2));
+            for (const p of j.production_types) { const v = p.data.filter((x) => x != null); const mean = v.reduce((a,b)=>a+b,0)/(v.length||1); console.log(' ', JSON.stringify(p.name), 'nonnull', v.length, 'mean', mean.toFixed(1), 'min', Math.min(...v).toFixed(1), 'max', Math.max(...v).toFixed(1)); }
+            const lastIdx = Math.max(...j.production_types.map(p => { for (let i = p.data.length-1; i>=0; i--) if (p.data[i]!=null) return i; return -1; }));
+            console.log(' last data at', new Date(ts[lastIdx]*1000).toISOString(), 'now', new Date().toISOString());
+          }
+          const end = new Date(); const start = new Date(Date.now() - 7*864e5);
+          summary(await get(`https://api.energy-charts.info/public_power?country=bg&start=${start.toISOString().slice(0,16)}Z&end=${end.toISOString().slice(0,16)}Z`));
+          await sleep(31000);
+          const ins = await get('https://api.energy-charts.info/installed_power?country=bg&time_step=yearly&installation_decommission=false');
+          if (ins) { console.log('years', ins.time.join(',')); for (const p of ins.production_types) console.log(' ', p.name, JSON.stringify(p.data)); }
+          await sleep(31000);
+          summary(await get('https://api.energy-charts.info/public_power?country=bg&start=2015-01-01T00:00Z&end=2015-01-08T00:00Z'));
+          await sleep(31000);
+          summary(await get('https://api.energy-charts.info/public_power?country=bg&start=2025-07-01T00:00Z&end=2025-07-08T00:00Z'));
+          await sleep(31000);
+          const pr = await get(`https://api.energy-charts.info/price?bzn=BG&start=${start.toISOString().slice(0,16)}Z&end=${end.toISOString().slice(0,16)}Z`);
+          if (pr) console.log('price n', pr.unix_seconds.length, 'step', pr.unix_seconds[1]-pr.unix_seconds[0], 'sample', pr.price.slice(0,8), pr.unit);
+          JS
+          node p.mjs
+        continue-on-error: true
+      - name: ESO pages
+        run: |
+          for u in https://www.eso.bg/ "https://www.eso.bg/?did=124" "https://www.eso.bg/api/rabota_na_EEC_json.php" ; do echo "== $u"; curl -sS -L -m 30 -A "Mozilla/5.0" "$u" | head -c 3000; echo; done
+          echo "== links"
+          curl -sS -L -m 30 -A "Mozilla/5.0" https://www.eso.bg/ | grep -oiE 'href="[^"]+"' | sort -u | head -200
+        continue-on-error: true
