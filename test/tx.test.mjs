@@ -151,3 +151,44 @@ test('reads xlsx sheet XML with shared strings', () => {
   assert.equal(rows[1][1], 'Gas');
   assert.equal(serialToMs(45658), Date.UTC(2025, 0, 1));
 });
+
+test('Texas story: fossil by hour, the evening hump and the part year', async () => {
+  const { storyFigures, BATTERIES } = await import('../site/js/tx/story.js');
+  // Two years and nine months of quarter hours from New Year 2024, Central time.
+  const startMs = Date.UTC(2024, 0, 1, 6);
+  const length = 96 * (366 + 365 + 273);
+  const columns = Object.fromEntries(TX_COLUMNS.map((c) => [c, new Float64Array(length)]));
+  const hourOf = new Intl.DateTimeFormat('en', { timeZone: 'America/Chicago', hour: 'numeric', hourCycle: 'h23' });
+  for (let i = 0; i < length; i++) {
+    const hour = Number(hourOf.format(new Date(startMs + i * Q)));
+    const sunny = hour >= 9 && hour < 17;
+    // Gas runs 20 GW, less 10 GW while the sun is up, plus 10 GW from 19:00 to 21:59.
+    columns.gas[i] = 20000 - (sunny ? 10000 : 0) + (hour >= 19 && hour < 22 ? 10000 : 0);
+    columns.coal[i] = 5000;
+    columns.solar[i] = sunny ? 10000 : 0;
+    columns.wind[i] = 10000;
+    columns.other[i] = hour === 20 ? 2000 : 0;
+  }
+  const f = storyFigures({ startMs, length, stepMinutes: 15, columns }, length);
+  const y24 = f.rows.find((r) => r.year === 2024);
+  assert.equal(f.rows.map((r) => r.year).join(), '2024,2025,past365');
+  // Within a little: the hours around the two clock changes can be one off.
+  const near = (a, b) => assert.ok(Math.abs(a - b) < 0.05, `${a} vs ${b}`);
+  near(y24.noon.fossil, 15);
+  near(y24.evening.fossil, 35);
+  near(y24.night.fossil, 25);
+  near(y24.hourly.other[20], 2);
+  assert.equal(y24.fosMin, 15);
+  assert.equal(y24.otherMax, 2);
+  // Fossil above its noon level from 15:00: none while the sun is up, 10 GW at
+  // 17:00-18:59, 20 GW at 19:00-21:59 and 10 GW at 22:00-23:59 (hourly GW, so GWh).
+  assert.equal(y24.medianHump.gwh, 10 * 2 + 20 * 3 + 10 * 2);
+  assert.equal(y24.medianHump.peak, 20);
+  assert.equal(y24.batteries.length, BATTERIES.length);
+  assert.equal(y24.batteries[3].days, y24.days);
+  // Hours under 20 GW of fossil: the eight sunny hours a day.
+  near(y24.under[2] / 8, 366);
+  // January to September, 2026 included.
+  assert.deepEqual(f.part.map((p) => p.year), [2024, 2025, 2026]);
+  assert.ok(Math.abs(f.part[2].gen - f.part[1].gen) < 1);
+});
