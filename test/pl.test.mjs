@@ -59,44 +59,80 @@ test('merges generation and prices, ending at the last generation slot', () => {
   assert.ok(Number.isNaN(m.columns.solar[0]));
 });
 
-test('works out the story figures: coal floor, prices by hour and price bands', async () => {
-  const { storyFigures } = await import('../site/js/pl/story.js');
+test('works out the story figures: coal by hour, the floor, prices and the evening rise', async () => {
+  const { storyFigures, COAL_FLOOR } = await import('../site/js/pl/story.js');
   const cols = [...PL_COLUMNS, 'price'];
   // Two years and a month of quarter hours, from New Year 2024 in Polish time.
   const startMs = Date.UTC(2023, 11, 31, 23);
   const length = 96 * (366 + 365 + 30);
   const columns = Object.fromEntries(cols.map((c) => [c, new Float64Array(length)]));
+  const hourOf = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Warsaw', hour: 'numeric', hourCycle: 'h23' });
   for (let i = 0; i < length; i++) {
     // Local winter hour; the summer hour is one later, which the figures follow.
-    const t = new Date(startMs + i * 900000);
-    const hour = Number(new Intl.DateTimeFormat('en', { timeZone: 'Europe/Warsaw', hour: 'numeric', hourCycle: 'h23' }).format(t));
+    const hour = Number(hourOf.format(new Date(startMs + i * 900000)));
     const sunny = hour >= 11 && hour < 15;
+    const evening = hour >= 18 && hour <= 20;
     columns.solar[i] = sunny ? 10000 : 0;
-    columns.coal[i] = sunny ? 4000 : 12000;
+    // Coal is 6 GW at midday, 8.5 GW in the evening and 8 GW otherwise.
+    columns.coal[i] = sunny ? 4000 : evening ? 6500 : 6000;
     columns.lignite[i] = 2000;
     columns.exports[i] = sunny ? -2000 : 0;
-    columns.price[i] = sunny ? -10 : hour >= 18 && hour <= 20 ? 200 : 100;
+    columns.price[i] = sunny ? -10 : evening ? 200 : 100;
   }
   const data = { startMs, length, stepMinutes: 15, columns };
   const f = storyFigures(data, length);
   assert.deepEqual(f.rows.map((r) => r.year), [2024, 2025, 'past365']);
   const [y24] = f.rows;
   assert.equal(y24.coalMin, 6);
-  assert.equal(y24.coalMax, 14);
-  // Four sunny hours a day under 7 GW, all with the sun up.
+  assert.equal(y24.coalMax, 8.5);
+  assert.equal(y24.ligMin, 2);
+  assert.equal(y24.hcMin, 4);
+  // Four sunny hours a day under 7 GW, all with the sun up; never under the floor.
   assert.equal(y24.coalLow, 366 * 4);
   assert.equal(y24.coalLowSunShare, 1);
+  assert.equal(y24.coalLow5, 0);
+  assert.equal(y24.coalHour[12], 6);
+  assert.equal(y24.coalHour[19], 8.5);
+  assert.equal(y24.ligHour[3], 2);
+  // A day burns 6*4 + 8.5*3 + 8*17 = 185.5 GWh, 24 of it while exporting.
+  const dayGwh = 6 * 4 + 8.5 * 3 + 8 * 17;
+  assert.ok(Math.abs(y24.coalTwh - (366 * dayGwh) / 1000) < 1e-9);
+  assert.ok(Math.abs(y24.coalMonth[0] - (31 * dayGwh) / 1000) < 1e-9);
+  assert.ok(Math.abs(y24.ligMonth[0] - (31 * 48) / 1000) < 1e-9);
+  assert.ok(Math.abs(y24.coalExportingShare - 24 / dayGwh) < 1e-9);
+  assert.equal(y24.coalSolarHi, 6);
+  assert.ok(Math.abs(y24.coalWindLo - dayGwh / 24) < 1e-9);
+  assert.ok(Number.isNaN(y24.coalWindHi));
+  // The lowest quarter hour is the first sunny one of New Year's Day.
+  assert.equal(Number(hourOf.format(new Date(startMs + y24.coalMinAt * 900000))), 11);
   assert.equal(y24.midday, -10);
   assert.equal(y24.evening, 200);
   assert.equal(y24.byHour[19], 200);
   assert.equal(y24.solarCapture, -10);
   assert.equal(y24.negHours, 366 * 4);
+  // The evening rise: from the 11:00 low of 6 GW, 2 GW for 6 hours and 2.5 GW for 3: 19.5 GWh, peak 2.5 GW.
+  assert.equal(y24.riseDays.length, 366);
+  assert.ok(Math.abs(y24.riseDays[0].gwh - 19.5) < 1e-9);
+  assert.ok(Math.abs(y24.riseDays[0].peak - 2.5) < 1e-9);
+  assert.equal(y24.riseDays[0].solar, 40);
+  assert.ok(Math.abs(y24.riseTwh - (366 * 19.5) / 1000) < 1e-9);
+  // 5 GW and 20 GWh covers every day and the solar could charge it; 5 GW and 10 GWh covers none.
+  assert.deepEqual(y24.batteries.map((b) => b.days), [0, 0, 366, 366]);
+  assert.deepEqual(y24.batteries.map((b) => b.charged), [0, 0, 366, 366]);
+  // Above the 5 GW floor a day burns 1*4 + 3.5*3 + 3*17 = 65.5 GWh, more than any fleet
+  // (the clock-change days have an hour more or less, so check the median day).
+  assert.equal(COAL_FLOOR, 5);
+  assert.ok(Math.abs(y24.floorDays[183].gwh - 65.5) < 1e-9);
+  assert.ok(Math.abs(y24.floorDays[183].peak - 3.5) < 1e-9);
+  assert.deepEqual(y24.batteries.map((b) => b.floorDays), [0, 0, 0, 0]);
   const [below0] = f.bands;
   assert.equal(below0.coal, 6);
+  assert.equal(below0.lignite, 2);
   assert.equal(below0.exports, 2);
   assert.equal(below0.solar, 10);
   assert.equal(f.monthly[0].month, '2024-01');
-  // Coal is 6 of 16 GW in sunny hours and all 14 GW otherwise.
-  assert.ok(Math.abs(f.monthly[0].coalPct - ((6 * 4 + 14 * 20) / (16 * 4 + 14 * 20)) * 100) < 1e-9);
-  assert.equal(f.coalLowSpell.record.end - f.coalLowSpell.record.start, 16);
+  // Coal is 6 of 16 GW in sunny hours and all of it otherwise.
+  assert.ok(Math.abs(f.monthly[0].coalPct - ((6 * 4 + 8.5 * 3 + 8 * 17) / (16 * 4 + 8.5 * 3 + 8 * 17)) * 100) < 1e-9);
+  assert.equal(f.coalLowSpell.end - f.coalLowSpell.start, 16);
+  assert.equal(f.coalFloorSpell, null);
 });

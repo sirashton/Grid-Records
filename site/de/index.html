@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Grid Records: Germany</title>
-  <meta name="description" content="Records for Germany's electricity grid: the longest spells with little coal or fossil fuel, how solar grew from a novelty to the biggest source at midday, and what still holds the fossil floor up.">
+  <meta name="description" content="Records for Germany's electricity grid: why lignite still runs through the sunniest middays, what the last fossil plants cost against the price, and the dates in law that end them.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -18,7 +18,7 @@
       <div class="hero-text">
         <nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><a href="../nz/"><img src="../flags/nz.svg" alt="" width="30" height="15">New Zealand</a><span aria-current="page"><img src="../flags/de.svg" alt="" width="30" height="15">Germany</span><a href="../au/"><img src="../flags/au.svg" alt="" width="30" height="15">Australia</a><a href="../pl/"><img src="../flags/pl.svg" alt="" width="30" height="15">Poland</a><a href="../br/"><img src="../flags/br.svg" alt="" width="30" height="15">Brazil</a><a href="../fr/"><img src="../flags/fr.svg" alt="" width="30" height="15">France</a><a href="../wa/"><img src="../flags/wa.svg" alt="" width="30" height="15">Western Australia</a><a class="live-link" href="../live/"><i class="live-dot" aria-hidden="true"></i>Live records</a></nav>
         <h1>Grid Records</h1>
-        <p class="lede" id="lede">Germany was the country that made solar cheap. This page follows what came after: how long its grid can now run with little coal or gas, and how far it still has to go.</p>
+        <p class="lede" id="lede">Germany has three fossil fuels left: lignite, hard coal and gas. This page follows the one that never stops, lignite, through the sunniest middays of the year, and the dates that end it.</p>
         <p class="updated" id="updated">Loading the generation data.</p>
       </div>
       <svg class="hero-art" viewBox="0 0 220 160" aria-hidden="true"></svg>
@@ -56,57 +56,61 @@
     <section class="plain story" aria-labelledby="story-h">
       <h2 id="story-h">The story</h2>
       <div class="facts" id="facts"></div>
-      <p class="hint">Five chapters on what solar parity meant in 2012, and how long the grid took to change after it.</p>
+      <p class="hint" id="story-hint"></p>
       <details class="chapter" id="chapter-1" open>
-        <summary><span class="ch-num">1</span><span class="ch-text"><span class="ch-title">What parity meant in 2012</span><span class="ch-take" id="take-1"></span></span></summary>
+        <summary><span class="ch-num">1</span><span class="ch-text"><span class="ch-title" id="title-1"></span><span class="ch-take" id="take-1"></span></span></summary>
         <div class="ch-body">
       <p id="body-1"></p>
-      <h3>Solar capacity: six flat years after parity</h3>
-      <p class="hint">Solar panels installed in Germany at the end of each year, in GW (DC). 2026 is the latest figure.</p>
-      <div class="chart-host" id="story-capacity"></div>
-      <div class="legend" id="story-capacity-legend"></div>
-        <button type="button" class="edit-btn next-ch" data-next="chapter-2">Next: The 22 GW day is now lunchtime</button>
+      <h3 id="chart-h-1"></h3>
+      <p class="hint" id="chart-hint-1"></p>
+      <div class="chart-host" id="story-chart-1"></div>
+      <div class="legend" id="story-legend-1"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-2" id="next-1">Next</button>
         </div>
       </details>
       <details class="chapter" id="chapter-2">
-        <summary><span class="ch-num">2</span><span class="ch-text"><span class="ch-title">The 22 GW day is now lunchtime</span><span class="ch-take" id="take-2"></span></span></summary>
+        <summary><span class="ch-num">2</span><span class="ch-text"><span class="ch-title" id="title-2"></span><span class="ch-take" id="take-2"></span></span></summary>
         <div class="ch-body">
       <p id="body-2"></p>
-      <h3>Hours a year with solar above the 2012 record</h3>
-      <p class="hint">Hours each year with solar feeding at least 22 GW into the grid. The last bar is the latest 365 days.</p>
-      <div class="chart-host" id="story-solar22"></div>
-        <button type="button" class="edit-btn next-ch" data-next="chapter-3">Next: The fossil floor fell, the ceiling held</button>
+      <h3 id="chart-h-2"></h3>
+      <p class="hint" id="chart-hint-2"></p>
+      <div class="chart-host" id="story-chart-2"></div>
+      <div class="legend" id="story-legend-2"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-3" id="next-2">Next</button>
         </div>
       </details>
       <details class="chapter" id="chapter-3">
-        <summary><span class="ch-num">3</span><span class="ch-text"><span class="ch-title">The fossil floor fell, the ceiling held</span><span class="ch-take" id="take-3"></span></span></summary>
+        <summary><span class="ch-num">3</span><span class="ch-text"><span class="ch-title" id="title-3"></span><span class="ch-take" id="take-3"></span></span></summary>
         <div class="ch-body">
       <p id="body-3"></p>
-      <h3>Fossil floor and ceiling by year</h3>
-      <p class="hint">The lowest and highest quarter hour of lignite, hard coal, gas and oil together each year, in GW. The last point is the latest 365 days.</p>
-      <div class="chart-host" id="story-floor"></div>
-      <div class="legend" id="story-floor-legend"></div>
-        <button type="button" class="edit-btn next-ch" data-next="chapter-4">Next: The dark lulls got shorter</button>
+      <h3 id="chart-h-3"></h3>
+      <p class="hint" id="chart-hint-3"></p>
+      <div class="chart-host" id="story-chart-3"></div>
+      <div class="legend" id="story-legend-3"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-4" id="next-3">Next</button>
         </div>
       </details>
       <details class="chapter" id="chapter-4">
-        <summary><span class="ch-num">4</span><span class="ch-text"><span class="ch-title">The dark lulls got shorter</span><span class="ch-take" id="take-4"></span></span></summary>
+        <summary><span class="ch-num">4</span><span class="ch-text"><span class="ch-title" id="title-4"></span><span class="ch-take" id="take-4"></span></span></summary>
         <div class="ch-body">
       <p id="body-4"></p>
-      <h3>Longest wind and solar lull each year</h3>
-      <p class="hint">The longest spell each year with wind and solar together under 10 GW, in hours. The last bar is the latest 365 days.</p>
-      <div class="chart-host" id="story-lull"></div>
-        <button type="button" class="edit-btn next-ch" data-next="chapter-5">Next: Winter evenings are imported now</button>
+      <h3 id="chart-h-4"></h3>
+      <p class="hint" id="chart-hint-4"></p>
+      <div class="chart-host" id="story-chart-4"></div>
+      <div class="legend" id="story-legend-4"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-5" id="next-4">Next</button>
         </div>
       </details>
       <details class="chapter" id="chapter-5">
-        <summary><span class="ch-num">5</span><span class="ch-text"><span class="ch-title">Winter evenings are imported now</span><span class="ch-take" id="take-5"></span></span></summary>
+        <summary><span class="ch-num">5</span><span class="ch-text"><span class="ch-title" id="title-5"></span><span class="ch-take" id="take-5"></span></span></summary>
         <div class="ch-body">
       <p id="body-5"></p>
-      <h3>Who covers the tightest fifty hours</h3>
-      <p class="hint">Average supply in the fifty hours of each year with the most demand left after wind and solar, in GW.</p>
-      <div class="chart-host" id="story-tight"></div>
-      <div class="legend" id="story-tight-legend"></div>
+      <h3 id="chart-h-5"></h3>
+      <p class="hint" id="chart-hint-5"></p>
+      <div class="chart-host" id="story-chart-5"></div>
+      <div class="legend" id="story-legend-5"></div>
+      <h3 id="coming-h">What's coming, and the record each should move</h3>
+      <ul class="fact-list" id="coming"></ul>
         </div>
       </details>
     </section>

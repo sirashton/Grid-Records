@@ -1,12 +1,12 @@
 import { loadData, metricSeries, BATTERY_SOURCES, lastComplete } from './data.js';
-import { summarise, formatDuration, slotTime } from './records.js';
-import { lineChart, barChart, fmtDate, fmtDateTime } from './charts.js';
+import { formatDuration, slotTime } from './records.js';
+import { lineChart, fmtDate, fmtDateTime } from './charts.js';
 import gb from './countries/gb.js';
 import { windowPoints as corePoints } from './core/dataset.js';
 import { createRecordsTool } from './core/records-tool.js';
 import { recentRecords } from './recent.js';
 import { envelopes, envelopeLayers } from './envelope.js';
-import { MIX, FOSSIL, LOW_CARBON, yearlyMix, monthlyShares, yearlyHoursBelow, facts } from './story.js';
+import { storyFigures, renderStory as drawStory, renderChapterTitles } from './story.js';
 import { renderBatteryOrigins } from './origins.js';
 import { renderSolar } from './solar-view.js';
 import { startAnalytics } from './analytics.js';
@@ -260,18 +260,6 @@ function drawFigures(figs, recs, sub) {
   $('now-right').innerHTML = nowRightHtml(recs, figs.bat, figs.total);
 }
 
-// One headline figure set large, with the other highlights as a list beside it.
-function factsHtml(big, sub, rest) {
-  return `<div class="headline"><div class="big">${big}</div><div class="sub">${sub}</div></div>
-    <ul class="fact-list">${rest.map(([c, label, v, when]) => `<li><span class="swatch" style="background:var(${c})"></span><span><b>${label}</b> <span class="v">${v}</span> <span class="sub">${when}</span></span></li>`).join('')}</ul>`;
-}
-
-// Longest spells with gas and coal below each level (GW).
-function spellRecords(levels) {
-  const fossil = metricSeries(data, FOSSIL, { batterySource: 'none' });
-  return levels.map((gw) => summarise(fossil, gw, 'below', { startMs: data.startMs, maxGap: 2 }).record);
-}
-
 // Battery discharge (Elexon PN) as daily means from its first full year, with
 // a rolling-year envelope and the biggest half hour of each year.
 function batteryGrowth() {
@@ -306,81 +294,12 @@ function renderBatteryStory() {
   });
 }
 
+// The story's figures are computed once; the chapters redraw on resize.
 let story = null;
 function renderStory() {
-  if (!story) {
-    story = {
-      mix: yearlyMix(data),
-      cross: monthlyShares(data, { fossil: FOSSIL, low: LOW_CARBON }),
-      hours: yearlyHoursBelow(data, FOSSIL, [10000, 5000, 1000]),
-      facts: facts(data),
-      spells: spellRecords([1, 2, 5]),
-      battery: batteryGrowth(),
-    };
-  }
-  const f = story.facts;
-  const at = (i) => fmtDate(slotTime(i, data.startMs));
-  const days = Math.floor((data.length - 1 - f.lastCoal) / 48);
-  // Lead with how long the grid can run on almost no fossil fuel; coal is done.
-  const spellText = (r) => (r ? formatDuration(r.end - r.start) : 'Never');
-  const from = (r) => (r ? `from ${at(r.start)}` : 'not yet');
-  const [r1, r2, r5] = story.spells;
-  const past = story.hours[story.hours.length - 1].hours;
-  $('facts').innerHTML = factsHtml(spellText(r1), `with gas and coal under 1 GW, ${from(r1)}. The longest Britain has run on almost no fossil fuel.`, [
-    ['--fossil', 'Under 2 GW of fossil fuel', spellText(r2), from(r2)],
-    ['--fossil', 'Under 5 GW of fossil fuel', spellText(r5), from(r5)],
-    ['--lowcarbon', 'Hours under 5 GW', `${Math.round(past[1]).toLocaleString('en-GB')} h`, 'in the past 365 days'],
-    ['--f-coal', 'Without coal', `${days.toLocaleString('en-GB')} days`, `since the last coal station closed on ${at(f.lastCoal)}`],
-    ['--lowcarbon', 'Greenest half hour', `${f.green.v.toFixed(1)}%`, `low carbon, ${at(f.green.i)}`],
-  ]);
-
-  const yearLabel = (y) => (y === 'past365' ? '365d' : String(y));
-  const yearTitle = (y) => (y === 'past365' ? 'Past 365 days' : String(y));
-  const pc = (v) => `${v.toFixed(v < 10 ? 1 : 0)}%`;
-  const mix = story.mix;
-  const stacks = MIX.map((m) => ({ name: m.label, color: css(`--f-${m.key}`), values: mix.map((r) => r.shares[m.key]) }));
-  barChart($('story-mix'), {
-    cats: mix.map((r) => yearLabel(r.year)),
-    stacks,
-    yMax: 100,
-    yFormat: pc,
-    yTickFormat: (v) => `${v}%`,
-    highlight: (ci) => mix[ci].year === 'past365',
-    tooltip: (ci) => `<strong>${yearTitle(mix[ci].year)}</strong>${[...stacks].reverse().map((s) => `<div><i style="background:${s.color}"></i>${s.name}: <b>${pc(s.values[ci])}</b></div>`).join('')}`,
-  });
-  $('story-mix-legend').innerHTML = [...stacks].reverse().map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
-
-  const cross = [
-    { name: 'Low carbon', color: css('--lowcarbon'), points: story.cross.low },
-    { name: 'Fossil fuels', color: css('--fossil'), points: story.cross.fossil },
-  ];
-  lineChart($('story-cross'), {
-    series: cross,
-    yMin: 0,
-    yFormat: pc,
-    yTickFormat: (v) => `${v}%`,
-    tooltip: (t, vals) => `<strong>${new Date(t).toLocaleString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</strong>${vals.map((v) => `<div><i style="background:${v.series.color}"></i>${v.series.name}: <b>${Number.isFinite(v.value) ? pc(v.value) : '—'}</b></div>`).join('')}`,
-  });
-  $('story-cross-legend').innerHTML = cross.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('');
-
-  const hrs = story.hours;
-  const hourStacks = [
-    { name: 'Under 1 GW', color: css('--h7'), values: hrs.map((r) => r.hours[2]) },
-    { name: '1 to 5 GW', color: css('--lowcarbon'), values: hrs.map((r) => r.hours[1] - r.hours[2]) },
-    { name: '5 to 10 GW', color: css('--h2'), values: hrs.map((r) => r.hours[0] - r.hours[1]) },
-  ];
-  const fmtH = (v) => `${Math.round(v).toLocaleString('en-GB')} h`;
-  barChart($('story-hours'), {
-    cats: hrs.map((r) => yearLabel(r.year)),
-    stacks: hourStacks,
-    yFormat: fmtH,
-    yTickFormat: (v) => v.toLocaleString('en-GB'),
-    highlight: (ci) => hrs[ci].year === 'past365',
-    // Under 1 GW is too rare to see as a bar yet, so flag it with a star.
-    badge: (ci) => (hrs[ci].hours[2] > 0 ? `★ ${fmtH(hrs[ci].hours[2])}` : null),
-    tooltip: (ci) => `<strong>${yearTitle(hrs[ci].year)}</strong><div>Under 10 GW: <b>${fmtH(hrs[ci].hours[0])}</b> (${((hrs[ci].hours[0] / 8760) * 100).toFixed(0)}% of the year)</div><div>Under 5 GW: <b>${fmtH(hrs[ci].hours[1])}</b></div><div>Under 1 GW: <b>${fmtH(hrs[ci].hours[2])}</b></div>`,
-  });
-  $('story-hours-legend').innerHTML = hourStacks.map((s) => `<span><span class="swatch" style="background:${s.color}"></span>${s.name}</span>`).join('') + '<span>★ hours under 1 GW</span>';
+  const end = lastComplete(data, ['gas']) + 1;
+  if (!story) story = { figs: storyFigures(data, end), battery: batteryGrowth() };
+  drawStory(data, end, story.figs);
   renderBatteryStory();
 }
 
@@ -398,13 +317,9 @@ function renderPlaceholders() {
   const ring = NOW_GROUPS.map((g) => ({ ...g, color: '--cell-empty', fuels: g.fuels.map((f) => ({ ...f, color: '--cell-empty', now: 1 })) }));
   $('now-donut').innerHTML = donut(ring, ring.reduce((s, g) => s + g.fuels.length, 0)).replace(/>[\d.]+ GW</, '>— GW<');
   $('now-right').innerHTML = nowRightHtml(null, {}, 0);
-  $('facts').innerHTML = factsHtml('—', sample(`with gas and coal under 1 GW, from ${date}. The longest Britain has run on almost no fossil fuel.`), [
-    ['--fossil', 'Under 2 GW of fossil fuel', '—', sample(`from ${date}`)],
-    ['--fossil', 'Under 5 GW of fossil fuel', '—', sample(`from ${date}`)],
-    ['--lowcarbon', 'Hours under 5 GW', '—', sample('in the past 365 days')],
-    ['--f-coal', 'Without coal', '—', sample(`since the last coal station closed on ${date}`)],
-    ['--lowcarbon', 'Greenest half hour', '—', sample(`low carbon, ${date}`)],
-  ]);
+  renderChapterTitles();
+  $('facts').innerHTML = `<div class="headline"><div class="big">—</div><div class="sub">${sample(`with gas and coal under 1 GW, from ${date}. The longest Britain has run on almost no fossil fuel, and the record to beat.`)}</div></div>
+    <ul class="fact-list">${[['Under 2 GW of fossil fuel', `from ${date}`], ['Under 5 GW of fossil fuel', `from ${date}`], ['Gas burnt in 2025', 'against 114.5 TWh in 2019 and 147.4 TWh in 2009'], ['Lowest gas in 2025', `on ${date}; 0.4 GW in the latest 365 days`], ['Without coal', `since Ratcliffe-on-Soar closed on ${date}`]].map(([l, w]) => `<li><span class="swatch" style="background:var(--cell-empty)"></span><span><b>${l}</b> <span class="v">—</span> <span class="sub">${sample(w)}</span></span></li>`).join('')}</ul>`;
   const dt = fmtDateTime(Date.now());
   renderBatterySources([sample(`${date} to ${dt}`), sample(`${date} to ${dt}`), sample(`2009 to ${dt}`)]);
 }
