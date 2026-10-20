@@ -100,16 +100,19 @@ test('merge ends at the last hour with generation and leaves rooftop solar missi
   assert.ok(Number.isNaN(m.columns.wind_curtailed[0]));
 });
 
-test('story figures: held back shares, when hydro is low, and the fossil floor', async () => {
-  const { storyFigures } = await import('../site/js/br/story.js');
+test('story figures: the flat fossil fleet, the midday sag, held back shares and battery sizing', async () => {
+  const { storyFigures, FOSSIL_FLOOR, BATTERIES } = await import('../site/js/br/story.js');
   // Two years and a month of hours from New Year 2023 in Brasília (UTC-3, no saving since 2019).
   const startMs = Date.UTC(2023, 0, 1, 3);
   const length = 24 * (365 + 366 + 30);
   const columns = Object.fromEntries(BR_COLUMNS.map((c) => [c, new Float64Array(length)]));
   for (let i = 0; i < length; i++) {
     const hour = i % 24;
+    const in2024 = i >= 24 * 365;
     columns.hydro[i] = hour >= 10 && hour < 14 ? 25000 : 40000;
-    columns.gas[i] = 4000;
+    // Gas 4 GW round the clock, 3 GW at midday in 2024; other thermal 2 GW always.
+    columns.gas[i] = in2024 && hour >= 10 && hour < 13 ? 3000 : 4000;
+    columns.other[i] = 2000;
     columns.wind[i] = 10000;
     columns.wind_curtailed[i] = hour === 10 ? 5000 : 0;
     columns.solar_curtailed[i] = NaN;
@@ -119,16 +122,36 @@ test('story figures: held back shares, when hydro is low, and the fossil floor',
   const data = { startMs, length, stepMinutes: 60, columns };
   const f = storyFigures(data, length);
   assert.deepEqual(f.rows.map((r) => r.year), [2023, 2024, 'past365']);
-  const [y23] = f.rows;
-  assert.equal(y23.hydroLow, 365 * 4);
-  assert.equal(y23.hydroLowByHour[10], 365);
-  assert.equal(y23.hydroLowByHour[2], 0);
-  assert.equal(y23.fossilMin, 4);
-  assert.equal(y23.heldMax, 5);
+  const [y23, y24] = f.rows;
+  // 6 GW all day in 2023: no sag, never under 5 GW, 3 GW above the floor for 24 hours.
+  assert.equal(y23.fosMin, 6);
+  assert.equal(y23.sag, 0);
+  assert.equal(y23.fosLow, 0);
+  assert.equal(y23.gasMin, 4);
+  assert.equal(y23.otherMin, 2);
+  assert.equal(y23.fosHour[10], 6);
+  assert.equal(y23.heldHour[10], 5);
+  assert.ok(Number.isNaN(y23.heldHour[11]) === false && y23.heldHour[11] === 0);
+  assert.equal(y23.days.length, 365);
+  assert.ok(Math.abs(y23.days[0].gwh - (6 - FOSSIL_FLOOR) * 24) < 1e-9);
+  assert.ok(Math.abs(y23.aboveTwh - ((6 - FOSSIL_FLOOR) * 24 * 365) / 1000) < 1e-9);
+  // 5 GWh held back a day never covers 72 GWh of fossil above the floor.
+  assert.equal(y23.heldCovers, 0);
   assert.ok(Math.abs(y23.windHeldPct - (5000 / (10000 * 24 + 5000)) * 100) < 1e-9);
   assert.ok(Number.isNaN(y23.solarHeldPct));
-  assert.equal(y23.byHour[10].wind, 5);
-  assert.equal(y23.byHour[11].roof, 20);
-  assert.equal(f.monthly[0].month, '2023-01');
-  assert.equal(f.heldSpell.record, null);
+  assert.ok(Math.abs(y23.heldTwh - (5 * 365) / 1000) < 1e-9);
+  // January 2023 fossil: 6 GW for 31 days.
+  assert.ok(Math.abs(y23.fosMonth[0] - (6 * 24 * 31) / 1000) < 1e-9);
+  // 2024 sags 1 GW from 10:00 to 12:59 against the evening.
+  assert.ok(Math.abs(y24.sag - 1) < 1e-9);
+  assert.equal(y24.fosMin, 5);
+  assert.equal(y24.fosLow, 0);
+  // Only the 80 GWh and 160 GWh fleets hold a day's 69 GWh above the floor, at a 3 GW peak above it.
+  assert.deepEqual(y24.batteries.map((b) => b.days), [0, 0, 366, 366]);
+  assert.deepEqual(y24.batteries.map((b) => b.charged), [0, 0, 0, 0]);
+  assert.equal(BATTERIES.length, 4);
+  assert.equal(f.fossilHighSpell, null);
+  // Fossil never under 5 GW, so no low spell, and no floor spell.
+  assert.equal(f.fossilLowSpell, null);
+  assert.equal(f.fossilFloorSpell, null);
 });
