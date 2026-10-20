@@ -62,6 +62,21 @@ jobs:
           key: fr-${{ github.run_id }}
       - run: ls -la site/data/fr && node -e "const m=require('./site/data/fr/meta.json'); console.log(m.length, m.columns, m.years)"
         continue-on-error: true
+      # Greece (Energy-Charts, two requests a minute: the history fills over several runs).
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-gr
+          key: gr-${{ github.run_id }}
+          restore-keys: gr-
+      - run: node pipeline/build-gr.mjs --budget-minutes 9
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-gr
+          key: gr-${{ github.run_id }}
+      - run: ls -la site/data/gr && node -e "const m=require('./site/data/gr/meta.json'); console.log(m.length, m.columns, m.years, m.missing && Object.fromEntries(Object.entries(m.missing).map(([k,v])=>[k,v.length])), 'from', new Date(m.startMs).toISOString(), 'to', new Date(m.startMs + m.length * 900000).toISOString())"
+        continue-on-error: true
       - uses: actions/cache/restore@v4
         with:
           path: .cache-br

@@ -88,6 +88,28 @@ export const FR_SOURCES = {
 };
 export const FR_COLUMNS = columnsOf(FR_SOURCES);
 
+// Greece (the interconnected system, which Crete joined in 2025). Hourly in
+// the early years, 15 minutes later. No nuclear or offshore wind; Greece has
+// burnt no hard coal, so any listed would count with lignite. Batteries are
+// listed only in recent years and count as zero before.
+export const GR_SOURCES = {
+  lignite: ['Fossil brown coal / lignite', 'Fossil hard coal'],
+  gas: ['Fossil gas'],
+  oil: ['Fossil oil'],
+  wind: ['Wind onshore', 'Wind offshore'],
+  solar: ['Solar'],
+  hydro: ['Hydro Run-of-River', 'Hydro water reservoir'],
+  biomass: ['Biomass', 'Other renewables', 'Geothermal'],
+  other: ['Waste', 'Others'],
+  pumped_storage: ['Hydro pumped storage'],
+  pumped_storage_charge: ['Hydro pumped storage consumption'],
+  battery: ['Battery'],
+  battery_charge: ['Battery Consumption'],
+  demand: ['Load'],
+  trade: ['Cross border electricity trading'],
+};
+export const GR_COLUMNS = columnsOf(GR_SOURCES);
+
 /**
  * Parses one Energy-Charts public_power response into MW on a 15-minute UTC
  * grid. Pumping, battery charging and net exports are negative, as the
