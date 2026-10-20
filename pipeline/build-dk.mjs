@@ -23,7 +23,7 @@ const { values: args } = parseArgs({
     from: { type: 'string', default: '2014-12' },
     out: { type: 'string', default: 'site/data/dk' },
     cache: { type: 'string', default: '.cache-dk' },
-    concurrency: { type: 'string', default: '3' },
+    concurrency: { type: 'string', default: '1' },
   },
 });
 
@@ -112,8 +112,8 @@ async function main() {
       if (/HTTP (403|429)/.test(err.message)) refused = true;
       throw err;
     }
-    // Energi Data Service asks for a few requests at a time.
-    await new Promise((r) => setTimeout(r, 300));
+    // Energi Data Service turns away quick bursts (HTTP 429), so one at a time with a pause.
+    await new Promise((r) => setTimeout(r, 1500));
   }, { concurrency: Number(args.concurrency), deadline, stop: () => refused, log: (m) => log(`DK: ${m}`) });
   log(`DK: fetched ${done} months, ${left} still to fetch${refused ? ' (stopped: the service refused a request)' : ''}`);
 

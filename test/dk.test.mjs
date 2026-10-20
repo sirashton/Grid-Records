@@ -96,3 +96,56 @@ test('Denmark: which months are fetched again', () => {
   assert.ok(isStale(at(Date.UTC(2025, 4, 1)), '202403', 30, now));
   assert.deepEqual(monthRange('202412'), [Date.UTC(2024, 11, 1), Date.UTC(2025, 0, 1)]);
 });
+
+test('Denmark story: winter fossil, wind bands, imports by border', async () => {
+  const { storyFigures, WIND_BANDS } = await import('../site/js/dk/story.js');
+  const cols = [...DK_COLUMNS, 'price'];
+  // Two whole Danish years (2024, 2025) and a month, hourly.
+  const startMs = Date.UTC(2023, 11, 31, 23);
+  const length = 24 * (366 + 365 + 31);
+  const columns = Object.fromEntries(cols.map((c) => [c, new Float64Array(length)]));
+  const monthOf = new Intl.DateTimeFormat('en', { timeZone: 'Europe/Copenhagen', month: 'numeric' });
+  for (let i = 0; i < length; i++) {
+    const m = Number(monthOf.format(new Date(startMs + i * 3600000)));
+    const winter = m >= 11 || m <= 3;
+    const windy = i % 2 === 0;
+    // Coal 300 MW in winter, none in summer; gas 100 MW always.
+    columns.coal[i] = winter ? 300 : 0;
+    columns.gas[i] = 100;
+    columns.wind_onshore[i] = windy ? 6000 : 500;
+    columns.demand[i] = 4000;
+    columns.net_no[i] = windy ? -1000 : 1500;
+    columns.net_de[i] = windy ? -2000 : 0;
+    const net = columns.net_no[i] + columns.net_de[i];
+    columns.imports[i] = Math.max(0, net);
+    columns.exports[i] = Math.min(0, net);
+    columns.price[i] = windy ? -5 : 80;
+  }
+  const f = storyFigures({ startMs, length, stepMinutes: 60, columns }, length);
+  assert.deepEqual(f.rows.map((r) => r.year), [2024, 2025, 'past365']);
+  const y = f.rows[1];
+  assert.equal(y.hours, 8760);
+  assert.ok(Math.abs(y.twh.gas - 0.876) < 1e-9);
+  assert.ok(Math.abs(y.fosMin - 0.1) < 1e-9);
+  assert.ok(Math.abs(y.fosMinWinter - 0.4) < 1e-9);
+  // All coal is in winter; gas is spread evenly.
+  // 151 days, less the hour lost to summer time in March.
+  const winterH = (31 + 28 + 31 + 30 + 31) * 24 - 1;
+  const want = (0.4 * winterH) / (0.4 * winterH + 0.1 * (8760 - winterH));
+  assert.ok(Math.abs(y.winterShare - want) < 0.003);
+  // Calm hours (0.5 GW) in the first band, windy ones (6 GW) in the top band, with the same fossil.
+  assert.equal(y.windHours[0], 4380);
+  assert.equal(y.windHours[WIND_BANDS.length - 1], 4380);
+  assert.ok(Math.abs(y.windFos[0] - y.windFos.at(-1)) < 1e-3);
+  assert.ok(Math.abs(y.impBy.net_no - (1.5 * 4380) / 1000) < 1e-9);
+  assert.ok(Math.abs(y.expBy.net_de - (2 * 4380) / 1000) < 1e-9);
+  assert.equal(y.impHours, 4380);
+  assert.ok(Math.abs(y.calm.imports - 1.5) < 1e-9);
+  // Wind beat demand in the windy hours, which were also the export hours.
+  assert.equal(y.windyHours, 4380);
+  assert.ok(Math.abs(y.fosExportingShare - 0.5) < 0.01);
+  // Fossil is under 0.2 GW only in the coal-free months.
+  assert.equal(y.fosLow, 8760 - winterH);
+  assert.equal(y.coalOn, winterH);
+  assert.ok(f.coalOffSpell);
+});
