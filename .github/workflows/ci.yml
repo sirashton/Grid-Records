@@ -74,17 +74,6 @@ jobs:
         with:
           path: .cache-cz
           key: cz-${{ github.run_id }}
-      # Temporary: the built Czech data on its own branch, for checking the story's figures.
-      - name: Publish Czech data
-        if: github.event_name == 'push'
-        continue-on-error: true
-        run: |
-          cp -r site/data/cz /tmp/czdata
-          cd /tmp/czdata
-          git init -q -b cz-data
-          git add -A
-          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Czech data of ${GITHUB_SHA::7}"
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" cz-data:claude/project-thread-lufpxf-cz-data
       - run: ls -la site/data/cz && node -e "const m=require('./site/data/cz/meta.json'); console.log(m.length, m.columns, m.years, 'to', new Date(m.startMs + m.length * 900000).toISOString())"
         continue-on-error: true
       - uses: actions/cache/restore@v4

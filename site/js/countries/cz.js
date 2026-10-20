@@ -37,10 +37,10 @@ export default {
     exports: { label: 'Net exports', color: '--f-imports', abs: true, inTotal: false, notGeneration: true },
   },
   presets: {
-    // The project's wide log ladder, 10 GW down to 0.1 GW and zero, with 4
-    // and 3 added where Czech lignite now bottoms out.
+    // The project's log ladder from 7 GW down to zero. Lignite now falls to
+    // a few hundred MW on summer weekends, so its low rungs can fill.
     fossil: { label: 'Fossil fuels', members: FOSSIL, mode: 'below', gw: [7, 5, 4, 3, 2, 1, 0.5, 0.1, 0], pct: [60, 50, 40, 30, 20, 10] },
-    lignite: { label: 'Lignite', members: ['lignite'], mode: 'below', gw: [5, 4, 3, 2.5, 2, 1.5, 1, 0.5], pct: [50, 40, 30, 20, 10] },
+    lignite: { label: 'Lignite', members: ['lignite'], mode: 'below', gw: [5, 4, 3, 2.5, 2, 1.5, 1, 0.5, 0], pct: [50, 40, 30, 20, 10] },
     allcoal: { label: 'Coal (lignite and hard coal)', members: COAL, mode: 'below', gw: [6, 5, 4, 3, 2, 1, 0.5], pct: [50, 40, 30, 20, 10] },
     fossilhigh: { label: 'Fossil fuels, high output', members: FOSSIL, mode: 'above', gw: [4, 5, 6, 7, 8], pct: [40, 50, 60, 70] },
     gas: { label: 'Gas', members: ['gas'], mode: 'above', gw: [0.5, 1, 1.5, 2], pct: [5, 10, 15, 20] },
