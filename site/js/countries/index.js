@@ -18,6 +18,7 @@ import bg from './bg.js';
 import dk from './dk.js';
 import gr from './gr.js';
 import tx from './tx.js';
+import co from './co.js';
 
 export const COUNTRIES = [
   { country: gb, page: '', data: 'data', flag: 'flags/gb.svg' },
@@ -34,4 +35,5 @@ export const COUNTRIES = [
   { country: dk, page: 'dk/', data: 'data/dk', flag: 'flags/dk.svg' },
   { country: gr, page: 'gr/', data: 'data/gr', flag: 'flags/gr.svg' },
   { country: tx, page: 'tx/', data: 'data/tx', flag: 'flags/tx.svg', nav: 'Texas' },
+  { country: co, page: 'co/', data: 'data/co', flag: 'flags/co.svg' },
 ];
