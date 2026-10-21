@@ -1,31 +1,33 @@
-// Temporary: Colombia (XM) and Ontario (IESO) from Actions.
-const UA = { 'user-agent': 'grid-records (github.com/sirashton/Grid-Records)', 'content-type': 'application/json' };
-const show = (label, txt, n = 1500) => console.log('\n==', label, '\n' + txt.slice(0, n));
-const post = async (path, body, n) => {
-  try {
-    const t0 = Date.now();
-    const r = await fetch('https://servapibi.xm.com.co/' + path, { method: 'POST', headers: UA, body: JSON.stringify(body) });
-    const txt = await r.text();
-    show(`${path} ${JSON.stringify(body)} ${r.status} ${txt.length}B ${Date.now() - t0}ms`, txt, n);
-    return txt;
-  } catch (e) { show(path + ' ERR', e.message + ' ' + e.cause?.code); }
+// Temporary: Colombia (XM) fuel mapping coverage and data lag, from Actions.
+const H = { 'user-agent': 'grid-records (github.com/sirashton/Grid-Records)', 'content-type': 'application/json' };
+const post = async (path, body) => {
+  const r = await fetch('https://servapibi.xm.com.co/' + path, { method: 'POST', headers: H, body: JSON.stringify(body) });
+  return { status: r.status, json: await r.json().catch(() => null) };
 };
-await post('lists', { MetricId: 'ListadoMetricas' }, 3000);
-const recs = await post('lists', { MetricId: 'ListadoRecursos', Entity: 'Sistema' }, 2500);
-try {
-  const j = JSON.parse(recs); const items = j.Items.flatMap((i) => i.ListEntities || [i]);
-  console.log('resources', items.length);
-  const types = {}; for (const it of items) { const v = it.Values || it; const k = `${v.Type}|${v.EnerSource}|${v.State}|${v.Disp}`; types[k] = (types[k] || 0) + 1; }
-  console.log(JSON.stringify(types, null, 1).slice(0, 4000));
-} catch (e) { console.log('parse', e.message); }
-await post('hourly', { MetricId: 'Gene', StartDate: '2026-09-01', EndDate: '2026-09-02', Entity: 'Recurso', Filter: [] }, 1500);
-await post('hourly', { MetricId: 'Gene', StartDate: '2000-01-01', EndDate: '2000-01-02', Entity: 'Recurso', Filter: [] }, 800);
-await post('hourly', { MetricId: 'Gene', StartDate: '2026-09-01', EndDate: '2026-09-30', Entity: 'Sistema', Filter: [] }, 800);
-await post('hourly', { MetricId: 'Gene', StartDate: '2026-10-19', EndDate: '2026-10-21', Entity: 'Sistema', Filter: [] }, 800);
-await post('hourly', { MetricId: 'Gene', StartDate: '2026-08-01', EndDate: '2026-08-31', Entity: 'Recurso', Filter: [] }, 300);
-// Ontario
-for (const u of ['https://reports-public.ieso.ca/public/GenOutputbyFuelHourly/PUB_GenOutputbyFuelHourly_2015.xml',
-  'https://reports-public.ieso.ca/public/GenOutputbyFuelHourly/PUB_GenOutputbyFuelHourly.xml',
-  'https://reports-public.ieso.ca/public/GenOutputCapability/PUB_GenOutputCapability.xml']) {
-  try { const r = await fetch(u, { headers: { 'user-agent': UA['user-agent'] } }); const t = await r.text(); show(`${u} ${r.status} ${t.length}`, t, 1500); } catch (e) { show(u + ' ERR', e.message); }
+const vals = (j) => (j?.Items || []).flatMap((i) => (i.ListEntities || i.HourlyEntities || i.DailyEntities || []).map((e) => ({ date: i.Date, ...e.Values })));
+const cur = vals((await post('lists', { MetricId: 'ListadoRecursos', Entity: 'Sistema' })).json);
+console.log('current list', cur.length);
+for (const sd of ['2005-01-01', '2012-06-01']) {
+  const r = await post('lists', { MetricId: 'ListadoRecursos', Entity: 'Sistema', StartDate: sd, EndDate: sd });
+  const v = vals(r.json); console.log('list at', sd, r.status, v.length, v.slice(0, 2));
+}
+const map = new Map(cur.map((v) => [v.Code, `${v.Type}|${v.EnerSource}`]));
+// Other metrics that might classify old plants.
+const met = vals((await post('lists', { MetricId: 'ListadoMetricas' })).json);
+for (const m of met) if (/Recurso|Gene|Comb|Planta|Tipo/i.test(m.MetricId + m.MetricName) || m.Type === 'ListsEntities') console.log('metric', m.MetricId, '|', m.MetricName, '|', m.Entity, m.Type, m.MaxDays, m.MetricUnits);
+for (const sd of ['2000-03-01', '2005-03-01', '2010-03-01', '2015-03-01', '2020-03-01', '2025-03-01']) {
+  const r = await post('hourly', { MetricId: 'Gene', StartDate: sd, EndDate: sd, Entity: 'Recurso', Filter: [] });
+  const rows = vals(r.json); const by = {}; const unk = {};
+  for (const row of rows) {
+    let s = 0; for (let h = 1; h <= 24; h++) s += +(row['Hour' + String(h).padStart(2, '0')] || 0);
+    const k = map.get(row.code) || 'UNMAPPED'; by[k] = (by[k] || 0) + s / 1000;
+    if (!map.has(row.code)) unk[row.code] = Math.round(s / 1000);
+  }
+  const tot = Object.values(by).reduce((a, b) => a + b, 0);
+  console.log('\n', sd, 'resources', rows.length, 'total MWh', Math.round(tot), JSON.stringify(Object.fromEntries(Object.entries(by).map(([k, v]) => [k, Math.round(v)]))));
+  console.log(' unmapped', JSON.stringify(Object.entries(unk).sort((a, b) => b[1] - a[1]).slice(0, 25)));
+}
+for (const d of ['2026-10-10', '2026-10-14', '2026-10-16', '2026-10-17', '2026-10-18']) {
+  const r = await post('hourly', { MetricId: 'Gene', StartDate: d, EndDate: d, Entity: 'Sistema', Filter: [] });
+  console.log('Sistema', d, vals(r.json).length);
 }
