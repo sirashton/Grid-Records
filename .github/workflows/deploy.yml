@@ -13,9 +13,9 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 jobs:
-  # Texas runs in its own job, so its time doesn't count against the build
+  # Texas and Colombia run in their own jobs, so their time doesn't count against the build
   # job's 30 minutes. A failure leaves the other pages to deploy as normal,
-  # with Texas missing until the next run.
+  # with that country missing until the next run.
   texas:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -41,8 +41,33 @@ jobs:
           name: data-tx
           path: site/data/tx
           retention-days: 1
+  # Colombia in its own job too: a fresh cache backfills XM's 26 years over
+  # a few runs, a month per request pair.
+  colombia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-co
+          key: co-${{ github.run_id }}
+          restore-keys: co-
+      - run: node pipeline/build-co.mjs --budget-minutes 12 --concurrency 4
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-co
+          key: co-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-co
+          path: site/data/co
+          retention-days: 1
   build:
-    needs: texas
+    needs: [texas, colombia]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -243,6 +268,11 @@ jobs:
         with:
           name: data-tx
           path: site/data/tx
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: data-co
+          path: site/data/co
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
