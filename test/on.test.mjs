@@ -76,3 +76,44 @@ test('refetches the current year every few hours and settled years never', () =>
   assert.equal(needsFetch(entry(Date.UTC(2020, 0, 1)), 2019, 2026, now), false);
   assert.equal(needsFetch({ ...entry(now), version: 0 }, 2019, 2026, now), true);
 });
+
+test('story figures: gas share, the nightly floor, exports and spells', async () => {
+  const { storyFigures } = await import('../site/js/on/story.js');
+  const { ON_COLUMNS } = await import('../pipeline/sources/ieso.mjs');
+  // Two years and a month of hours from New Year 2024, Eastern Standard Time.
+  const startMs = Date.UTC(2024, 0, 1, 5);
+  const length = 24 * (366 + 365 + 31);
+  const columns = Object.fromEntries(ON_COLUMNS.map((c) => [c, new Float64Array(length)]));
+  for (let i = 0; i < length; i++) {
+    const hour = i % 24;
+    const y2024 = i < 366 * 24;
+    const evening = hour >= 16 && hour < 21;
+    columns.nuclear[i] = 9000;
+    columns.hydro[i] = 3000;
+    // 2024: gas 0.5 GW at night and 2 GW in the evening. 2025: 3 GW all day.
+    columns.gas[i] = y2024 ? (evening ? 2000 : 500) : 3000;
+    columns.battery[i] = !y2024 && evening ? 500 : 0;
+    // Demand 12 GW: in 2025 Ontario net exports 3 GW (3.5 GW in the evening).
+    columns.demand[i] = 12000;
+  }
+  const f = storyFigures({ startMs, length, stepMinutes: 60, columns }, length);
+  assert.equal(f.rows.map((r) => r.year).join(), '2024,2025,past365');
+  const [y24, y25] = f.rows;
+  assert.ok(Math.abs(y25.gasShare - 3 / 15) < 1e-9, `${y25.gasShare}`);
+  assert.equal(y24.floor, 0.5);
+  assert.equal(y25.floor, 3);
+  assert.equal(y24.gasMax, 2);
+  assert.equal(y25.under[2], 0);
+  assert.equal(y24.under[1], 366 * 19);
+  // In 2025 every hour exports at least as much as gas runs.
+  assert.ok(Math.abs(y25.gasInExportShare - 1) < 1e-9);
+  assert.ok(Math.abs(y25.twh.netx - (3 * 365 * 24 + 0.5 * 365 * 5) / 1000) < 1e-6);
+  assert.equal(y25.batMax, 0.5);
+  assert.equal(y25.batEvening, 1, 'all discharge falls in 15:00 to 20:59');
+  assert.equal(y24.hourly.gas[17], 2);
+  assert.equal(f.months.length, 25);
+  // The longest spell under 1 GW is a 2024 night: 19 hours (21:00 to 15:59).
+  assert.equal(f.under1Spell.end - f.under1Spell.start, 19);
+  assert.deepEqual(f.under1ByYear.map(([y]) => y), [2024]);
+  assert.equal(f.over2Now.end, length);
+});
