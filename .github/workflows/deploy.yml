@@ -89,8 +89,31 @@ jobs:
           name: data-on
           path: site/data/on
           retention-days: 1
+  belgium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-be
+          key: be-${{ github.run_id }}
+          restore-keys: be-
+      - run: node pipeline/build-be.mjs --budget-minutes 13
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-be
+          key: be-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-be
+          path: site/data/be
+          retention-days: 1
   build:
-    needs: [texas, colombia, ontario]
+    needs: [texas, colombia, ontario, belgium]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -301,6 +324,11 @@ jobs:
         with:
           name: data-on
           path: site/data/on
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: data-be
+          path: site/data/be
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

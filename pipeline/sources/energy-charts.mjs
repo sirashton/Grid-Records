@@ -89,6 +89,29 @@ export const FR_SOURCES = {
 };
 export const FR_COLUMNS = columnsOf(FR_SOURCES);
 
+// Belgium. Hourly in the early years, 15 minutes later. Coal ended with
+// Langerlo in March 2016; Coo is the pumped storage; batteries are listed
+// only in recent years and count as zero before.
+export const BE_SOURCES = {
+  nuclear: ['Nuclear'],
+  coal: ['Fossil hard coal'],
+  gas: ['Fossil gas'],
+  oil: ['Fossil oil'],
+  wind_onshore: ['Wind onshore'],
+  wind_offshore: ['Wind offshore'],
+  solar: ['Solar'],
+  hydro: ['Hydro Run-of-River', 'Hydro water reservoir'],
+  biomass: ['Biomass', 'Other renewables', 'Geothermal'],
+  other: ['Waste', 'Others'],
+  pumped_storage: ['Hydro pumped storage'],
+  pumped_storage_charge: ['Hydro pumped storage consumption'],
+  battery: ['Battery'],
+  battery_charge: ['Battery Consumption'],
+  demand: ['Load'],
+  trade: ['Cross border electricity trading'],
+};
+export const BE_COLUMNS = columnsOf(BE_SOURCES);
+
 // Czechia. Hourly in the early years, 15 minutes later. Lignite is most of the
 // fossil output; hard coal (Dětmarovice, Třinec) and gas are small. No
 // offshore wind, so onshore wind is the `wind` column.
