@@ -54,7 +54,50 @@ export function mergeBelgium(power, prices) {
     const col = merged.columns[c];
     for (let i = 0; i < end; i++) if (col[i] < floor) col[i] = NaN;
   }
-  return { ...merged, length: end };
+  const out = { ...merged, length: end };
+  dropUnreportedGas(out);
+  return out;
+}
+
+const GEN_COLUMNS = BE_COLUMNS.filter((c) => c !== 'demand');
+const dayOf = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Brussels' });
+
+/**
+ * Blanks gas on Belgian days when some gas plants went unreported. On those
+ * days gas drops by a gigawatt or more at midnight and load runs that much
+ * above generation plus net imports, as on 25 to 27 April and 16 to 18 May
+ * 2025. Elia's load is itself off by up to about 0.6 GW for months at a time,
+ * so each day is judged against the fortnight around it: a day whose balance
+ * gap is GAP_MW above its neighbours', with gas at least half that gap below
+ * theirs, has its gas set missing. Returns the days blanked.
+ */
+export const GAP_MW = 600;
+export function dropUnreportedGas(data, stepMinutes = STEP_MINUTES) {
+  const { columns: c, length, startMs } = data;
+  const days = [];
+  let cur = null;
+  for (let i = 0; i < length; i++) {
+    const key = dayOf.format(new Date(startMs + i * stepMinutes * 60000));
+    if (cur?.key !== key) days.push((cur = { key, from: i, to: i, gap: 0, gas: 0, n: 0 }));
+    cur.to = i + 1;
+    if (!Number.isFinite(c.demand[i]) || !Number.isFinite(c.gas[i])) continue;
+    let supply = 0;
+    for (const k of GEN_COLUMNS) if (Number.isFinite(c[k][i])) supply += c[k][i];
+    cur.gap += c.demand[i] - supply;
+    cur.gas += c.gas[i];
+    cur.n++;
+  }
+  for (const d of days) { d.gap /= d.n || NaN; d.gas /= d.n || NaN; }
+  const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); return s.length ? s[s.length >> 1] : NaN; };
+  const dropped = [];
+  days.forEach((d, j) => {
+    const near = days.slice(Math.max(0, j - 7), j + 8).filter((x) => x !== d);
+    const excess = d.gap - median(near.map((x) => x.gap));
+    if (!(excess > GAP_MW) || !(median(near.map((x) => x.gas)) - d.gas > excess / 2)) return;
+    c.gas.fill(NaN, d.from, d.to);
+    dropped.push(d.key);
+  });
+  return dropped;
 }
 
 async function loadCache(dir) {
