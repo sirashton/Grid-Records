@@ -192,6 +192,12 @@ jobs:
         with:
           name: data-on
           path: site/data/on
+      - uses: actions/download-artifact@v4
+        if: github.event_name == 'push'
+        continue-on-error: true
+        with:
+          name: data-be
+          path: site/data/be
       # Snapshot the built site, data included, on a throwaway branch for previews.
       - name: Publish preview branch
         if: github.event_name == 'push'
@@ -280,4 +286,29 @@ jobs:
         with:
           name: data-on
           path: site/data/on
+          if-no-files-found: ignore
+  belgium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-be
+          key: be-${{ github.run_id }}
+          restore-keys: be-
+      - run: node pipeline/build-be.mjs --budget-minutes 14
+        continue-on-error: true
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-be
+          key: be-${{ github.run_id }}
+      - run: ls -la site/data/be && node -e "const m=require('./site/data/be/meta.json'); console.log(m.length, m.columns, JSON.stringify(m.years), 'from', new Date(m.startMs).toISOString(), 'to', new Date(m.startMs + m.length * 900000).toISOString())"
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-be
+          path: site/data/be
           if-no-files-found: ignore
