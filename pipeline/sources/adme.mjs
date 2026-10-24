@@ -115,6 +115,17 @@ async function fetchText(url, timeoutMs) {
 
 /** Asks ADME to build month YYYYMM and downloads its hourly spreadsheet. Returns the first sheet's rows. */
 export async function fetchMonth(ym) {
+  // ADME sometimes hands back a link to a spreadsheet it has already
+  // cleared from its cache; asking again builds a fresh one.
+  try {
+    return await fetchMonthOnce(ym);
+  } catch (e) {
+    if (!/HTTP 404/.test(e.message)) throw e;
+    return fetchMonthOnce(ym);
+  }
+}
+
+async function fetchMonthOnce(ym) {
   const { from, to } = monthDates(ym);
   const page = (await fetchText(`${BASE}/gpf.php?fecha_ini=${from}&fecha_fin=${to}`, 240000)).toString('latin1');
   const link = page.match(/\/?cache\/gpf_\d+_\d+_horario\.ods/)?.[0];
