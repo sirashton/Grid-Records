@@ -3,3 +3,4 @@ node_modules/
 site/data/
 .cache-*/
 .backfill-out/
+.cache-uy/
