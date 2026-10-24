@@ -13,7 +13,9 @@ const sheet = (rows) => `<office:spreadsheet><table:table table:name="GPF">${row
 test('Uruguay: month dates and the Montevideo clock', () => {
   const d = monthDates('202602');
   assert.equal(d.from, '01/02/2026');
-  assert.equal(d.to, '28/02/2026');
+  assert.equal(d.to, '01/03/2026');
+  assert.equal(monthDates('202612').to, '01/01/2027');
+  assert.equal(d.days, 28);
   assert.equal(d.startMs, Date.UTC(2026, 1, 1, 3));
 });
 

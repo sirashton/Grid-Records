@@ -18,7 +18,9 @@ import { join } from 'node:path';
 
 const exec = promisify(execFile);
 export const BASE = 'https://pronos.adme.com.uy';
-export const PARSE_VERSION = 1;
+// 2: the form's end date is the first of the next month, as ADME stops at
+// 00:00 on the end date and version 1 lost each month's last 23 hours.
+export const PARSE_VERSION = 2;
 export const HOUR_MS = 3600000;
 export const UTC_OFFSET_MS = -3 * HOUR_MS;
 
@@ -40,13 +42,19 @@ const HEADINGS = {
 export const GEN_COLUMNS = ['hydro_salto', 'hydro_negro', 'wind', 'solar', 'thermal', 'biomass'];
 export const UY_COLUMNS = [...GEN_COLUMNS, 'imports', 'exports', 'demand'];
 
-/** The form's dates for month YYYYMM: first and last day, DD/MM/YYYY. */
+/**
+ * The form's dates for month YYYYMM, DD/MM/YYYY: the first of the month and
+ * the first of the next. ADME's range ends at 00:00 on the end date, so
+ * ending on the month's last day would lose its last 23 hours.
+ */
 export function monthDates(ym) {
   const y = Number(ym.slice(0, 4));
   const m = Number(ym.slice(4));
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  const mm = String(m).padStart(2, '0');
-  return { from: `01/${mm}/${y}`, to: `${last}/${mm}/${y}`, startMs: Date.UTC(y, m - 1, 1) - UTC_OFFSET_MS, days: last };
+  const pad = (v) => String(v).padStart(2, '0');
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  return { from: `01/${pad(m)}/${y}`, to: `01/${pad(nm)}/${ny}`, startMs: Date.UTC(y, m - 1, 1) - UTC_OFFSET_MS, days: last };
 }
 
 const unescape = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
