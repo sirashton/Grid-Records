@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { firstSheetRows, parseMonth, monthDates, UY_COLUMNS } from '../pipeline/sources/adme.mjs';
+import { firstSheetRows, parseMonth, monthDates, UY_COLUMNS, PARSE_VERSION } from '../pipeline/sources/adme.mjs';
 import { mergeUruguay, needsFetch } from '../pipeline/build-uy.mjs';
 
 const cell = (v) => (typeof v === 'number'
@@ -64,10 +64,11 @@ test('Uruguay: months stitch onto one hourly grid ending at the last generation'
 
 test('Uruguay: the current month is refetched every run, settled months never', () => {
   const now = Date.UTC(2026, 9, 24, 12);
-  const entry = (ms) => ({ version: 1, fetched: new Date(ms).toISOString() });
+  const entry = (ms) => ({ version: PARSE_VERSION, fetched: new Date(ms).toISOString() });
   assert.equal(needsFetch(entry(now - 10 * 60000), 0, now), false);
   assert.equal(needsFetch(entry(now - 30 * 60000), 0, now), true);
   assert.equal(needsFetch(entry(now - 2 * 864e5), 2, now), true);
   assert.equal(needsFetch(entry(now - 40 * 864e5), 10, now), false);
   assert.equal(needsFetch(undefined, 50, now), true);
+  assert.equal(needsFetch({ version: PARSE_VERSION - 1, fetched: new Date(now).toISOString() }, 10, now), true);
 });
