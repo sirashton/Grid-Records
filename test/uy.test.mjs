@@ -72,3 +72,44 @@ test('Uruguay: the current month is refetched every run, settled months never', 
   assert.equal(needsFetch(undefined, 50, now), true);
   assert.equal(needsFetch({ version: PARSE_VERSION - 1, fetched: new Date(now).toISOString() }, 10, now), true);
 });
+
+test('Uruguay: story figures count thermal by year, month, hour and trade', async () => {
+  const { storyFigures } = await import('../site/js/uy/story.js');
+  // Two years and a month of hours from New Year 2024, Uruguay time (UTC-3).
+  const startMs = Date.UTC(2024, 0, 1, 3);
+  const length = 24 * (366 + 365 + 31);
+  const columns = Object.fromEntries(UY_COLUMNS.map((c) => [c, new Float64Array(length)]));
+  for (let i = 0; i < length; i++) {
+    const t = new Date(startMs + i * 3600000 - 3 * 3600000);
+    const y = t.getUTCFullYear();
+    const evening = t.getUTCHours() >= 18 && t.getUTCHours() < 22;
+    // 2024 is wet: thermal is off and 500 MW is exported. 2025 is dry:
+    // thermal runs 200 MW, 600 MW in the evening, and 100 MW is imported.
+    columns.hydro_salto[i] = y === 2024 ? 1500 : 600;
+    columns.wind[i] = 500;
+    columns.thermal[i] = y === 2024 ? 0 : evening ? 600 : 200;
+    columns.imports[i] = y === 2024 ? 0 : 100;
+    columns.demand[i] = y === 2024 ? 1500 : 1400 + (evening ? 400 : 0);
+    columns.exports[i] = -Math.max(0, columns.hydro_salto[i] + columns.wind[i] + columns.thermal[i] + columns.imports[i] - columns.demand[i]);
+  }
+  const f = storyFigures({ startMs, length, stepMinutes: 60, columns }, length);
+  assert.equal(f.rows.map((r) => r.year).join(), '2024,2025,past365');
+  const [y24, y25] = f.rows;
+  assert.equal(y24.off, 366 * 24);
+  assert.equal(y24.offShare, 1);
+  assert.equal(y25.off, 0);
+  assert.equal(y25.high[0], 365 * 24);
+  assert.equal(y25.high[1], 365 * 4);
+  assert.ok(Math.abs(y25.thermalHour[19] - 0.6) < 1e-9);
+  assert.ok(Math.abs(y25.thermalHour[3] - 0.2) < 1e-9);
+  // 2025 generates 1,300 MW plus imports of 100 against demand of 1,400, so it
+  // never exports; all its thermal runs while importing.
+  assert.equal(y25.twh.thermalExported, 0);
+  assert.ok(Math.abs(y25.twh.thermalImporting - y25.twh.thermal) < 1e-9);
+  assert.ok(Math.abs(y24.twh.exports - 0.5 * 366 * 24 / 1000) < 1e-9);
+  assert.ok(Math.abs(y25.demMax - 1.8) < 1e-9);
+  assert.equal(f.months.length, 25);
+  assert.equal(f.months[0].thermal, 0);
+  assert.equal(f.offSpell.end - f.offSpell.start, 366 * 24);
+  assert.equal(f.on05Spell.end - f.on05Spell.start, 4);
+});
