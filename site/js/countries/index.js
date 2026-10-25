@@ -22,6 +22,7 @@ import co from './co.js';
 import on from './on.js';
 import be from './be.js';
 import uy from './uy.js';
+import us from './us.js';
 
 export const COUNTRIES = [
   { country: gb, page: '', data: 'data', flag: 'flags/gb.svg' },
@@ -42,4 +43,5 @@ export const COUNTRIES = [
   { country: on, page: 'on/', data: 'data/on', flag: 'flags/on.svg' },
   { country: be, page: 'be/', data: 'data/be', flag: 'flags/be.svg' },
   { country: uy, page: 'uy/', data: 'data/uy', flag: 'flags/uy.svg' },
+  { country: us, page: 'us/', data: 'data/us', flag: 'flags/us.svg' },
 ];

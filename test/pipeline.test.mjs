@@ -127,3 +127,27 @@ test('merges two battery stores, keeping fetched and fresher days', () => {
   assert.deepEqual(m.days['2026-10-02'].dis, [5]);
   assert.deepEqual(m.days['2019-06-01'].dis, [4]);
 });
+
+test('encoder walks across a gap too wide for one Int16 step', () => {
+  // 200 GW, three missing slots, then 300 GW: the jump would not fit one step.
+  const col = Float64Array.from([200000, NaN, NaN, NaN, 300000, 299000]);
+  const { names, missing, base, scale, gz } = encodeColumns({ gas: col }, col.length);
+  const out = decodeColumns(gz, names, col.length, missing, base, scale).gas;
+  assert.equal(out[0], 200000);
+  assert.ok(Number.isNaN(out[1]) && Number.isNaN(out[3]));
+  assert.equal(out[4], 300000);
+  assert.equal(out[5], 299000);
+});
+
+test('encoder stores a column with ramps over 32.7 GW in coarser units', async () => {
+  const { decode } = await import('../site/js/core/dataset.js');
+  const col = Float64Array.from([250000, 216800, 180000, NaN, 240000]);
+  const { names, missing, base, scale, gz } = encodeColumns({ gas: col }, col.length);
+  assert.equal(scale.gas, 2);
+  const out = decodeColumns(gz, names, col.length, missing, base, scale).gas;
+  assert.deepEqual([...out].map((v) => (Number.isNaN(v) ? null : v)), [250000, 216800, 180000, null, 240000]);
+  const { gunzipSync } = await import('node:zlib');
+  const raw = gunzipSync(gz);
+  const browser = decode(new Int16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2), { length: col.length, columns: names, missing, base, scale }).gas;
+  assert.deepEqual([...browser].map((v) => (Number.isNaN(v) ? null : v)), [250000, 216800, 180000, null, 240000]);
+});

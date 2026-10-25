@@ -63,7 +63,7 @@ export function checkDataset({ region, timeZone, stepMinutes, startMs, length, c
  */
 export async function writeDataset(outDir, { region, timeZone, stepMinutes, startMs, length, columns, extra = {} }, { log = console.log } = {}) {
   for (const w of checkDataset({ region, timeZone, stepMinutes, startMs, length, columns })) log(`warning: ${region}: ${w}`);
-  const { names, missing, base, gz } = encodeColumns(columns, length);
+  const { names, missing, base, scale, gz } = encodeColumns(columns, length);
   const lastSlot = Object.fromEntries(names.map((n) => {
     const col = columns[n];
     let i = length - 1;
@@ -83,6 +83,7 @@ export async function writeDataset(outDir, { region, timeZone, stepMinutes, star
     missing,
     lastSlot,
     ...(Object.keys(base).length ? { base } : {}),
+    ...(Object.keys(scale).length ? { scale } : {}),
   };
   await mkdir(outDir, { recursive: true });
   await writeFile(`${outDir}/series.bin.gz`, gz);

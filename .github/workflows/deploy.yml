@@ -136,8 +136,32 @@ jobs:
           path: site/data/uy
           if-no-files-found: ignore
           retention-days: 1
+  us:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache-us
+          key: us-${{ github.run_id }}
+          restore-keys: us-
+      - run: node pipeline/build-us.mjs --budget-minutes 12 --concurrency 2
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache-us
+          key: us-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-us
+          path: site/data/us
+          if-no-files-found: ignore
+          retention-days: 1
   build:
-    needs: [texas, colombia, ontario, belgium, uruguay]
+    needs: [texas, colombia, ontario, belgium, uruguay, us]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -358,6 +382,11 @@ jobs:
         with:
           name: data-uy
           path: site/data/uy
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: data-us
+          path: site/data/us
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

@@ -24,10 +24,12 @@ export function decode(buf, meta) {
   const columns = {};
   meta.columns.forEach((name, c) => {
     const col = new Float64Array(length);
-    let acc = meta.base?.[name] ?? 0;
+    // Columns with very large changes are stored in units of `scale` MW.
+    const unit = meta.scale?.[name] ?? 1;
+    let acc = (meta.base?.[name] ?? 0) / unit;
     for (let i = 0; i < length; i++) {
       acc += buf[c * length + i];
-      col[i] = acc;
+      col[i] = acc * unit;
     }
     for (const [s, n] of meta.missing[name] ?? []) col.fill(NaN, s, s + n);
     columns[name] = col;
