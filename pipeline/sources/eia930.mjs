@@ -18,7 +18,7 @@
 // for that half-year rather than set to zero.
 
 export const BASE = 'https://www.eia.gov/electricity/gridmonitor/sixMonthFiles';
-export const PARSE_VERSION = 2;
+export const PARSE_VERSION = 3;
 export const HOUR_MS = 3600000;
 
 // Heading (after "Net Generation (MW) from ") to dataset column. Several
@@ -110,14 +110,24 @@ const num = (s) => {
   return Number.isFinite(v) ? v : null;
 };
 
+// Each file holds its half-year by local date, so its first and last UTC
+// hours spill a few hours over the boundary, and the hours next to it come
+// partly from each file. A piece's grid runs a day either side of its half,
+// and the builder adds pieces together rather than laying one over another.
+export const MARGIN_HOURS = 24;
+
 /**
  * One half-year file's text summed over balancing authorities, onto an
- * hour-beginning UTC grid: { startMs, length, columns, bas, hours }.
- * `reporting` counts, per hour, the balancing authorities with a net
- * generation value, so the builder can drop hours too few reported.
+ * hour-beginning UTC grid: { startMs, length, core, columns, ti, reporting,
+ * fuels, bas, hours }. Slots no row reached are null. `reporting` counts,
+ * per hour, the balancing authorities with a net generation figure; `ti`
+ * is the summed total interchange; `core` is [first slot, slot count] of
+ * the half-year itself.
  */
 export function parseHalf(key, text) {
-  const { startMs, length } = halfInfo(key);
+  const half = halfInfo(key);
+  const startMs = half.startMs - MARGIN_HOURS * HOUR_MS;
+  const length = half.length + 2 * MARGIN_HOURS;
   const lines = text.split(/\r?\n/);
   const head = splitCsv(lines[0]);
   const at = (name) => head.indexOf(name);
@@ -136,7 +146,6 @@ export function parseHalf(key, text) {
   const present = new Set(fuel.map((f) => f.col));
   for (const [c, charge] of Object.entries(CHARGE)) if (present.has(c)) present.add(charge);
   const columns = Object.fromEntries(US_COLUMNS.map((c) => [c, Array(length).fill(null)]));
-  const net = Array(length).fill(null);
   const ti = Array(length).fill(null);
   const reporting = new Uint16Array(length);
   const bas = new Set();
@@ -149,7 +158,7 @@ export function parseHalf(key, text) {
     if (!(i >= 0 && i < length)) continue;
     bas.add(r[iBa]);
     const g = value(r, totals.gen);
-    if (g != null) { net[i] = (net[i] ?? 0) + g; reporting[i]++; }
+    if (g != null) reporting[i]++;
     const d = value(r, totals.demand);
     if (d != null) columns.demand[i] = (columns.demand[i] ?? 0) + d;
     const x = value(r, totals.ti);
@@ -165,30 +174,65 @@ export function parseHalf(key, text) {
       columns[f.col][i] = (columns[f.col][i] ?? 0) + v;
     }
   }
-  // A fuel this file reports reads zero where no balancing authority had any.
-  for (let i = 0; i < length; i++) {
-    if (!reporting[i]) continue;
-    for (const c of present) if (columns[c][i] == null) columns[c][i] = 0;
-    // Interchange left after flows between balancing authorities cancel: the
-    // net flow with Canada and Mexico, positive out of the US.
-    if (ti[i] != null) {
-      columns.imports[i] = Math.max(0, -ti[i]);
-      columns.exports[i] = -Math.max(0, ti[i]);
-    }
-  }
   let hours = 0;
   for (let i = 0; i < length; i++) if (reporting[i]) hours++;
   const round = (a) => a.map((v) => (v == null ? null : Math.round(v)));
   return {
     startMs,
     length,
+    core: [MARGIN_HOURS, half.length],
     columns: Object.fromEntries(Object.entries(columns).map(([c, a]) => [c, round(a)])),
-    net: round(net),
+    ti: round(ti),
     reporting: [...reporting],
     bas: bas.size,
     hours,
     fuels: [...present],
   };
+}
+
+/**
+ * Adds half-year pieces into one hourly grid, then keeps only the hours
+ * enough balancing authorities reported (at least `minShare` of the most in
+ * that half-year). In a kept hour a fuel its half-year reports reads zero
+ * where nobody had any, and interchange left over after flows between
+ * balancing authorities cancel is the net flow with Canada and Mexico.
+ */
+export function addHalves(pieces, minShare = 0.9) {
+  const ps = pieces.filter((p) => p && p.length).sort((a, b) => a.startMs - b.startMs);
+  if (!ps.length) return null;
+  const startMs = ps[0].startMs;
+  const length = Math.max(...ps.map((p) => Math.round((p.startMs - startMs) / HOUR_MS) + p.length));
+  const columns = Object.fromEntries(US_COLUMNS.map((c) => [c, new Float64Array(length).fill(NaN)]));
+  const ti = new Float64Array(length).fill(NaN);
+  const reporting = new Float64Array(length);
+  const owner = new Array(length).fill(null);
+  const most = new Map(ps.map((p) => [p, Math.max(...p.reporting)]));
+  const add = (arr, i, v) => { if (v != null) arr[i] = Number.isNaN(arr[i]) ? v : arr[i] + v; };
+  for (const p of ps) {
+    const base = Math.round((p.startMs - startMs) / HOUR_MS);
+    for (let k = 0; k < p.length; k++) {
+      const i = base + k;
+      reporting[i] += p.reporting[k];
+      add(ti, i, p.ti[k]);
+      for (const c of US_COLUMNS) add(columns[c], i, p.columns[c]?.[k]);
+    }
+    for (let k = p.core[0]; k < p.core[0] + p.core[1]; k++) owner[base + k] = p;
+  }
+  let dropped = 0;
+  for (let i = 0; i < length; i++) {
+    const p = owner[i];
+    if (!p || !reporting[i] || reporting[i] < minShare * most.get(p)) {
+      if (reporting[i]) dropped++;
+      for (const c of US_COLUMNS) columns[c][i] = NaN;
+      continue;
+    }
+    for (const c of p.fuels) if (Number.isNaN(columns[c][i])) columns[c][i] = 0;
+    if (!Number.isNaN(ti[i])) {
+      columns.imports[i] = Math.max(0, -ti[i]);
+      columns.exports[i] = ti[i] > 0 ? -ti[i] : 0;
+    }
+  }
+  return { startMs, length, columns, dropped };
 }
 
 /** Downloads one half-year file as text. */

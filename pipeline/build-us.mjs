@@ -9,9 +9,9 @@
 // Usage: node pipeline/build-us.mjs [--budget-minutes N] [--from 2018H2]
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import { US_COLUMNS, PARSE_VERSION, halfList, fetchHalf, parseHalf } from './sources/eia930.mjs';
+import { US_COLUMNS, PARSE_VERSION, halfList, fetchHalf, parseHalf, addHalves } from './sources/eia930.mjs';
 import { writeDataset } from './core/dataset.mjs';
-import { runQueue, isStale, stitch } from './core/chunks.mjs';
+import { runQueue, isStale } from './core/chunks.mjs';
 import { lastFilled } from './core/recent.mjs';
 import { log } from './lib.mjs';
 
@@ -37,21 +37,9 @@ export function needsFetch(entry, index, nowMs) {
   return isStale(entry, index, nowMs, { version: PARSE_VERSION, recent: 2 });
 }
 
-/** Blanks the hours too few balancing authorities reported. Returns how many. */
-export function dropThinHours(piece) {
-  const most = Math.max(0, ...piece.reporting);
-  let dropped = 0;
-  for (let i = 0; i < piece.length; i++) {
-    if (piece.reporting[i] && piece.reporting[i] >= MIN_REPORTING * most) continue;
-    if (piece.reporting[i]) dropped++;
-    for (const c of US_COLUMNS) piece.columns[c][i] = null;
-  }
-  return dropped;
-}
-
-/** Stitches the half-years and ends the grid at the last hour with generation. */
+/** Adds the half-years together and ends the grid at the last hour with generation. */
 export function mergeUS(pieces) {
-  const merged = stitch(pieces, { stepMinutes: 60, columns: US_COLUMNS });
+  const merged = addHalves(pieces, MIN_REPORTING);
   if (!merged) return null;
   const end = lastFilled(merged, ['gas', 'coal', 'nuclear']);
   for (const c of US_COLUMNS) merged.columns[c] = merged.columns[c].subarray(0, end);
@@ -97,10 +85,8 @@ async function main() {
     let entry;
     if (text) {
       const p = parseHalf(key, text);
-      const dropped = dropThinHours(p);
-      const { net, reporting, ...keep } = p;
-      entry = { version: PARSE_VERSION, fetched: new Date().toISOString(), dropped, ...keep };
-      log(`US: ${key}: ${p.hours} hours from ${p.bas} balancing authorities, ${dropped} thin hours dropped, fuels ${p.fuels.join(' ')}, in ${((Date.now() - t) / 1000).toFixed(0)} s`);
+      entry = { version: PARSE_VERSION, fetched: new Date().toISOString(), ...p };
+      log(`US: ${key}: ${p.hours} hours from ${p.bas} balancing authorities, fuels ${p.fuels.join(' ')}, in ${((Date.now() - t) / 1000).toFixed(0)} s`);
     } else {
       entry = { version: PARSE_VERSION, fetched: new Date().toISOString(), missing: true };
       log(`US: ${key}: no file`);
@@ -115,6 +101,7 @@ async function main() {
     log('US: no data yet, nothing written');
     return;
   }
+  log(`US: ${merged.dropped} hours dropped as too few balancing authorities reported`);
   for (const line of bigSteps(merged)) log(`US: ${line}`);
   const have = halves.filter((k) => cached.get(k)?.version === PARSE_VERSION).length;
   const { meta, bytes } = await writeDataset(args.out, {
