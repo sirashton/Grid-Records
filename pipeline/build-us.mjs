@@ -31,8 +31,8 @@ const RUN_MS = 20 * 60000;
 // latest hours fill in as they report.
 export const MIN_REPORTING = 0.97;
 // PJM's fuel mix starts on 19 September 2018, so the national total is only
-// whole from then; the page starts at the next month.
-export const START_MS = Date.UTC(2018, 9, 1);
+// whole from then; the page starts at the next month (midnight Eastern).
+export const START_MS = Date.UTC(2018, 9, 1, 4);
 
 /** Whether half-year `index` (0 = current) should be fetched again. */
 export function needsFetch(entry, index, nowMs) {
