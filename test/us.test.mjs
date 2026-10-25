@@ -71,4 +71,6 @@ test('US: the current half-year refetches each run, the last one daily', () => {
   assert.equal(needsFetch(e(30 * 60000), 0, now), true);
   assert.equal(needsFetch(e(2 * 864e5), 1, now), true);
   assert.equal(needsFetch(e(40 * 864e5), 5, now), false);
+  // An entry from an older parser is fetched again, the current half-year too.
+  assert.equal(needsFetch({ ...e(10 * 60000), version: 2 }, 0, now), true);
 });

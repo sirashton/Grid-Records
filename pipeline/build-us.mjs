@@ -33,7 +33,7 @@ export const MIN_REPORTING = 0.9;
 
 /** Whether half-year `index` (0 = current) should be fetched again. */
 export function needsFetch(entry, index, nowMs) {
-  if (index === 0 && entry) return nowMs - Date.parse(entry.fetched) > RUN_MS;
+  if (index === 0 && entry && entry.version === PARSE_VERSION) return nowMs - Date.parse(entry.fetched) > RUN_MS;
   return isStale(entry, index, nowMs, { version: PARSE_VERSION, recent: 2 });
 }
 
