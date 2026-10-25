@@ -127,3 +127,14 @@ test('merges two battery stores, keeping fetched and fresher days', () => {
   assert.deepEqual(m.days['2026-10-02'].dis, [5]);
   assert.deepEqual(m.days['2019-06-01'].dis, [4]);
 });
+
+test('encoder walks across a gap too wide for one Int16 step', () => {
+  // 200 GW, three missing slots, then 300 GW: the jump would not fit one step.
+  const col = Float64Array.from([200000, NaN, NaN, NaN, 300000, 299000]);
+  const { names, missing, base, gz } = encodeColumns({ gas: col }, col.length);
+  const out = decodeColumns(gz, names, col.length, missing, base).gas;
+  assert.equal(out[0], 200000);
+  assert.ok(Number.isNaN(out[1]) && Number.isNaN(out[3]));
+  assert.equal(out[4], 300000);
+  assert.equal(out[5], 299000);
+});

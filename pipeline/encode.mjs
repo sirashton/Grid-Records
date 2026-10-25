@@ -6,7 +6,9 @@
 // carry the previous value forward and are listed as [start, count] runs in
 // the metadata, so the decoder can restore them as NaN. A column whose first
 // value is too big for Int16 (over 32.7 GW) starts from a `base` in the
-// metadata instead of zero.
+// metadata instead of zero. A missing slot's stored value is thrown away by
+// the decoder, so across a gap the stored value walks toward the next real
+// reading in steps that fit Int16, rather than jumping all at once.
 import { gzipSync, gunzipSync } from 'node:zlib';
 
 export function encodeColumns(columns, length) {
@@ -21,12 +23,17 @@ export function encodeColumns(columns, length) {
     for (let i = 0; i < length; i++) if (!Number.isNaN(col[i]) && col[i] !== undefined) { first = Math.round(col[i]); break; }
     if (Math.abs(first) > 32767) base[name] = first;
     let prev = base[name] ?? 0;
+    let next = null;
     for (let i = 0; i < length; i++) {
       let v = col[i];
       if (v === undefined || Number.isNaN(v)) {
         if (runs.length && runs.at(-1)[0] + runs.at(-1)[1] === i) runs.at(-1)[1]++;
-        else runs.push([i, 1]);
-        v = prev;
+        else {
+          runs.push([i, 1]);
+          next = prev;
+          for (let j = i + 1; j < length; j++) if (col[j] !== undefined && !Number.isNaN(col[j])) { next = Math.round(col[j]); break; }
+        }
+        v = prev + Math.max(-32767, Math.min(32767, next - prev));
       }
       const mw = Math.round(v);
       const delta = mw - prev;

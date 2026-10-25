@@ -1,0 +1,119 @@
+// Builds the United States (lower 48) data files from EIA-930's six-month
+// balancing authority files (pipeline/sources/eia930.mjs) and writes
+// site/data/us/.
+//
+// One download per half-year, from July 2018. Each parsed half-year is kept
+// in the Actions cache (.cache-us/). The current half-year is fetched again
+// every run and the one before it once a day, as EIA revises recent data.
+//
+// Usage: node pipeline/build-us.mjs [--budget-minutes N] [--from 2018H2]
+import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
+import { parseArgs } from 'node:util';
+import { US_COLUMNS, PARSE_VERSION, halfList, fetchHalf, parseHalf } from './sources/eia930.mjs';
+import { writeDataset } from './core/dataset.mjs';
+import { runQueue, isStale, stitch } from './core/chunks.mjs';
+import { lastFilled } from './core/recent.mjs';
+import { log } from './lib.mjs';
+
+const { values: args } = parseArgs({
+  options: {
+    'budget-minutes': { type: 'string', default: '3' },
+    from: { type: 'string', default: '2018H2' },
+    out: { type: 'string', default: 'site/data/us' },
+    cache: { type: 'string', default: '.cache-us' },
+    concurrency: { type: 'string', default: '2' },
+  },
+});
+
+const RUN_MS = 20 * 60000;
+// An hour counts only when balancing authorities with at least this share of
+// the half-year's most-reporting hour sent a net generation figure; the
+// latest hours fill in as they report.
+export const MIN_REPORTING = 0.9;
+
+/** Whether half-year `index` (0 = current) should be fetched again. */
+export function needsFetch(entry, index, nowMs) {
+  if (index === 0 && entry) return nowMs - Date.parse(entry.fetched) > RUN_MS;
+  return isStale(entry, index, nowMs, { version: PARSE_VERSION, recent: 2 });
+}
+
+/** Blanks the hours too few balancing authorities reported. Returns how many. */
+export function dropThinHours(piece) {
+  const most = Math.max(0, ...piece.reporting);
+  let dropped = 0;
+  for (let i = 0; i < piece.length; i++) {
+    if (piece.reporting[i] && piece.reporting[i] >= MIN_REPORTING * most) continue;
+    if (piece.reporting[i]) dropped++;
+    for (const c of US_COLUMNS) piece.columns[c][i] = null;
+  }
+  return dropped;
+}
+
+/** Stitches the half-years and ends the grid at the last hour with generation. */
+export function mergeUS(pieces) {
+  const merged = stitch(pieces, { stepMinutes: 60, columns: US_COLUMNS });
+  if (!merged) return null;
+  const end = lastFilled(merged, ['gas', 'coal', 'nuclear']);
+  for (const c of US_COLUMNS) merged.columns[c] = merged.columns[c].subarray(0, end);
+  return { ...merged, length: end };
+}
+
+async function main() {
+  const started = Date.now();
+  const deadline = started + Number(args['budget-minutes']) * 60000;
+  await mkdir(args.out, { recursive: true });
+  await mkdir(args.cache, { recursive: true });
+  const now = Date.now();
+
+  const cached = new Map();
+  for (const f of await readdir(args.cache)) {
+    if (/^\d{4}H[12]\.json$/.test(f)) cached.set(f.slice(0, 6), JSON.parse(await readFile(`${args.cache}/${f}`, 'utf8')));
+  }
+  const halves = halfList(now, args.from);
+  const queue = halves.filter((k, i) => needsFetch(cached.get(k), i, now));
+  log(`US: ${cached.size} half-years cached, ${queue.length} to fetch`);
+
+  const { done, left } = await runQueue(queue, async (key) => {
+    const t = Date.now();
+    const text = await fetchHalf(key);
+    let entry;
+    if (text) {
+      const p = parseHalf(key, text);
+      const dropped = dropThinHours(p);
+      const { net, reporting, ...keep } = p;
+      entry = { version: PARSE_VERSION, fetched: new Date().toISOString(), dropped, ...keep };
+      log(`US: ${key}: ${p.hours} hours from ${p.bas} balancing authorities, ${dropped} thin hours dropped, fuels ${p.fuels.join(' ')}, in ${((Date.now() - t) / 1000).toFixed(0)} s`);
+    } else {
+      entry = { version: PARSE_VERSION, fetched: new Date().toISOString(), missing: true };
+      log(`US: ${key}: no file`);
+    }
+    cached.set(key, entry);
+    await writeFile(`${args.cache}/${key}.json`, JSON.stringify(entry));
+  }, { concurrency: Number(args.concurrency), deadline, log: (m) => log(`US: ${m}`) });
+  log(`US: fetched ${done} half-years, ${left} still to fetch`);
+
+  const merged = mergeUS(halves.map((k) => cached.get(k)).filter((e) => e && !e.missing));
+  if (!merged) {
+    log('US: no data yet, nothing written');
+    return;
+  }
+  const have = halves.filter((k) => cached.get(k)?.version === PARSE_VERSION).length;
+  const { meta, bytes } = await writeDataset(args.out, {
+    region: 'us',
+    timeZone: 'America/New_York',
+    stepMinutes: 60,
+    startMs: merged.startMs,
+    length: merged.length,
+    columns: merged.columns,
+    extra: { halves: { fetched: have, listed: halves.length, toFetch: left } },
+  }, { log });
+  log(`US: wrote ${args.out}/series.bin.gz (${(bytes / 1e6).toFixed(2)} MB, ${meta.columns.length} columns x ${merged.length} hours)`,
+    `in ${((Date.now() - started) / 1000).toFixed(0)} s`);
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
