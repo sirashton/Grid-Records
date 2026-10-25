@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grid Records: Ontario</title>
+  <meta name="description" content="Records for Ontario's grid: why a province that runs on nuclear and hydro is burning five times as much gas as in 2017, the economics behind it, and what should push it back out.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <script type="module" src="../js/core/hero-mark.js"></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-text">
+        <nav class="region-nav" aria-label="Country"><a href="../"><img src="../flags/gb.svg" alt="" width="30" height="15">Great Britain</a><a href="../nz/"><img src="../flags/nz.svg" alt="" width="30" height="15">New Zealand</a><a href="../de/"><img src="../flags/de.svg" alt="" width="30" height="15">Germany</a><a href="../au/"><img src="../flags/au.svg" alt="" width="30" height="15">Australia</a><a href="../pl/"><img src="../flags/pl.svg" alt="" width="30" height="15">Poland</a><a href="../br/"><img src="../flags/br.svg" alt="" width="30" height="15">Brazil</a><a href="../fr/"><img src="../flags/fr.svg" alt="" width="30" height="15">France</a><a href="../wa/"><img src="../flags/wa.svg" alt="" width="30" height="15">Western Australia</a><a href="../cz/"><img src="../flags/cz.svg" alt="" width="30" height="15">Czechia</a><a href="../jp/"><img src="../flags/jp.svg" alt="" width="30" height="15">Japan</a><a href="../bg/"><img src="../flags/bg.svg" alt="" width="30" height="15">Bulgaria</a><a href="../dk/"><img src="../flags/dk.svg" alt="" width="30" height="15">Denmark</a><a href="../gr/"><img src="../flags/gr.svg" alt="" width="30" height="15">Greece</a><a href="../tx/"><img src="../flags/tx.svg" alt="" width="30" height="15">Texas</a><a href="../co/"><img src="../flags/co.svg" alt="" width="30" height="15">Colombia</a><span aria-current="page"><img src="../flags/on.svg" alt="" width="30" height="15">Ontario</span><a href="../be/"><img src="../flags/be.svg" alt="" width="30" height="15">Belgium</a><a href="../uy/"><img src="../flags/uy.svg" alt="" width="30" height="15">Uruguay</a><a href="../us/"><img src="../flags/us.svg" alt="" width="30" height="15">United States</a><a class="live-link" href="../live/"><i class="live-dot" aria-hidden="true"></i>Live records</a></nav>
+        <h1>Grid Records</h1>
+        <p class="lede" id="lede">Ontario gets most of its electricity from nuclear plants and Niagara Falls. This page tracks the gas that fills the rest, one record at a time.</p>
+        <p class="updated" id="updated">Loading the generation data.</p>
+      </div>
+      <svg class="hero-art" viewBox="0 0 220 160" aria-hidden="true"></svg>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card answer" aria-labelledby="answer-h">
+      <h2 id="answer-h">In short</h2>
+      <p class="answer-lead" id="answer-lead">Working it out from the generation data.</p>
+      <ol class="answer-points" id="answer-points"></ol>
+    </section>
+
+    <section class="card now-card" aria-labelledby="now-h">
+      <div class="now-head">
+        <h2 id="now-h">Right now</h2>
+        <div class="segmented small" id="now-window" role="radiogroup" aria-label="Time frame"></div>
+      </div>
+      <div class="now-panel">
+        <div class="now-col now-left" id="now-groups"></div>
+        <div class="now-donut" id="now-donut"></div>
+        <div class="now-col now-right" id="now-right"></div>
+      </div>
+      <p class="hint now-note" id="now-note">Live is the latest complete hour: the IESO publishes each hour shortly after it ends, so it is usually about an hour old. Each hour is the average output over that hour.</p>
+    </section>
+
+    <!-- The Records card, drawn by site/js/core/records-tool.js. -->
+    <section class="card records-card" id="records" aria-labelledby="records-h"></section>
+
+    <section class="plain story" aria-labelledby="story-h">
+      <h2 id="story-h">The story</h2>
+      <div class="facts" id="facts"></div>
+      <p class="hint" id="story-hint"></p>
+      <details class="chapter" id="chapter-1" open>
+        <summary><span class="ch-num">1</span><span class="ch-text"><span class="ch-title" id="title-1"></span><span class="ch-take" id="take-1"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-1"></p>
+      <h3 id="chart-h-1"></h3>
+      <p class="hint" id="chart-hint-1"></p>
+      <div class="chart-host" id="story-chart-1"></div>
+      <div class="legend" id="story-legend-1"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-2" id="next-1">Next</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-2">
+        <summary><span class="ch-num">2</span><span class="ch-text"><span class="ch-title" id="title-2"></span><span class="ch-take" id="take-2"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-2"></p>
+      <h3 id="chart-h-2"></h3>
+      <p class="hint" id="chart-hint-2"></p>
+      <div class="chart-host" id="story-chart-2"></div>
+      <div class="legend" id="story-legend-2"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-3" id="next-2">Next</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-3">
+        <summary><span class="ch-num">3</span><span class="ch-text"><span class="ch-title" id="title-3"></span><span class="ch-take" id="take-3"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-3"></p>
+      <h3 id="chart-h-3"></h3>
+      <p class="hint" id="chart-hint-3"></p>
+      <div class="chart-host" id="story-chart-3"></div>
+      <div class="legend" id="story-legend-3"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-4" id="next-3">Next</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-4">
+        <summary><span class="ch-num">4</span><span class="ch-text"><span class="ch-title" id="title-4"></span><span class="ch-take" id="take-4"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-4"></p>
+      <h3 id="chart-h-4"></h3>
+      <p class="hint" id="chart-hint-4"></p>
+      <div class="chart-host" id="story-chart-4"></div>
+      <div class="legend" id="story-legend-4"></div>
+        <button type="button" class="edit-btn next-ch" data-next="chapter-5" id="next-4">Next</button>
+        </div>
+      </details>
+      <details class="chapter" id="chapter-5">
+        <summary><span class="ch-num">5</span><span class="ch-text"><span class="ch-title" id="title-5"></span><span class="ch-take" id="take-5"></span></span></summary>
+        <div class="ch-body">
+      <p id="body-5"></p>
+      <h3 id="chart-h-5"></h3>
+      <p class="hint" id="chart-hint-5"></p>
+      <div class="chart-host" id="story-chart-5"></div>
+      <div class="legend" id="story-legend-5"></div>
+      <h3 id="coming-h">What's coming, and the record each should move</h3>
+      <ul class="fact-list" id="coming"></ul>
+        </div>
+      </details>
+    </section>
+
+    <section class="plain about" aria-labelledby="about-h">
+      <h2 id="about-h">About the data</h2>
+      <p>Generation comes from the <a href="https://www.ieso.ca/">IESO</a>, the Independent Electricity System Operator, which runs Ontario's grid and wholesale market. Its <a href="https://reports-public.ieso.ca/public/GenOutputbyFuelHourly/">Generator Output by Fuel Type Hourly report</a> gives the output of every generator connected to the transmission grid, summed by fuel, each hour from 1 January 2015. The hours since the latest yearly file come from the <a href="https://reports-public.ieso.ca/public/GenOutputCapability/">Generator Output and Capability report</a>, which the IESO rewrites each hour; once a day is over its figures match the yearly file exactly.</p>
+      <p>Solar and wind connected to local distribution networks are not in these reports. That is most of Ontario's solar: the IESO counts it as lower demand, so the Solar figures here are only the large solar farms. Batteries are the IESO's fuel type OTHER, which is only battery storage, and only their discharge is published. Imports and exports are not in the generation data. Net exports here are inferred: transmission-connected generation less the IESO's <a href="https://reports-public.ieso.ca/public/Demand/">Ontario Demand</a>, which also counts losses on the grid.</p>
+      <p>Low carbon here is nuclear, hydro, wind, solar and biofuel. Gas is Ontario's only fossil fuel: its last coal plant, Thunder Bay, stopped burning coal in 2014, before these files begin.</p>
+      <p>A spell is a run of consecutive hours that meet the threshold. Gaps in the data of up to an hour are bridged when the hours either side qualify; longer gaps end the spell. The IESO's market hours are Eastern Standard Time all year; years and dates here are Toronto time, and hour-of-day charts use Eastern Standard Time.</p>
+      <p>Built by <a href="https://github.com/sirashton">Alex</a>, and the source code is on <a href="https://github.com/sirashton/Grid-Records">GitHub</a>.</p>
+      <p class="small">Data: Independent Electricity System Operator (IESO), public reports.</p>
+    </section>
+  </main>
+  <script type="module" src="../js/on/app.js"></script>
+</body>
+</html>
