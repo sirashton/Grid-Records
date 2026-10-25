@@ -92,3 +92,41 @@ test('US: the current half-year refetches each run, the last one daily', () => {
   // An entry from an older parser is fetched again, the current half-year too.
   assert.equal(needsFetch({ ...e(10 * 60000), version: PARSE_VERSION - 1 }, 0, now), true);
 });
+
+test('US: story figures by year, by hour and year to date', async () => {
+  const { storyFigures } = await import('../site/js/us/story.js');
+  const { US_COLUMNS } = await import('../pipeline/sources/eia930.mjs');
+  // Two years and about ten months of hours from New Year 2024, Eastern time.
+  const startMs = Date.UTC(2024, 0, 1, 5);
+  const length = 24 * (366 + 365 + 300);
+  const columns = Object.fromEntries(US_COLUMNS.map((c) => [c, new Float64Array(length)]));
+  const hourOf = new Intl.DateTimeFormat('en', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' });
+  for (let i = 0; i < length; i++) {
+    const hour = Number(hourOf.format(new Date(startMs + i * 3600000)));
+    const sunny = hour >= 9 && hour < 17;
+    // Gas 200 GW, less 50 while the sun is up; coal 80; solar 50 by day.
+    columns.gas[i] = 200000 - (sunny ? 50000 : 0);
+    columns.coal[i] = 80000;
+    columns.solar[i] = sunny ? 50000 : 0;
+    columns.battery[i] = hour === 20 ? 5000 : 0;
+    columns.demand[i] = 330000;
+  }
+  // One low hour in spring 2025.
+  const low = Math.round((Date.UTC(2025, 3, 13, 17) - startMs) / 3600000);
+  columns.gas[low] = 50000;
+  const f = storyFigures({ startMs, length, stepMinutes: 60, columns }, length);
+  assert.equal(f.rows.map((r) => r.year).join(), '2024,2025,past365');
+  const y24 = f.rows.find((r) => r.year === 2024);
+  const near = (a, b, tol = 0.05) => assert.ok(Math.abs(a - b) < tol, `${a} vs ${b}`);
+  near(y24.hourly.gas[12], 150);
+  near(y24.hourly.gas[3], 200);
+  near(y24.hourly.battery[20], 5);
+  near(y24.twh.coal, 80 * 24 * 366 / 1000, 0.1);
+  assert.equal(f.low.gw, 130);
+  assert.equal(f.low.at, low);
+  assert.equal(f.low.hour, 13);
+  assert.equal(f.rows.find((r) => r.year === 2025).under[0], 1, 'one hour under 150 GW');
+  // 1 January to the latest day, 2026 included, the same days each year.
+  assert.deepEqual(f.ytdRows.map((r) => r.year), [2024, 2025, 2026]);
+  near(f.ytdRows[2].coal, f.ytdRows[1].coal, 2);
+});
