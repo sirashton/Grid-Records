@@ -18,7 +18,7 @@
 // for that half-year rather than set to zero.
 
 export const BASE = 'https://www.eia.gov/electricity/gridmonitor/sixMonthFiles';
-export const PARSE_VERSION = 3;
+export const PARSE_VERSION = 4;
 export const HOUR_MS = 3600000;
 
 // Heading (after "Net Generation (MW) from ") to dataset column. Several
@@ -116,13 +116,56 @@ const num = (s) => {
 // and the builder adds pieces together rather than laying one over another.
 export const MARGIN_HOURS = 24;
 
+// Each balancing authority is cleaned on its own before they are summed. A
+// gap of a few hours is filled in a straight line between the hours either
+// side, so one late report doesn't knock a 30 GW hole in the national total.
+// A single hour that jumps away from both neighbours by a large share of the
+// balancing authority's usual output, and straight back, is a bad reading
+// and takes the mean of its neighbours. Storage, hydro and oil can really
+// run for a single hour, so they are left as reported.
+export const FILL_HOURS = 6;
+const DESPIKE = ['coal', 'gas', 'nuclear', 'wind', 'solar', 'geothermal', 'other', 'demand', 'gen'];
+const SPIKE_SHARE = 0.25;
+const SPIKE_MIN_MW = 300;
+
+function fillGaps(a, maxGap = FILL_HOURS) {
+  let last = -1;
+  for (let i = 0; i < a.length; i++) {
+    if (Number.isNaN(a[i])) continue;
+    const gap = i - last - 1;
+    if (last >= 0 && gap > 0 && gap <= maxGap) {
+      for (let k = 1; k <= gap; k++) a[last + k] = a[last] + ((a[i] - a[last]) * k) / (gap + 1);
+    }
+    last = i;
+  }
+}
+
+function despike(a) {
+  const abs = [];
+  for (const v of a) if (!Number.isNaN(v)) abs.push(Math.abs(v));
+  if (abs.length < 48) return 0;
+  abs.sort((x, y) => x - y);
+  const limit = Math.max(SPIKE_MIN_MW, SPIKE_SHARE * abs[Math.floor(abs.length * 0.99)]);
+  let n = 0;
+  for (let i = 1; i + 1 < a.length; i++) {
+    const up = a[i] - a[i - 1];
+    const down = a[i] - a[i + 1];
+    if (Math.sign(up) === Math.sign(down) && Math.min(Math.abs(up), Math.abs(down)) > limit) {
+      a[i] = (a[i - 1] + a[i + 1]) / 2;
+      n++;
+    }
+  }
+  return n;
+}
+
 /**
- * One half-year file's text summed over balancing authorities, onto an
- * hour-beginning UTC grid: { startMs, length, core, columns, ti, reporting,
- * fuels, bas, hours }. Slots no row reached are null. `reporting` counts,
- * per hour, the balancing authorities with a net generation figure; `ti`
- * is the summed total interchange; `core` is [first slot, slot count] of
- * the half-year itself.
+ * One half-year file's text, cleaned balancing authority by balancing
+ * authority and summed onto an hour-beginning UTC grid: { startMs, length,
+ * core, columns, ti, reporting, fuels, bas, hours, spikes }. Slots no row
+ * reached are null. `reporting` is, per hour, the usual output (MW) of the
+ * balancing authorities with a net generation figure, so a large one missing
+ * counts for more than a small one; `ti` is the summed total interchange;
+ * `core` is [first slot, slot count] of the half-year itself.
  */
 export function parseHalf(key, text) {
   const half = halfInfo(key);
@@ -144,36 +187,65 @@ export function parseHalf(key, text) {
   }
   const totals = { gen: pick('Net Generation (MW)'), demand: pick('Demand (MW)'), ti: pick('Total Interchange (MW)') };
   const present = new Set(fuel.map((f) => f.col));
-  for (const [c, charge] of Object.entries(CHARGE)) if (present.has(c)) present.add(charge);
-  const columns = Object.fromEntries(US_COLUMNS.map((c) => [c, Array(length).fill(null)]));
-  const ti = Array(length).fill(null);
-  const reporting = new Uint16Array(length);
-  const bas = new Set();
+  const fields = [...new Set(fuel.map((f) => f.col)), 'gen', 'demand', 'ti'];
   const value = (r, p) => (p.adj >= 0 && num(r[p.adj]) != null ? num(r[p.adj]) : p.raw >= 0 ? num(r[p.raw]) : null);
+
+  // Per balancing authority, one array per field. A repeated row for the
+  // same hour replaces the earlier one rather than adding to it.
+  const perBa = new Map();
   for (const line of lines.slice(1)) {
     if (!line) continue;
     const r = splitCsv(line);
-    const t = parseUtc(r[iUtc]) - HOUR_MS;
-    const i = Math.round((t - startMs) / HOUR_MS);
+    const i = Math.round((parseUtc(r[iUtc]) - HOUR_MS - startMs) / HOUR_MS);
     if (!(i >= 0 && i < length)) continue;
-    bas.add(r[iBa]);
-    const g = value(r, totals.gen);
-    if (g != null) reporting[i]++;
-    const d = value(r, totals.demand);
-    if (d != null) columns.demand[i] = (columns.demand[i] ?? 0) + d;
-    const x = value(r, totals.ti);
-    if (x != null) ti[i] = (ti[i] ?? 0) + x;
+    let ba = perBa.get(r[iBa]);
+    if (!ba) {
+      ba = Object.fromEntries(fields.map((f) => [f, new Float32Array(length).fill(NaN)]));
+      perBa.set(r[iBa], ba);
+    }
+    for (const t of ['gen', 'demand', 'ti']) {
+      const v = value(r, totals[t]);
+      ba[t][i] = v ?? NaN;
+    }
+    const sums = {};
     for (const f of fuel) {
-      let v = value(r, f);
-      if (v == null) continue;
-      if (v < 0 && CHARGE[f.col]) {
-        columns[CHARGE[f.col]][i] = (columns[CHARGE[f.col]][i] ?? 0) + v;
-        v = 0;
+      const v = value(r, f);
+      if (v != null) sums[f.col] = (sums[f.col] ?? 0) + v;
+    }
+    for (const c of present) ba[c][i] = sums[c] ?? NaN;
+  }
+
+  const columns = Object.fromEntries(US_COLUMNS.map((c) => [c, Array(length).fill(null)]));
+  const ti = Array(length).fill(null);
+  const reporting = new Float64Array(length);
+  const add = (arr, i, v) => { arr[i] = (arr[i] ?? 0) + v; };
+  let spikes = 0;
+  for (const ba of perBa.values()) {
+    for (const f of fields) {
+      fillGaps(ba[f]);
+      if (DESPIKE.includes(f)) spikes += despike(ba[f]);
+    }
+    let sum = 0;
+    let n = 0;
+    for (const v of ba.gen) if (!Number.isNaN(v)) { sum += Math.max(0, v); n++; }
+    const weight = n ? Math.max(1, sum / n) : 0;
+    for (let i = 0; i < length; i++) {
+      if (!Number.isNaN(ba.gen[i])) reporting[i] += weight;
+      if (!Number.isNaN(ba.demand[i])) add(columns.demand, i, ba.demand[i]);
+      if (!Number.isNaN(ba.ti[i])) add(ti, i, ba.ti[i]);
+      for (const c of present) {
+        let v = ba[c][i];
+        if (Number.isNaN(v)) continue;
+        if (v < 0 && CHARGE[c]) {
+          add(columns[CHARGE[c]], i, v);
+          v = 0;
+        }
+        if (v < 0 && NON_NEGATIVE.has(c)) v = 0;
+        add(columns[c], i, v);
       }
-      if (v < 0 && NON_NEGATIVE.has(f.col)) v = 0;
-      columns[f.col][i] = (columns[f.col][i] ?? 0) + v;
     }
   }
+  for (const [c, charge] of Object.entries(CHARGE)) if (present.has(c)) present.add(charge);
   let hours = 0;
   for (let i = 0; i < length; i++) if (reporting[i]) hours++;
   const round = (a) => a.map((v) => (v == null ? null : Math.round(v)));
@@ -183,21 +255,22 @@ export function parseHalf(key, text) {
     core: [MARGIN_HOURS, half.length],
     columns: Object.fromEntries(Object.entries(columns).map(([c, a]) => [c, round(a)])),
     ti: round(ti),
-    reporting: [...reporting],
-    bas: bas.size,
+    reporting: [...reporting].map(Math.round),
+    bas: perBa.size,
     hours,
+    spikes,
     fuels: [...present],
   };
 }
 
 /**
  * Adds half-year pieces into one hourly grid, then keeps only the hours
- * enough balancing authorities reported (at least `minShare` of the most in
- * that half-year). In a kept hour a fuel its half-year reports reads zero
+ * enough balancing authorities reported (by usual output, at least
+ * `minShare` of the most in that half-year). In a kept hour a fuel its half-year reports reads zero
  * where nobody had any, and interchange left over after flows between
  * balancing authorities cancel is the net flow with Canada and Mexico.
  */
-export function addHalves(pieces, minShare = 0.9) {
+export function addHalves(pieces, minShare = 0.97) {
   const ps = pieces.filter((p) => p && p.length).sort((a, b) => a.startMs - b.startMs);
   if (!ps.length) return null;
   const startMs = ps[0].startMs;

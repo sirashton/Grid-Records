@@ -29,7 +29,10 @@ const RUN_MS = 20 * 60000;
 // An hour counts only when balancing authorities with at least this share of
 // the half-year's most-reporting hour sent a net generation figure; the
 // latest hours fill in as they report.
-export const MIN_REPORTING = 0.9;
+export const MIN_REPORTING = 0.97;
+// PJM's fuel mix starts on 19 September 2018, so the national total is only
+// whole from then; the page starts at the next month.
+export const START_MS = Date.UTC(2018, 9, 1);
 
 /** Whether half-year `index` (0 = current) should be fetched again. */
 export function needsFetch(entry, index, nowMs) {
@@ -42,8 +45,9 @@ export function mergeUS(pieces) {
   const merged = addHalves(pieces, MIN_REPORTING);
   if (!merged) return null;
   const end = lastFilled(merged, ['gas', 'coal', 'nuclear']);
-  for (const c of US_COLUMNS) merged.columns[c] = merged.columns[c].subarray(0, end);
-  return { ...merged, length: end };
+  const from = Math.max(0, Math.round((START_MS - merged.startMs) / 3600000));
+  for (const c of US_COLUMNS) merged.columns[c] = merged.columns[c].subarray(from, end);
+  return { ...merged, startMs: merged.startMs + from * 3600000, length: end - from };
 }
 
 /** The largest hour-to-hour changes, for checking the data: lines of text. */
@@ -86,7 +90,7 @@ async function main() {
     if (text) {
       const p = parseHalf(key, text);
       entry = { version: PARSE_VERSION, fetched: new Date().toISOString(), ...p };
-      log(`US: ${key}: ${p.hours} hours from ${p.bas} balancing authorities, fuels ${p.fuels.join(' ')}, in ${((Date.now() - t) / 1000).toFixed(0)} s`);
+      log(`US: ${key}: ${p.hours} hours from ${p.bas} balancing authorities, ${p.spikes} spikes smoothed, fuels ${p.fuels.join(' ')}, in ${((Date.now() - t) / 1000).toFixed(0)} s`);
     } else {
       entry = { version: PARSE_VERSION, fetched: new Date().toISOString(), missing: true };
       log(`US: ${key}: no file`);

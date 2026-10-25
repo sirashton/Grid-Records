@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { halfList, halfInfo, parseUtc, parseHalf, addHalves, splitCsv } from '../pipeline/sources/eia930.mjs';
+import { halfList, halfInfo, parseUtc, parseHalf, addHalves, splitCsv, PARSE_VERSION } from '../pipeline/sources/eia930.mjs';
 import { needsFetch } from '../pipeline/build-us.mjs';
 
 const HEAD = ['Balancing Authority', 'Data Date', 'Hour Number', 'Local Time at End of Hour', 'UTC Time at End of Hour', 'Demand (MW)', 'Net Generation (MW)', 'Total Interchange (MW)', 'Demand (MW) (Adjusted)', 'Net Generation (MW) (Adjusted)', 'Total Interchange (MW) (Adjusted)',
@@ -53,24 +53,42 @@ test('US: sums balancing authorities, splits charging, adds the files across the
   assert.equal(m.dropped, 0);
 });
 
-test('US: drops hours too few balancing authorities reported', () => {
+test('US: drops hours too few balancing authorities reported, by their usual output', () => {
   const jan = Date.UTC(2025, 0, 1);
   const lines = [HEAD.map((h) => `"${h}"`).join(',')];
-  for (let k = 0; k < 4; k++) for (const ba of 'ABCDEFGHIJ') if (!(k === 2 && ba < 'C')) lines.push(row(ba, jan + k * 3600000, { gas: 10 }));
+  // A and B miss eight hours, longer than a gap that gets filled in.
+  for (let k = 0; k < 14; k++) for (const ba of 'ABCDEFGHIJ') if (!(k >= 2 && k < 10 && ba < 'C')) lines.push(row(ba, jan + k * 3600000, { gas: 10 }));
   const m = addHalves([parseHalf('2025H1', lines.join('\n'))]);
   const at = (k) => Math.round((jan + k * 3600000 - m.startMs) / 3600000);
   assert.equal(m.columns.gas[at(1)], 100);
   assert.ok(Number.isNaN(m.columns.gas[at(2)]), 'eight of ten reported');
-  assert.equal(m.dropped, 1);
+  assert.equal(m.dropped, 8);
+});
+
+test('US: fills a short gap and smooths a one-hour spike within a balancing authority', () => {
+  const jan = Date.UTC(2025, 0, 1);
+  const lines = [HEAD.map((h) => `"${h}"`).join(',')];
+  for (let k = 0; k < 60; k++) {
+    if (k === 20 || k === 21) continue; // two hours missing
+    lines.push(row('A', jan + k * 3600000, { gas: k === 40 ? 5000 : 1000 + 10 * k }));
+    lines.push(row('A', jan + k * 3600000, { gas: k === 40 ? 5000 : 1000 + 10 * k })); // repeated row
+  }
+  const p = parseHalf('2025H1', lines.join('\n'));
+  const at = (k) => Math.round((jan + k * 3600000 - p.startMs) / 3600000);
+  assert.equal(p.columns.gas[at(10)], 1100, 'a repeated row replaces, not adds');
+  assert.equal(p.columns.gas[at(20)], 1200, 'gap filled in a straight line');
+  assert.equal(p.columns.gas[at(21)], 1210);
+  assert.equal(p.columns.gas[at(40)], 1400, 'spike takes the mean of its neighbours');
+  assert.equal(p.spikes, 1);
 });
 
 test('US: the current half-year refetches each run, the last one daily', () => {
   const now = Date.UTC(2026, 9, 25, 12);
-  const e = (ago) => ({ version: 3, fetched: new Date(now - ago).toISOString() });
+  const e = (ago) => ({ version: PARSE_VERSION, fetched: new Date(now - ago).toISOString() });
   assert.equal(needsFetch(e(10 * 60000), 0, now), false);
   assert.equal(needsFetch(e(30 * 60000), 0, now), true);
   assert.equal(needsFetch(e(2 * 864e5), 1, now), true);
   assert.equal(needsFetch(e(40 * 864e5), 5, now), false);
   // An entry from an older parser is fetched again, the current half-year too.
-  assert.equal(needsFetch({ ...e(10 * 60000), version: 2 }, 0, now), true);
+  assert.equal(needsFetch({ ...e(10 * 60000), version: PARSE_VERSION - 1 }, 0, now), true);
 });
