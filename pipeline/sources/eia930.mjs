@@ -18,7 +18,7 @@
 // for that half-year rather than set to zero.
 
 export const BASE = 'https://www.eia.gov/electricity/gridmonitor/sixMonthFiles';
-export const PARSE_VERSION = 1;
+export const PARSE_VERSION = 2;
 export const HOUR_MS = 3600000;
 
 // Heading (after "Net Generation (MW) from ") to dataset column. Several
@@ -45,7 +45,14 @@ const FUELS = {
   'Unknown Fuel Sources': 'other',
 };
 export const GEN_COLUMNS = ['coal', 'gas', 'oil', 'nuclear', 'hydro', 'pumped_storage', 'wind', 'solar', 'geothermal', 'battery', 'other'];
-export const US_COLUMNS = [...GEN_COLUMNS, 'imports', 'exports', 'demand'];
+export const US_COLUMNS = [...GEN_COLUMNS, 'pumped_storage_charge', 'battery_charge', 'imports', 'exports', 'demand'];
+// Storage reads negative while charging: that part goes to its own column,
+// worked out balancing authority by balancing authority so one charging
+// battery doesn't cancel another one discharging.
+const CHARGE = { battery: 'battery_charge', pumped_storage: 'pumped_storage_charge' };
+// Solar, wind and other read slightly negative at night (the plants' own
+// use); those are counted as zero.
+const NON_NEGATIVE = new Set(['solar', 'wind', 'other', 'coal', 'gas', 'oil', 'nuclear', 'geothermal']);
 
 /** Half-years from 2018 H2 to the one holding nowMs, newest first: '2026H2', '2026H1', ... */
 export function halfList(nowMs, from = '2018H2') {
@@ -127,6 +134,7 @@ export function parseHalf(key, text) {
   }
   const totals = { gen: pick('Net Generation (MW)'), demand: pick('Demand (MW)'), ti: pick('Total Interchange (MW)') };
   const present = new Set(fuel.map((f) => f.col));
+  for (const [c, charge] of Object.entries(CHARGE)) if (present.has(c)) present.add(charge);
   const columns = Object.fromEntries(US_COLUMNS.map((c) => [c, Array(length).fill(null)]));
   const net = Array(length).fill(null);
   const ti = Array(length).fill(null);
@@ -147,8 +155,14 @@ export function parseHalf(key, text) {
     const x = value(r, totals.ti);
     if (x != null) ti[i] = (ti[i] ?? 0) + x;
     for (const f of fuel) {
-      const v = value(r, f);
-      if (v != null) columns[f.col][i] = (columns[f.col][i] ?? 0) + v;
+      let v = value(r, f);
+      if (v == null) continue;
+      if (v < 0 && CHARGE[f.col]) {
+        columns[CHARGE[f.col]][i] = (columns[CHARGE[f.col]][i] ?? 0) + v;
+        v = 0;
+      }
+      if (v < 0 && NON_NEGATIVE.has(f.col)) v = 0;
+      columns[f.col][i] = (columns[f.col][i] ?? 0) + v;
     }
   }
   // A fuel this file reports reads zero where no balancing authority had any.

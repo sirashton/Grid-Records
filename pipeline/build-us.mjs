@@ -58,6 +58,24 @@ export function mergeUS(pieces) {
   return { ...merged, length: end };
 }
 
+/** The largest hour-to-hour changes, for checking the data: lines of text. */
+export function bigSteps(merged, limit = 25000) {
+  const out = [];
+  for (const c of US_COLUMNS) {
+    const col = merged.columns[c];
+    let prev = NaN;
+    for (let i = 0; i < merged.length; i++) {
+      if (Number.isNaN(col[i])) continue;
+      if (Math.abs(col[i] - prev) > limit && out.length < 40) {
+        const at = new Date(merged.startMs + i * 3600000).toISOString().slice(0, 13);
+        out.push(`step ${c} ${at}Z ${Math.round(prev)} -> ${Math.round(col[i])} (then ${Math.round(col[i + 1])}, ${Math.round(col[i + 2])})`);
+      }
+      prev = col[i];
+    }
+  }
+  return out;
+}
+
 async function main() {
   const started = Date.now();
   const deadline = started + Number(args['budget-minutes']) * 60000;
@@ -97,6 +115,7 @@ async function main() {
     log('US: no data yet, nothing written');
     return;
   }
+  for (const line of bigSteps(merged)) log(`US: ${line}`);
   const have = halves.filter((k) => cached.get(k)?.version === PARSE_VERSION).length;
   const { meta, bytes } = await writeDataset(args.out, {
     region: 'us',
